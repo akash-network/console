@@ -18,6 +18,8 @@ export type TemplateUsageSummary = { deploys: number; lastDeployedAt: Date | nul
 
 export type WatchedTemplate = { templateId: string; currentVersionId: string };
 
+export type VersionedTemplate = { templateId: string; versionNumber: number; isOfficial: boolean; visibility: TemplatesTable["$inferSelect"]["visibility"] };
+
 export const NO_TEMPLATE_USAGE: TemplateUsageSummary = { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0 };
 
 const SUMMARIZED_ACTIONS: TemplateUsageAction[] = ["deploy", "lease_created", "still_running_24h", "fork"];
@@ -52,13 +54,19 @@ export class TemplateUsageEventRepository {
     return recorded.length > 0;
   }
 
-  async findTemplateIdOfVersion(versionId: string): Promise<string | undefined> {
+  async findTemplateOfVersion(versionId: string): Promise<VersionedTemplate | undefined> {
     const [version] = await this.#cursor
-      .select({ templateId: this.templateVersions.templateId })
+      .select({
+        templateId: this.templateVersions.templateId,
+        versionNumber: this.templateVersions.version,
+        isOfficial: this.templates.isOfficial,
+        visibility: this.templates.visibility
+      })
       .from(this.templateVersions)
+      .innerJoin(this.templates, eq(this.templates.id, this.templateVersions.templateId))
       .where(eq(this.templateVersions.id, versionId));
 
-    return version?.templateId;
+    return version;
   }
 
   async findCurrentVersionIdOfTemplate(templateId: string): Promise<string | null> {

@@ -118,17 +118,21 @@ function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposal
   return { role: "tool", tool_call_id: call.id, content };
 }
 
-interface CaseRequest {
-  isFinalRound: boolean;
+interface OfferedTools {
   configureFormOpen: boolean;
+  communityTemplates: boolean;
 }
 
-async function complete(messages: ChatMessage[], { isFinalRound, configureFormOpen }: CaseRequest, metrics: CaseMetrics, startedAt: number) {
+interface CaseRequest extends OfferedTools {
+  isFinalRound: boolean;
+}
+
+async function complete(messages: ChatMessage[], { isFinalRound, ...offeredTools }: CaseRequest, metrics: CaseMetrics, startedAt: number) {
   const completion = await akashMlClient.streamChatCompletion(
     {
       model: config.ASSISTANT_MODEL,
       messages,
-      tools: assistantChatToolsFor({ configureFormOpen, consoleApiCatalog }),
+      tools: assistantChatToolsFor({ ...offeredTools, consoleApiCatalog }),
       tool_choice: isFinalRound ? "none" : "auto",
       max_completion_tokens: maxCompletionTokens,
       reasoning_effort: config.ASSISTANT_REASONING_EFFORT
@@ -150,11 +154,11 @@ async function complete(messages: ChatMessage[], { isFinalRound, configureFormOp
 
 async function answerNow(
   messages: ChatMessage[],
-  configureFormOpen: boolean,
+  offeredTools: OfferedTools,
   metrics: CaseMetrics,
   startedAt: number
 ): Promise<{ text: string; fellBack: boolean }> {
-  const { content } = await complete([...messages, ANSWER_NOW_NOTE], { isFinalRound: true, configureFormOpen }, metrics, startedAt);
+  const { content } = await complete([...messages, ANSWER_NOW_NOTE], { isFinalRound: true, ...offeredTools }, metrics, startedAt);
   return content?.trim() ? { text: content, fellBack: false } : { text: fallbackAnswerOf(messages), fellBack: true };
 }
 
@@ -162,6 +166,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
   const metrics = newMetrics();
   const startedAt = Date.now();
   const configureFormOpen = evalCase.context?.configureFormOpen === true;
+  const offeredTools: OfferedTools = { configureFormOpen, communityTemplates: evalCase.context?.communityTemplates === true };
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -184,11 +189,11 @@ async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
 
   for (let round = 0; ; round++) {
     const isFinalRound = round >= MAX_TOOL_ROUNDS;
-    const completion = await complete(requestMessagesFor(messages, round), { isFinalRound, configureFormOpen }, metrics, startedAt);
+    const completion = await complete(requestMessagesFor(messages, round), { isFinalRound, ...offeredTools }, metrics, startedAt);
     if (completion.content) answer.push(completion.content);
     if (isFinalRound || completion.toolCalls.length === 0) {
       if (!completion.content?.trim()) {
-        const recovered = await answerNow(messages, configureFormOpen, metrics, startedAt);
+        const recovered = await answerNow(messages, offeredTools, metrics, startedAt);
         answer.push(recovered.text);
         fellBack = recovered.fellBack;
       }

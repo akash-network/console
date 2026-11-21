@@ -22,6 +22,7 @@ import {
   seedTemplateDeployers,
   seedTemplateFavorite,
   seedTemplatePublisher,
+  seedTemplateScore,
   seedTemplateVersion
 } from "@test/seeders/db/template.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
@@ -191,7 +192,58 @@ describe("Community templates", () => {
 
       const body = (await (await read("/v1/community-templates")).json()) as GalleryBody;
 
-      expect(body.data.officialUsage[templateRef]).toEqual({ deploys: 3, stillUpAfter24h: null, forks: 0 });
+      expect(body.data.officialUsage[templateRef]).toEqual({
+        deploys: 3,
+        stillUpAfter24h: null,
+        forks: 0,
+        scores: { popular: null, trending: null, isTrending: false }
+      });
+    });
+
+    it("carries the popular and trending scores of Console and awesome-akash templates, and how many trending ones make a row", async () => {
+      const { team, handle, read } = await setup();
+      const { template } = await publish(team.id, { publishedAt: subDays(new Date(), 2) });
+      const { template: unscored } = await publish(team.id, { publishedAt: subDays(new Date(), 1) });
+      const templateRef = `akash-network-awesome-akash-${faker.string.alphanumeric(10)}`;
+      await seedUsage(templateRef, [{ source: "awesome_akash" as const, action: "deploy" as const }]);
+      await seedTemplateScore({ templateRef: template.id, popularScore: 18.25, trendingScore: 0.6, isTrending: true });
+      await seedTemplateScore({ templateRef, source: "awesome_akash", popularScore: 240.5, trendingScore: -0.1, isTrending: false });
+
+      const response = await read("/v1/community-templates");
+      const body = (await response.json()) as GalleryBody;
+
+      expect(response.status).toBe(200);
+      expect(body.data.templates.find(card => card.id === template.id)?.scores).toEqual({ popular: 18.25, trending: 0.6, isTrending: true });
+      expect(body.data.templates.find(card => card.id === unscored.id)?.scores).toEqual({ popular: null, trending: null, isTrending: false });
+      expect(body.data.officialUsage[templateRef].scores).toEqual({ popular: 240.5, trending: -0.1, isTrending: false });
+      expect(body.data.trendingRowMinTemplates).toBe(4);
+      const publisherPage = (await (await read(`/v1/template-publishers/${handle}`)).json()) as PublisherBody;
+      expect(publisherPage.data.templates.map(({ id, scores }) => ({ id, scores }))).toEqual([
+        { id: unscored.id, scores: { popular: null, trending: null, isTrending: false } },
+        { id: template.id, scores: { popular: 18.25, trending: 0.6, isTrending: true } }
+      ]);
+    });
+
+    it("serves no score of a template that is hidden, removed, unlisted or no longer public, wherever it was scored", async () => {
+      const { team, handle, read } = await setup();
+      const unserved = await Promise.all([
+        publish(team.id, { moderationStatus: "hidden" }),
+        publish(team.id, { moderationStatus: "removed" }),
+        publish(team.id, { isListed: false }),
+        publish(team.id, { visibility: "private", isPublic: false }),
+        publish(team.id, { visibility: "organization", isPublic: false })
+      ]);
+      await Promise.all(
+        unserved.map(({ template }) => seedTemplateScore({ templateRef: template.id, popularScore: 98765.4321, trendingScore: 87654.321, isTrending: true }))
+      );
+
+      const [gallery, publisherPage] = await Promise.all([read("/v1/community-templates"), read(`/v1/template-publishers/${handle}`)]);
+      const served = `${await gallery.text()}${await publisherPage.text()}`;
+
+      expect([gallery.status, publisherPage.status]).toEqual([200, 200]);
+      expect(served).not.toContain("98765.4321");
+      expect(served).not.toContain("87654.321");
+      expect(unserved.filter(({ template }) => served.includes(template.id))).toEqual([]);
     });
 
     it("answers a signed-in caller the same list, kept out of shared caches", async () => {
@@ -691,7 +743,11 @@ describe("Community templates", () => {
   });
 
   type GalleryBody = {
-    data: { templates: ({ id: string } & Record<string, unknown>)[]; officialUsage: Record<string, unknown> };
+    data: {
+      templates: ({ id: string } & Record<string, unknown>)[];
+      officialUsage: Record<string, Record<string, unknown>>;
+      trendingRowMinTemplates: number;
+    };
   };
 
   type PublisherBody = { data: { templates: ({ id: string } & Record<string, unknown>)[] } & Record<string, unknown> };

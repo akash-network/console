@@ -23,6 +23,7 @@ import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manag
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
+import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -5651,6 +5652,8 @@ describe(DeploymentWriterService.name, () => {
       mockConfigService<CoreConfigService>({ NETWORK: "mainnet" }),
       txService,
       mock<ExecutionContextService>(),
+      mock<AnalyticsService>(),
+      mock<FeatureFlagsService>(),
       createLogger
     );
     vi.spyOn(templateUsageService, "recordDeployed");

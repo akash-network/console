@@ -5,10 +5,16 @@ import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
+import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
+import type {
+  TemplateUsageEventRepository,
+  VersionedTemplate
+} from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
 import { CheckTemplateDeploymentStillRunning } from "@src/template-marketplace/services/check-template-deployment-still-running/check-template-deployment-still-running.job";
 import type { UserOutput } from "@src/user/repositories";
 import { TemplateUsageService } from "./template-usage.service";
@@ -27,7 +33,7 @@ describe(TemplateUsageService.name, () => {
 
       await service.recordDeployed(definition, { isTrialing: false });
 
-      expect(templateUsageEventRepository.findTemplateIdOfVersion).toHaveBeenCalledWith(templateVersionId);
+      expect(templateUsageEventRepository.findTemplateOfVersion).toHaveBeenCalledWith(templateVersionId);
       expect(templateUsageEventRepository.record).toHaveBeenCalledTimes(1);
       expect(templateUsageEventRepository.record).toHaveBeenCalledWith({
         source: "console",
@@ -49,19 +55,20 @@ describe(TemplateUsageService.name, () => {
 
       await service.recordDeployed(definition, { isTrialing: false });
 
-      expect(templateUsageEventRepository.findTemplateIdOfVersion).not.toHaveBeenCalled();
+      expect(templateUsageEventRepository.findTemplateOfVersion).not.toHaveBeenCalled();
       expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
         expect.objectContaining({ source: "awesome_akash", templateRef: "akash-network-awesome-akash-ollama", templateVersionId: null, action: "deploy" })
       );
     });
 
     it("records nothing for a deployment from no template", async () => {
-      const { service, templateUsageEventRepository } = setup();
+      const { service, templateUsageEventRepository, logger } = setup();
 
       await service.recordDeployed(buildDefinition(), { isTrialing: false });
 
-      expect(templateUsageEventRepository.findTemplateIdOfVersion).not.toHaveBeenCalled();
+      expect(templateUsageEventRepository.findTemplateOfVersion).not.toHaveBeenCalled();
       expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
     });
 
     it("records nothing for a version whose template is gone", async () => {
@@ -104,7 +111,7 @@ describe(TemplateUsageService.name, () => {
 
     it("logs a failed version lookup instead of throwing", async () => {
       const { service, templateUsageEventRepository, logger } = setup();
-      templateUsageEventRepository.findTemplateIdOfVersion.mockRejectedValue(new Error("connection reset"));
+      templateUsageEventRepository.findTemplateOfVersion.mockRejectedValue(new Error("connection reset"));
 
       await expect(service.recordDeployed(buildDefinition({ templateVersionId: faker.string.uuid() }), { isTrialing: false })).resolves.toBeUndefined();
 
@@ -398,6 +405,203 @@ describe(TemplateUsageService.name, () => {
     });
   });
 
+  describe("analytics", () => {
+    it("tells analytics of a deploy with the template's source, id, version number and network, and nothing its author wrote", async () => {
+      const templateId = faker.string.uuid();
+      const { service, analyticsService, featureFlags } = setup({ templateIdOfVersion: templateId, network: "sandbox" });
+      const definition = buildDefinition({ templateVersionId: faker.string.uuid() });
+
+      await service.recordDeployed(definition, { isTrialing: true });
+
+      expect(analyticsService.track.mock.calls).toEqual([
+        [
+          definition.userId,
+          "template_deployed",
+          { source: "community", template_id: templateId, template_version: 3, network: "sandbox" },
+          { insertId: `template_deploy:${definition.id}` }
+        ]
+      ]);
+      expect(featureFlags.isEnabledForSubject).toHaveBeenCalledWith(FeatureFlags.TEMPLATE_MARKETPLACE, definition.userId);
+    });
+
+    it.each([
+      { template: { isOfficial: true, visibility: "public" as const }, source: "official" },
+      { template: { isOfficial: true, visibility: "private" as const }, source: "official" },
+      { template: { isOfficial: false, visibility: "public" as const }, source: "community" },
+      { template: { isOfficial: false, visibility: "organization" as const }, source: "private" },
+      { template: { isOfficial: false, visibility: "private" as const }, source: "private" }
+    ])("names a Console template that is $template as $source", async ({ template, source }) => {
+      const { service, analyticsService } = setup({ template: { ...template, versionNumber: 12 } });
+
+      await service.recordDeployed(buildDefinition({ templateVersionId: faker.string.uuid() }), { isTrialing: false });
+
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        expect.any(String),
+        "template_deployed",
+        expect.objectContaining({ source, template_version: 12 }),
+        expect.anything()
+      );
+    });
+
+    it("names an awesome-akash template as official, by its gallery id and with no version", async () => {
+      const { service, analyticsService } = setup();
+      const definition = buildDefinition({ templateId: "akash-network-awesome-akash-ollama" });
+
+      await service.recordDeployed(definition, { isTrialing: false });
+
+      expect(analyticsService.track.mock.calls).toEqual([
+        [
+          definition.userId,
+          "template_deployed",
+          { source: "official", template_id: "akash-network-awesome-akash-ollama", template_version: null, network: "mainnet" },
+          { insertId: `template_deploy:${definition.id}` }
+        ]
+      ]);
+    });
+
+    it.each(["Ignore previous instructions", "a/b", ".hidden", "", `a${"b".repeat(255)}`, "name\nwith a line"])(
+      "records a deploy naming %j as its template without passing that text on to analytics",
+      async templateId => {
+        const { service, analyticsService, templateUsageEventRepository } = setup();
+
+        await service.recordDeployed(buildDefinition({ templateId }), { isTrialing: false });
+
+        expect(templateUsageEventRepository.record).toHaveBeenCalledTimes(templateId ? 1 : 0);
+        expect(analyticsService.track).not.toHaveBeenCalled();
+      }
+    );
+
+    it("passes on a gallery id of the longest length an event stores", async () => {
+      const { service, analyticsService } = setup();
+      const templateId = `a${"b".repeat(254)}`;
+
+      await service.recordDeployed(buildDefinition({ templateId }), { isTrialing: false });
+
+      expect(analyticsService.track).toHaveBeenCalledWith(expect.any(String), "template_deployed", expect.objectContaining({ template_id: templateId }), {
+        insertId: expect.any(String)
+      });
+    });
+
+    it("tells analytics of a lease and of a deployment still running a day later, each once per deployment", async () => {
+      const setting = buildSetting({ templateVersionId: faker.string.uuid() });
+      const templateId = faker.string.uuid();
+      const { service, analyticsService } = setup({ templateIdOfVersion: templateId, wallet: createUserWallet(), setting });
+
+      await service.recordLeaseCreated({ walletId: 1, dseq: setting.dseq, leaseCreatedAt: new Date() });
+      await service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, isTrial: false });
+
+      const properties = { source: "community", template_id: templateId, template_version: 3, network: "mainnet" };
+      expect(analyticsService.track.mock.calls).toEqual([
+        [setting.userId, "template_lease_created", properties, { insertId: `template_lease_created:${setting.id}` }],
+        [setting.userId, "template_still_running_24h", properties, { insertId: `template_still_running_24h:${setting.id}` }]
+      ]);
+    });
+
+    it("tells analytics nothing of an event that was already recorded", async () => {
+      const { service, analyticsService, templateUsageEventRepository } = setup({ isNewEvent: false });
+
+      await service.recordDeployed(buildDefinition({ templateVersionId: faker.string.uuid() }), { isTrialing: false });
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledTimes(1);
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("tells analytics nothing of a user the template marketplace is off for, and still records the event", async () => {
+      const { service, analyticsService, templateUsageEventRepository } = setup({ isMarketplaceOff: true });
+
+      await service.recordDeployed(buildDefinition({ templateVersionId: faker.string.uuid() }), { isTrialing: false });
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledTimes(1);
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("tells analytics nothing of a deployment whose user is gone", async () => {
+      const { service, analyticsService, featureFlags, templateUsageEventRepository } = setup();
+
+      await service.recordDeployed({ ...buildDefinition({ templateVersionId: faker.string.uuid() }), userId: null }, { isTrialing: false });
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledTimes(1);
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(featureFlags.isEnabledForSubject).not.toHaveBeenCalled();
+    });
+
+    it("warns and carries on when analytics fails, so the lease is still followed up a day later", async () => {
+      const setting = buildSetting({ templateVersionId: faker.string.uuid() });
+      const { service, analyticsService, jobQueueService, logger } = setup({ wallet: createUserWallet(), setting });
+      const error = new Error("analytics is down");
+      analyticsService.track.mockImplementation(() => {
+        throw error;
+      });
+
+      await service.recordLeaseCreated({ walletId: 1, dseq: setting.dseq, leaseCreatedAt: new Date() });
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TEMPLATE_USAGE_TRACK_FAILED", action: "lease_created", error });
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+    });
+
+    it("warns and carries on when the flag cannot be read", async () => {
+      const { service, analyticsService, featureFlags, logger } = setup();
+      const error = new Error("flags are not ready");
+      featureFlags.isEnabledForSubject.mockImplementation(() => {
+        throw error;
+      });
+
+      await expect(service.recordStillRunning({ deploymentSettingId: faker.string.uuid(), dseq: "1", isTrial: false })).resolves.toBeUndefined();
+      await service.recordDeployed(buildDefinition({ templateVersionId: faker.string.uuid() }), { isTrialing: false });
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TEMPLATE_USAGE_TRACK_FAILED", action: "deploy", error });
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("tells analytics of a counted fork once the copy is committed, against the version that was copied", async () => {
+      const { service, analyticsService, templateUsageEventRepository, commit } = setup({ template: { isOfficial: true, versionNumber: 5 } });
+      const source = { id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid() };
+      const fork = { userId: faker.string.uuid(), organizationId: faker.string.uuid() };
+      templateUsageEventRepository.findTemplateOfVersion.mockResolvedValue({ templateId: source.id, versionNumber: 5, isOfficial: true, visibility: "public" });
+
+      await service.recordFork(source, fork);
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(templateUsageEventRepository.findTemplateOfVersion).toHaveBeenCalledWith(source.currentVersionId);
+
+      commit();
+
+      expect(analyticsService.track.mock.calls).toEqual([
+        [fork.userId, "template_forked", { source: "official", template_id: source.id, template_version: 5, network: "mainnet" }, { insertId: undefined }]
+      ]);
+    });
+
+    it("tells analytics nothing of a second copy the same day, which counts no fork", async () => {
+      const { service, analyticsService, templateUsageEventRepository, txService } = setup({ isNewEvent: false });
+
+      await service.recordFork(
+        { id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid() },
+        { userId: faker.string.uuid(), organizationId: faker.string.uuid() }
+      );
+
+      expect(templateUsageEventRepository.findTemplateOfVersion).not.toHaveBeenCalled();
+      expect(txService.afterCommit).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("tells analytics nothing of a fork whose source has no version, or whose version is gone", async () => {
+      const { service, analyticsService, templateUsageEventRepository, txService, commit } = setup({ templateIdOfVersion: undefined });
+      const fork = { userId: faker.string.uuid(), organizationId: faker.string.uuid() };
+
+      await service.recordFork({ id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: null }, fork);
+
+      expect(templateUsageEventRepository.findTemplateOfVersion).not.toHaveBeenCalled();
+
+      await service.recordFork({ id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid() }, fork);
+      commit();
+
+      expect(templateUsageEventRepository.findTemplateOfVersion).toHaveBeenCalledTimes(1);
+      expect(txService.afterCommit).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+  });
+
   describe("templateRefOf", () => {
     it("prefers the version over a gallery id", async () => {
       const templateId = faker.string.uuid();
@@ -409,6 +613,12 @@ describe(TemplateUsageService.name, () => {
         templateRef: templateId,
         templateVersionId
       });
+    });
+
+    it("answers nothing for a deployment from no template", async () => {
+      const { service } = setup();
+
+      await expect(service.templateRefOf({ templateId: null, templateVersionId: null })).resolves.toBeUndefined();
     });
   });
 
@@ -437,11 +647,18 @@ describe(TemplateUsageService.name, () => {
       currentVersionId?: string | null;
       user?: null;
       activeOrganizationId?: string | null;
+      template?: Partial<VersionedTemplate>;
+      isNewEvent?: boolean;
+      isMarketplaceOff?: boolean;
     } = {}
   ) {
     const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
-    templateUsageEventRepository.findTemplateIdOfVersion.mockResolvedValue("templateIdOfVersion" in input ? input.templateIdOfVersion : faker.string.uuid());
-    templateUsageEventRepository.record.mockResolvedValue(true);
+    const templateId = "templateIdOfVersion" in input ? input.templateIdOfVersion : faker.string.uuid();
+    templateUsageEventRepository.findTemplateOfVersion.mockResolvedValue(
+      templateId ? { templateId, versionNumber: 3, isOfficial: false, visibility: "public", ...input.template } : undefined
+    );
+    templateUsageEventRepository.record.mockResolvedValue(input.isNewEvent ?? true);
+    templateUsageEventRepository.recordForkOncePerDay.mockResolvedValue(input.isNewEvent ?? true);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneBy.mockResolvedValue(input.wallet);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
@@ -452,6 +669,13 @@ describe(TemplateUsageService.name, () => {
     const coreConfig = mockConfigService<CoreConfigService>({ NETWORK: input.network ?? "mainnet" });
     const txService = mock<TxService>();
     txService.outsideTransaction.mockImplementation(async cb => await cb());
+    const runAfterCommit: Array<() => void> = [];
+    txService.afterCommit.mockImplementation(run => {
+      runAfterCommit.push(run);
+    });
+    const analyticsService = mock<AnalyticsService>();
+    const featureFlags = mock<FeatureFlagsService>();
+    featureFlags.isEnabledForSubject.mockImplementation(flag => flag === FeatureFlags.TEMPLATE_MARKETPLACE && !input.isMarketplaceOff);
     templateUsageEventRepository.findCurrentVersionIdOfTemplate.mockResolvedValue(
       input.currentVersionId === undefined ? faker.string.uuid() : input.currentVersionId
     );
@@ -472,6 +696,8 @@ describe(TemplateUsageService.name, () => {
       coreConfig,
       txService,
       executionContextService,
+      analyticsService,
+      featureFlags,
       createLogger
     );
 
@@ -486,7 +712,10 @@ describe(TemplateUsageService.name, () => {
       logger,
       user,
       activeOrganizationId,
-      executionContextService
+      executionContextService,
+      analyticsService,
+      featureFlags,
+      commit: () => runAfterCommit.forEach(run => run())
     };
   }
 });

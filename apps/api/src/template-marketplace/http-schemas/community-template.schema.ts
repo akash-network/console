@@ -12,9 +12,13 @@ export const MAX_PUBLISHER_LINK_LABEL_LENGTH = 40;
 
 export const TemplateScoresSchema = z
   .object({
-    popular: z.number().nullable().openapi({ description: "Null until scores are computed" }),
-    trending: z.number().nullable().openapi({ description: "Null until scores are computed" }),
-    isTrending: z.boolean()
+    popular: z.number().nullable().openapi({
+      description: "People whose deployment was still running after a day, weighted toward recent ones; null while nobody counted, which sorts as zero"
+    }),
+    trending: z.number().nullable().openapi({
+      description: "Growth of that count over the last window against the one before, negative when it fell; null while nobody counted"
+    }),
+    isTrending: z.boolean().openapi({ description: "Whether it grew and reached the minimum volume, which is what the trending row lists" })
   })
   .openapi("TemplateScores");
 
@@ -50,8 +54,9 @@ export const ListCommunityTemplatesResponseSchema = z
     data: z.object({
       templates: z.array(CommunityTemplateCardSchema),
       officialUsage: z
-        .record(CommunityTemplateUsageSchema)
-        .openapi({ description: "The same numbers for the awesome-akash templates, by template id; a template nobody deployed is missing" })
+        .record(CommunityTemplateUsageSchema.extend({ scores: TemplateScoresSchema }).openapi("OfficialTemplateUsage"))
+        .openapi({ description: "The same numbers for the awesome-akash templates, by template id; a template nobody deployed is missing" }),
+      trendingRowMinTemplates: z.number().int().positive().openapi({ description: "The fewest trending templates worth a row of their own" })
     })
   })
   .openapi("ListCommunityTemplatesResponse");

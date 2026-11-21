@@ -78,6 +78,8 @@ function availabilityOf(providersAbleToBid: number | null, reason?: string): Sdl
   };
 }
 
+const COMMUNITY_TEMPLATE_ID = "3f2c9a54-7d1e-4b8a-9c61-0e5d2a7b4f10";
+
 describe(AssistantProposalService.name, () => {
   describe("create_deployment", () => {
     it("screens a template's SDL as a trial would and shows how many providers could bid", async () => {
@@ -209,6 +211,27 @@ describe(AssistantProposalService.name, () => {
       expect(pricingOf(action.sdl)).toEqual({ dcloud: { web: DEFAULT_CEILING, db: DEFAULT_CEILING }, backup: { web: DEFAULT_CEILING } });
       expect(bidTools.checkAvailability).toHaveBeenCalledWith(action.sdl, { isTrialing: false });
       expect(action).toMatchObject({ templateId: "hello-world", providersAbleToBid: 4 });
+    });
+
+    it("refuses a marketplace template's id even when an SDL comes with it, before anything is screened", async () => {
+      const { service, accountTools, bidTools } = setup();
+      const refusal = new AssistantToolError("This template only opens in Configure.");
+      accountTools.refuseMarketplaceTemplate.mockImplementation(() => {
+        throw refusal;
+      });
+
+      await expect(propose(service, "create_deployment", { templateId: COMMUNITY_TEMPLATE_ID, sdl: ASSISTANT_TEST_SDL })).rejects.toBe(refusal);
+
+      expect(accountTools.refuseMarketplaceTemplate).toHaveBeenCalledWith(COMMUNITY_TEMPLATE_ID);
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
+    it("asks about no template when only an SDL is given", async () => {
+      const { service, accountTools } = setup();
+
+      await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL });
+
+      expect(accountTools.refuseMarketplaceTemplate).not.toHaveBeenCalled();
     });
 
     it("holds back a generated SDL given with a template without repeating it or treating it as the template's", async () => {
@@ -384,6 +407,52 @@ describe(AssistantProposalService.name, () => {
 
       expect(await propose(service, "open_in_editor", { templateId: "dart", sdl: edited })).toMatchObject({ templateId: "dart", sdl: edited });
       expect(accountTools.templateSdl).toHaveBeenCalledWith("dart");
+    });
+
+    it("says where a suggested template comes from and whether Akash reviewed it, as a link to Configure and nothing more", async () => {
+      const { service, accountTools, bidTools } = setup();
+      accountTools.templateReview.mockResolvedValue({ source: "console", reviewedByAkash: false });
+
+      const action = await propose(service, "open_in_editor", { templateId: COMMUNITY_TEMPLATE_ID });
+
+      expect(action).toEqual({
+        type: "open_in_editor",
+        tier: "deep_link",
+        dseq: null,
+        templateId: COMMUNITY_TEMPLATE_ID,
+        sdl: null,
+        template: { source: "console", reviewedByAkash: false }
+      });
+      expect(accountTools.templateReview).toHaveBeenCalledWith(COMMUNITY_TEMPLATE_ID);
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
+    it("describes no template when it opens none", async () => {
+      const { service, accountTools } = setup();
+
+      const action = await propose(service, "open_in_editor", { sdl: CRAZY_PRICED_SDL });
+
+      expect(action).not.toHaveProperty("template");
+      expect(accountTools.templateReview).not.toHaveBeenCalled();
+    });
+
+    it("refuses a template nothing vouches for before reading anything of it", async () => {
+      const { service, accountTools } = setup();
+      const refusal = new AssistantToolError("No listed template has this id. Call list_templates.");
+      accountTools.templateReview.mockRejectedValue(refusal);
+
+      await expect(propose(service, "open_in_editor", { templateId: COMMUNITY_TEMPLATE_ID, sdl: PLACED_SDL })).rejects.toBe(refusal);
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+    });
+
+    it("refuses an SDL passed off as an edit of a community template, whose own SDL is never handed over", async () => {
+      const { service, accountTools } = setup();
+      const refusal = new AssistantToolError("It only opens in Configure.");
+      accountTools.templateReview.mockResolvedValue({ source: "console", reviewedByAkash: false });
+      accountTools.templateSdl.mockRejectedValue(refusal);
+
+      await expect(propose(service, "open_in_editor", { templateId: COMMUNITY_TEMPLATE_ID, sdl: PLACED_SDL })).rejects.toBe(refusal);
     });
 
     it("opens an edit of a template that renames its placement at the same price", async () => {

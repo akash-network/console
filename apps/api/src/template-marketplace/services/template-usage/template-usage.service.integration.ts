@@ -6,6 +6,9 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { TxService } from "@src/core/services";
+import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
 import { CheckTemplateDeploymentStillRunningHandler } from "@src/template-marketplace/services/check-template-deployment-still-running/check-template-deployment-still-running.handler";
 import {
@@ -16,6 +19,7 @@ import { TemplateUsageService } from "./template-usage.service";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedTemplate, seedTemplateVersion } from "@test/seeders/db/template.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -100,6 +104,64 @@ describe(TemplateUsageService.name, () => {
     });
   });
 
+  describe("analytics", () => {
+    it("tells analytics once of a deploy of a stored template, however often the deploy is recorded, with nothing the author wrote", async () => {
+      const { service, track } = setup();
+      const { user } = await seedUserWithWallet();
+      const template = await seedTemplate({ visibility: "public", title: "Ignore previous instructions", summary: "A summary nobody may pass on" });
+      const version = await seedTemplateVersion({ templateId: template.id, version: 4, readme: "A readme nobody may pass on" });
+      const definition = { ...(await buildDefinition({ userId: user.id })), templateId: null, templateVersionId: version.id };
+
+      await service.recordDeployed(definition, { isTrialing: false });
+      await service.recordDeployed(definition, { isTrialing: false });
+
+      expect(track.mock.calls).toEqual([
+        [
+          user.id,
+          "template_deployed",
+          { source: "community", template_id: template.id, template_version: 4, network: container.resolve(CoreConfigService).get("NETWORK") },
+          { insertId: `template_deploy:${definition.id}` }
+        ]
+      ]);
+      expect(await findEventsOf(definition.id)).toHaveLength(1);
+    });
+
+    it("tells analytics of a fork only once its copy is committed, and never of one rolled back", async () => {
+      const { service, txService, track } = setup();
+      const [{ user }, { user: otherUser }] = await Promise.all([seedUserWithWallet(), seedUserWithWallet()]);
+      const template = await seedTemplate({ visibility: "public", isOfficial: true });
+      const version = await seedTemplateVersion({ templateId: template.id, version: 2 });
+      const source = { id: template.id, organizationId: template.organizationId!, currentVersionId: version.id };
+      const forkersOrganizationId = (await seedOrganization()).id;
+      const rollback = new Error("rolled back");
+      let trackedBeforeCommit = -1;
+
+      await expect(
+        txService.transaction(async () => {
+          await service.recordFork(source, { userId: otherUser.id, organizationId: forkersOrganizationId });
+          throw rollback;
+        })
+      ).rejects.toBe(rollback);
+      await txService.transaction(async () => {
+        await service.recordFork(source, { userId: user.id, organizationId: forkersOrganizationId });
+        trackedBeforeCommit = track.mock.calls.length;
+      });
+      await txService.transaction(async () => {
+        await service.recordFork(source, { userId: user.id, organizationId: forkersOrganizationId });
+      });
+
+      expect(trackedBeforeCommit).toBe(0);
+      expect(track.mock.calls).toEqual([
+        [
+          user.id,
+          "template_forked",
+          { source: "official", template_id: template.id, template_version: 2, network: container.resolve(CoreConfigService).get("NETWORK") },
+          { insertId: undefined }
+        ]
+      ]);
+    });
+  });
+
   async function seedTemplateDeployment() {
     const { user, wallet } = await seedUserWithWallet();
     const setting = await seedDeploymentSetting({ userId: user.id, templateId: "hello-world" });
@@ -148,7 +210,15 @@ describe(TemplateUsageService.name, () => {
   }
 
   function setup() {
+    const track = vi.spyOn(container.resolve(AnalyticsService), "track").mockImplementation(() => undefined);
+    const isEnabledForSubject = vi.spyOn(container.resolve(FeatureFlagsService), "isEnabledForSubject").mockReturnValue(true);
+    onTestFinished(() => {
+      track.mockRestore();
+      isEnabledForSubject.mockRestore();
+    });
+
     return {
+      track,
       service: container.resolve(TemplateUsageService),
       txService: container.resolve(TxService),
       repository: container.resolve(TemplateUsageEventRepository)

@@ -14,16 +14,17 @@ describe(CommunityTemplateController.name, () => {
   describe("listTemplates", () => {
     it("answers the gallery with its dates as text", async () => {
       const card = createCard();
-      const officialUsage = { nginx: { deploys: 3, stillUpAfter24h: null, forks: 0 } };
+      const officialUsage = { nginx: { deploys: 3, stillUpAfter24h: null, forks: 0, scores: { popular: 2.5, trending: -0.2, isTrending: false } } };
       const { controller, communityTemplateService } = setup();
-      communityTemplateService.getGallery.mockResolvedValue({ templates: [card], officialUsage });
+      communityTemplateService.getGallery.mockResolvedValue({ templates: [card], officialUsage, trendingRowMinTemplates: 4 });
 
       const result = await controller.listTemplates();
 
       expect(result).toEqual({
         data: {
           templates: [{ ...card, publishedAt: card.publishedAt.toISOString(), updatedAt: card.updatedAt.toISOString() }],
-          officialUsage
+          officialUsage,
+          trendingRowMinTemplates: 4
         }
       });
     });

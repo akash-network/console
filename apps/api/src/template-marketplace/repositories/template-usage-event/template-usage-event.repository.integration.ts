@@ -78,12 +78,29 @@ describe(TemplateUsageEventRepository.name, () => {
     });
   });
 
-  describe("findTemplateIdOfVersion", () => {
-    it("finds the template a version belongs to", async () => {
+  describe("findTemplateOfVersion", () => {
+    it("finds the template a version belongs to, with the version's number and how the template is shared", async () => {
       const { repository } = setup();
       const { template, version } = await seedTemplateWithVersion();
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      await db
+        .update(resolveTable("TemplateVersions"))
+        .set({ version: 7 })
+        .where(eq(resolveTable("TemplateVersions").id, version.id));
 
-      expect(await repository.findTemplateIdOfVersion(version.id)).toBe(template.id);
+      expect(await repository.findTemplateOfVersion(version.id)).toEqual({
+        templateId: template.id,
+        versionNumber: 7,
+        isOfficial: false,
+        visibility: template.visibility
+      });
+
+      await db
+        .update(resolveTable("Templates"))
+        .set({ isOfficial: true, visibility: "public" })
+        .where(eq(resolveTable("Templates").id, template.id));
+
+      expect(await repository.findTemplateOfVersion(version.id)).toEqual({ templateId: template.id, versionNumber: 7, isOfficial: true, visibility: "public" });
     });
 
     it("finds nothing once the template is deleted", async () => {
@@ -92,7 +109,7 @@ describe(TemplateUsageEventRepository.name, () => {
 
       await deleteTemplate(template.id);
 
-      expect(await repository.findTemplateIdOfVersion(version.id)).toBeUndefined();
+      expect(await repository.findTemplateOfVersion(version.id)).toBeUndefined();
     });
   });
 
