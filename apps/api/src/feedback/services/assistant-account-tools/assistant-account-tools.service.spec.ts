@@ -341,6 +341,16 @@ describe(AssistantAccountToolsService.name, () => {
         expect(templates.map(({ id }) => id)).toEqual(cards.slice(0, 10).map(({ id }) => id));
       });
 
+      it("lists a gallery template once when the marketplace holds its imported copy", async () => {
+        const imported = createCard({ title: "Dart", isOfficial: true, importedRef: "akash-network-awesome-akash-dart" });
+        const promoted = createCard({ title: "Dart API starter", isOfficial: true });
+        const { service } = setup({ isMarketplaceOn: true, cards: [imported, promoted] });
+
+        const { templates } = await service.listTemplates({ query: "dart", includeCommunity: true });
+
+        expect(templates.map(({ id }) => id)).toEqual(["akash-network-awesome-akash-dart", promoted.id]);
+      });
+
       it("reads the marketplace again once its gallery is rebuilt", async () => {
         const { service, communityTemplateService } = setup({ isMarketplaceOn: true, cards: [createCard({ title: "Rooms" })] });
         const first = await service.listTemplates({ query: "rooms", includeCommunity: true });
