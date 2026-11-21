@@ -7,6 +7,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import { SDL_GPU_ATTRIBUTE_VALUE } from "@src/deployment/services/gpu-bids-creator/gpu-check-sdl";
 import type { JoinGpuWaitlistRequest } from "@src/gpu-waitlist/http-schemas/gpu-waitlist.schema";
 import { toPoolKey } from "@src/gpu-waitlist/lib/gpu-pool-key/gpu-pool-key";
+import { toGpuSetupInterface } from "@src/gpu-waitlist/lib/pool-supply/pool-supply";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
 import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import { AskStillWanted } from "@src/gpu-waitlist/services/still-wanted/ask-still-wanted.job";
@@ -40,6 +41,10 @@ function normaliseSetup(request: JoinGpuWaitlistRequest["data"]): JoinGpuWaitlis
 
   if (!SDL_GPU_ATTRIBUTE_VALUE.test(model)) {
     throw createError(400, "GPU model can only hold letters, digits, dots, dashes and underscores", { errorCode: "gpu_waitlist_invalid_model" });
+  }
+
+  if (request.interface && !toGpuSetupInterface(request.interface)) {
+    throw createError(400, "GPU interface must name the PCIe or SXM family, such as sxm5", { errorCode: "gpu_waitlist_invalid_interface" });
   }
 
   return { ...request, model, memory: request.memory && normaliseMemory(request.memory), interface: request.interface?.toLowerCase() };
