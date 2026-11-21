@@ -3,7 +3,7 @@ import { formatCount, pluralize } from "@src/components/templates/communityGalle
 import type { MarketplaceTemplate, TemplatePublisherPage } from "@src/types/marketplace-template";
 import { initialsOf } from "@src/utils/initials";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { toRenderableText } from "./preview-image-text";
+import { isRenderableCharacter, toRenderableText } from "./preview-image-text";
 
 export interface TemplatePreviewContent {
   kind: "template";
@@ -67,7 +67,12 @@ export function toPublisherPreviewContent(publisher: TemplatePublisherPage): Pub
 
 function describePublisher(publisherName: string) {
   const name = toRenderableText(publisherName, MAX_PUBLISHER_NAME_LENGTH) || UNNAMED_PUBLISHER_NAME;
-  return { name, initials: initialsOf(name) };
+  return { name, initials: renderableInitialsOf(name) };
+}
+
+/** An initial is capitalized after the name was checked, and the capital of a character the shipped fonts cover is not always one they cover. */
+function renderableInitialsOf(name: string): string {
+  return [...initialsOf(name)].filter(isRenderableCharacter).join("") || initialsOf(UNNAMED_PUBLISHER_NAME);
 }
 
 type TemplateResources = NonNullable<MarketplaceTemplate["currentVersion"]>["resources"];

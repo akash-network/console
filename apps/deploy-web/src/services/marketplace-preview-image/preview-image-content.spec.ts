@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMUNITY_TRUST_LABEL, isListedInGallery, OFFICIAL_TRUST_LABEL, toPublisherPreviewContent, toTemplatePreviewContent } from "./preview-image-content";
+import { isRenderableCharacter, listRenderableCharacters } from "./preview-image-text";
 
 import { buildTemplatePublisherPage } from "@tests/seeders/templatePublisher";
 import { buildMarketplaceTemplate, buildTemplateVersion } from "@tests/seeders/userTemplate";
@@ -173,5 +174,22 @@ describe(toPublisherPreviewContent.name, () => {
       initials: "CP",
       isVerified: false
     });
+  });
+
+  it("leaves out an initial whose capital the shipped fonts do not cover, and keeps the name", () => {
+    expect(toPublisherPreviewContent(buildTemplatePublisherPage({ name: "ѝ publisher" }))).toMatchObject({ name: "ѝ publisher", initials: "P" });
+    expect(toPublisherPreviewContent(buildTemplatePublisherPage({ name: "µ ѝ" }))).toMatchObject({ name: "µ ѝ", initials: "CP" });
+  });
+
+  it("keeps both letters of an initial that capitalizes to two", () => {
+    expect(toPublisherPreviewContent(buildTemplatePublisherPage({ name: "ßeta labs" })).initials).toBe("SSL");
+  });
+
+  it("draws only initials the shipped fonts cover, whatever character a name starts with", () => {
+    const undrawable = listRenderableCharacters()
+      .map(character => toPublisherPreviewContent(buildTemplatePublisherPage({ name: `${character}x ${character}y` })).initials)
+      .filter(initials => initials === "" || ![...initials].every(isRenderableCharacter));
+
+    expect(undrawable).toEqual([]);
   });
 });
