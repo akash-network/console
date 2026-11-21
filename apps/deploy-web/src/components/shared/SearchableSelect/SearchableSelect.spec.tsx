@@ -198,6 +198,37 @@ describe("SearchableSelect", () => {
       expect(onChange).not.toHaveBeenCalled();
     });
 
+    it.each(["{ArrowDown}", "{ArrowUp}", "{End}", "{Home}", "{Control>}n{/Control}"])(
+      "keeps %s on the unavailable action from moving the highlighted option",
+      async key => {
+        const { user } = setup({
+          unavailableOptions: [{ value: "as-east", label: "as-east" }],
+          renderUnavailableAction: option => <button type="button">Notify {option.value}</button>
+        });
+        await user.click(screen.getByRole("combobox", { name: "Region" }));
+        await user.type(await screen.findByRole("combobox", { name: "Search regions" }), "{ArrowDown}");
+        const highlighted = screen.getAllByRole("option").find(option => option.getAttribute("aria-selected") === "true");
+
+        screen.getByRole("button", { name: "Notify as-east" }).focus();
+        await user.keyboard(key);
+
+        expect(highlighted).toHaveAttribute("aria-selected", "true");
+      }
+    );
+
+    it("closes on Escape while the unavailable action has focus", async () => {
+      const { user, onOpenChange } = setup({
+        unavailableOptions: [{ value: "as-east", label: "as-east" }],
+        renderUnavailableAction: option => <button type="button">Notify {option.value}</button>
+      });
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+      screen.getByRole("button", { name: "Notify as-east" }).focus();
+      await user.keyboard("{Escape}");
+
+      expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    });
+
     it("lists them after the other options under an Unavailable heading", async () => {
       const { user } = setup({ unavailableOptions: [{ value: "as-east", label: "as-east" }] });
 
