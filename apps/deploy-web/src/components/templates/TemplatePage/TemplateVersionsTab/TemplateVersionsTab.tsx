@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
-import { CircleX } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { CircleX, Clock } from "lucide-react";
 
 import { failedPublishChecksOf, publishCheckLabelOf } from "@src/components/templates/publishing/publishReadiness";
 import { useTemplateVersion } from "@src/queries/useUserTemplateQueries";
@@ -66,48 +67,73 @@ export const TemplateVersionsTab: FC<TemplateVersionsTabProps> = ({
   canEdit,
   onView,
   dependencies: d = DEPENDENCIES
-}) => (
-  <div className={cn("grid items-start gap-5", canEdit && "lg:grid-cols-[minmax(0,1fr)_340px]")}>
-    <div className="flex min-w-0 flex-col gap-4">
-      <div>
-        <h2 className="text-base font-semibold">Version history</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">Published versions never change. Deployments and forks stay on the version they started from.</p>
-        <p className="text-[13px] text-muted-foreground">
-          New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass.
-        </p>
+}) => {
+  const versionAwaitingReview = newestHeldVersionOf(versions, currentVersion);
+
+  return (
+    <div className={cn("grid items-start gap-5", canEdit && "lg:grid-cols-[minmax(0,1fr)_340px]")}>
+      <div className="flex min-w-0 flex-col gap-4">
+        {versionAwaitingReview !== undefined && (
+          <p
+            role="status"
+            className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          >
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              <span className="font-semibold">v{versionAwaitingReview} is waiting for Akash staff review.</span>{" "}
+              {currentVersion === undefined ? "Nobody deploys it until then." : `v${currentVersion} stays the current version until then.`} You get an email and
+              a notice in Console when it is decided.
+            </span>
+          </p>
+        )}
+        <div>
+          <h2 className="text-base font-semibold">Version history</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Published versions never change. Deployments and forks stay on the version they started from.
+          </p>
+          <p className="text-[13px] text-muted-foreground">
+            New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass, and a risky change
+            to a popular or Official template waits for staff review first.
+          </p>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Version</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created by</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Changes</TableHead>
+                <TableHead className="text-right">Deploys</TableHead>
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {versions.map(version => (
+                <VersionRow
+                  key={version.version}
+                  version={version}
+                  isCurrent={version.version === currentVersion}
+                  isShown={version.version === shownVersion}
+                  onView={() => onView(version.version)}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Version</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created by</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Changes</TableHead>
-              <TableHead className="text-right">Deploys</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {versions.map(version => (
-              <VersionRow
-                key={version.version}
-                version={version}
-                isCurrent={version.version === currentVersion}
-                isShown={version.version === shownVersion}
-                onView={() => onView(version.version)}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {canEdit && shownVersion !== undefined && <WhatChangedPanel dependencies={d} templateId={templateId} version={shownVersion} />}
     </div>
-    {canEdit && shownVersion !== undefined && <WhatChangedPanel dependencies={d} templateId={templateId} version={shownVersion} />}
-  </div>
-);
+  );
+};
+
+function newestHeldVersionOf(versions: TemplateVersionSummary[], currentVersion: number | undefined): number | undefined {
+  const waiting = versions.filter(version => version.status === "held" && version.version > (currentVersion ?? 0)).map(version => version.version);
+  return waiting.length > 0 ? Math.max(...waiting) : undefined;
+}
 
 const VersionRow: FC<{ version: TemplateVersionSummary; isCurrent: boolean; isShown: boolean; onView: () => void }> = ({
   version,
@@ -117,6 +143,8 @@ const VersionRow: FC<{ version: TemplateVersionSummary; isCurrent: boolean; isSh
 }) => {
   const status = STATUSES[version.status];
   const failureReasons = version.status === "failed_checks" ? failureReasonsOf(version) : [];
+  const holdReasons = version.status === "held" ? (version.holdReasons ?? []).map(reason => reason.message) : [];
+  const review = reviewOf(version);
 
   return (
     <TableRow aria-current={isShown || undefined}>
@@ -129,15 +157,17 @@ const VersionRow: FC<{ version: TemplateVersionSummary; isCurrent: boolean; isSh
           </span>
           {isCurrent && <span className={CHIP_CLASSES}>Current</span>}
         </div>
-        {failureReasons.length > 0 && (
-          <ul aria-label={`Why v${version.version} failed`} className="mt-1.5 flex max-w-[320px] flex-col gap-1">
-            {failureReasons.map((reason, index) => (
-              <li key={index} className="flex items-start gap-1.5 break-words text-[12.5px] text-red-600 dark:text-red-500">
-                <CircleX className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="min-w-0">{reason}</span>
-              </li>
-            ))}
-          </ul>
+        <ReasonList label={`Why v${version.version} failed`} reasons={failureReasons} icon={CircleX} className="text-red-600 dark:text-red-500" />
+        <ReasonList label={`Why v${version.version} waits for review`} reasons={holdReasons} icon={Clock} className="text-amber-700 dark:text-amber-500" />
+        {review && (
+          <div className="mt-1.5 max-w-[320px] text-[12.5px]">
+            {review.outcome && <p className="text-muted-foreground">{review.outcome}</p>}
+            {review.note && (
+              <p aria-label={`Staff note on v${version.version}`} className="mt-1 whitespace-pre-line break-words">
+                {review.note}
+              </p>
+            )}
+          </div>
         )}
       </TableCell>
       <TableCell className="text-[13px]">{version.createdBy?.username ?? EMPTY_CELL}</TableCell>
@@ -154,6 +184,34 @@ const VersionRow: FC<{ version: TemplateVersionSummary; isCurrent: boolean; isSh
     </TableRow>
   );
 };
+
+const ReasonList: FC<{ label: string; reasons: string[]; icon: LucideIcon; className: string }> = ({ label, reasons, icon: Icon, className }) =>
+  reasons.length > 0 ? (
+    <ul aria-label={label} className="mt-1.5 flex max-w-[320px] flex-col gap-1">
+      {reasons.map((reason, index) => (
+        <li key={index} className={cn("flex items-start gap-1.5 break-words text-[12.5px]", className)}>
+          <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0">{reason}</span>
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
+const REVIEW_OUTCOMES: Partial<Record<TemplateVersionSummary["status"], (reviewedOn: string | undefined) => string | undefined>> = {
+  live: reviewedOn => (reviewedOn ? `Approved by Akash staff on ${reviewedOn}` : "Approved by Akash staff"),
+  rejected: reviewedOn => reviewedOn && `Reviewed on ${reviewedOn}`
+};
+
+/** Staff review only versions that were held, so a version nobody reviewed says nothing about one; a rejected row already says who rejected it. */
+function reviewOf(version: TemplateVersionSummary): { outcome: string | undefined; note: string | null } | undefined {
+  const describeOutcome = REVIEW_OUTCOMES[version.status];
+  if (!describeOutcome || (!version.reviewedAt && !version.reviewNote)) return undefined;
+
+  return {
+    outcome: describeOutcome(version.reviewedAt ? format(new Date(version.reviewedAt), "MMM d, yyyy") : undefined),
+    note: version.reviewNote?.trim() || null
+  };
+}
 
 function failureReasonsOf(version: TemplateVersionSummary): string[] {
   return failedPublishChecksOf(version.checkResults?.checks ?? []).flatMap(check =>

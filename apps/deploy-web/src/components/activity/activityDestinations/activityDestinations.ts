@@ -52,8 +52,7 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
   },
   gpu_request_update: ({ meta: { hardwareRequestId } }) =>
     hardwareRequestId ? { href: UrlService.gpuRequest(hardwareRequestId), label: "View request" } : DEPLOYMENT_LIST,
-  template_update: ({ meta: { templateId } }) =>
-    templateId ? { href: UrlService.template(templateId), label: "View template" } : { href: UrlService.myTemplates(), label: "View templates" },
+  template_update: templateNoticeDestinationOf,
   deployment_rename: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
   lease_create: ({ status, meta: { dseq, error } }) => {
     if (!dseq) return DEPLOYMENT_LIST;
@@ -70,6 +69,16 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
 
 /** A summary of several deployments, such as a bulk close, leads to the list they all show in. */
 export const SUMMARY_DESTINATION = DEPLOYMENT_LIST;
+
+/** A template notice carries only its headline, and the ones about a version all start with the version, which is where the Versions tab shows the reasons and the staff note. */
+const VERSION_NOTICE_HEADLINE = /^Version \d+ of /;
+
+function templateNoticeDestinationOf({ meta: { templateId, summary } }: Activity): ActivityDestination {
+  if (!templateId) return { href: UrlService.myTemplates(), label: "View templates" };
+  if (summary && VERSION_NOTICE_HEADLINE.test(summary)) return { href: `${UrlService.template(templateId)}?tab=versions`, label: "View versions" };
+
+  return { href: UrlService.template(templateId), label: "View template" };
+}
 
 export function activityDestinationOf(activity: Activity): ActivityDestination {
   return DESTINATIONS[activity.type](activity);

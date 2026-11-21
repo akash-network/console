@@ -2,19 +2,28 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
+import { isClientError, SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import type { MarketplaceTemplate } from "@src/types/marketplace-template";
+
+/** A template link outlives its template, and the page answers a deleted, removed or private one itself. */
+const SKIP_REPORTING_UNREADABLE_TEMPLATE = { skipErrorReporting: isClientError };
 
 export function useMarketplaceTemplate(id: string | undefined) {
   const { api } = useServices();
 
-  return api.v1.getUserTemplate.useQuery({ id: id ?? "" }, { enabled: !!id, select: (response): MarketplaceTemplate => response.data });
+  return api.v1.getUserTemplate.useQuery(
+    { id: id ?? "" },
+    { enabled: !!id, meta: SKIP_REPORTING_UNREADABLE_TEMPLATE, select: (response): MarketplaceTemplate => response.data }
+  );
 }
 
 export function useTemplateVersions(id: string | undefined, { enabled }: { enabled: boolean }) {
   const { api } = useServices();
 
-  return api.v1.listUserTemplateVersions.useQuery({ id: id ?? "" }, { enabled: enabled && !!id, select: response => response.data });
+  return api.v1.listUserTemplateVersions.useQuery(
+    { id: id ?? "" },
+    { enabled: enabled && !!id, meta: SKIP_REPORTING_UNREADABLE_TEMPLATE, select: response => response.data }
+  );
 }
 
 export function useTemplateVersion(id: string | undefined, version: number | undefined) {
@@ -22,7 +31,7 @@ export function useTemplateVersion(id: string | undefined, version: number | und
 
   return api.v1.getUserTemplateVersion.useQuery(
     { id: id ?? "", version: version ?? 0 },
-    { enabled: !!id && version !== undefined, select: response => response.data }
+    { enabled: !!id && version !== undefined, meta: SKIP_REPORTING_UNREADABLE_TEMPLATE, select: response => response.data }
   );
 }
 
@@ -115,4 +124,10 @@ export function usePublishTemplateMutation() {
       ]);
     }
   });
+}
+
+export function useReportTemplateMutation() {
+  const { api } = useServices();
+
+  return api.v1.createUserTemplateReport.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
 }

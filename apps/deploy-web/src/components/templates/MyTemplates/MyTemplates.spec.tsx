@@ -146,6 +146,31 @@ describe(MyTemplates.name, () => {
     expect(within(rowOf(failed)).getByText("v2 failed checks")).toHaveClass("text-red-600");
   });
 
+  it("flags a newest version that waits for review, linking to the versions of the template", () => {
+    const held = buildUserTemplateListItem({
+      id: "tpl-held",
+      title: "ComfyUI + Flux.1 dev",
+      visibility: "public",
+      isListed: true,
+      currentVersion: { version: 4, status: "live", createdAt: "2026-11-01T12:00:00.000Z" },
+      latestVersion: { version: 5, status: "held" }
+    });
+    setup({ templates: [held] });
+
+    expect(cellTexts(rowOf(held))[2]).toBe("In galleryv5 held for review");
+    expect(cellTexts(rowOf(held))[3]).toBe("v4");
+    expect(within(rowOf(held)).getByRole("link", { name: "v5 held for review" })).toHaveAttribute("href", "/template/tpl-held?tab=versions");
+  });
+
+  it("tells a public template that was taken out of the gallery from one that was never listed", () => {
+    const takenOut = buildUserTemplateListItem({ title: "Taken out", visibility: "public", isListed: false, publishedAt: "2026-11-02T10:00:00.000Z" });
+    const neverListed = buildUserTemplateListItem({ title: "Never listed", visibility: "public", isListed: false, publishedAt: null });
+    setup({ templates: [takenOut, neverListed] });
+
+    expect(cellTexts(rowOf(takenOut))[2]).toBe("Not in galleryIt was taken out of the gallery. Share to list it.");
+    expect(cellTexts(rowOf(neverListed))[2]).toBe("Not in galleryIt went public before publish checks existed. Share to list it.");
+  });
+
   it("opens the share dialog from the actions of a template the user may change, and closes it", async () => {
     const { ShareTemplateDialog } = setup({});
 
@@ -277,6 +302,48 @@ describe(MyTemplates.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deleted Batch embeddings worker" }) }), {
       variant: "success"
     });
+  });
+
+  it("warns that a never-public template is deleted for the organization", async () => {
+    const { confirm } = setup({});
+
+    await openMenuOf(BATCH);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
+
+    expect(confirm).toHaveBeenCalledWith({
+      title: "Delete Batch embeddings worker?",
+      message: "The template and all its versions are deleted for everyone in the organization. Deployments made from it keep running."
+    });
+  });
+
+  it("says what deleting a template that was public once does to its gallery entry and its link", async () => {
+    const oncePublic = buildUserTemplateListItem({ title: "Postgres 16", visibility: "private", publishedAt: "2026-11-02T10:00:00.000Z" });
+    const { confirm } = setup({ templates: [oncePublic] });
+
+    await openMenuOf(oncePublic);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
+
+    expect(confirm).toHaveBeenCalledWith({
+      title: "Delete Postgres 16?",
+      message:
+        "The template and all its versions are deleted. It leaves the gallery, and anyone who opens its link is told it was removed. Deployments made from it keep running. This can't be undone."
+    });
+  });
+
+  it("drops the row of a template someone else already removed, without calling it a failure", async () => {
+    const { enqueueSnackbar } = setup({
+      deleteError: new ApiError(410, { code: "template_removed", message: "This template was removed", data: { title: BATCH.title } }, "410")
+    });
+
+    await openMenuOf(BATCH);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
+
+    expect(screen.queryByRole("row", { name: new RegExp(BATCH.title) })).not.toBeInTheDocument();
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Batch embeddings worker was already removed", iconVariant: "info" }) }),
+      { variant: "info" }
+    );
   });
 
   it("keeps the template when the delete is not confirmed", async () => {

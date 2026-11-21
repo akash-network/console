@@ -52,10 +52,29 @@ describe(PublishChecksList.name, () => {
   });
 
   it("names a check this build does not know", () => {
-    setup({ checks: [{ key: "text_within_limits", status: "failed", issues: [{ message: "The summary is too long." }] }] });
+    setup({ checks: [{ key: "ports_reviewed", status: "failed", issues: [{ message: "Port 22 is open to the internet." }] }] });
 
-    expect(screen.getByText("Text within limits")).toBeInTheDocument();
-    expect(screen.getByText("The summary is too long.")).toBeInTheDocument();
+    expect(screen.getByText("Ports reviewed")).toBeInTheDocument();
+    expect(screen.getByText("Port 22 is open to the internet.")).toBeInTheDocument();
+  });
+
+  it("names the text limits check and offers a fix for each field over its limit", () => {
+    setup({
+      checks: [
+        {
+          key: "text_within_limits",
+          status: "failed",
+          issues: [
+            { message: "The summary is 230 characters long, and a public template allows 200.", field: "summary" },
+            { message: "The title is 81 characters long, and a public template allows 80.", field: "title" }
+          ]
+        }
+      ],
+      hasFixes: true
+    });
+
+    expect(screen.getByText("Title, summary and README within their length limits")).toBeInTheDocument();
+    expect(screen.getAllByRole("button").map(button => button.textContent)).toEqual(["Fix: rename", "Fix: edit-summary"]);
   });
 
   it("shows text written by the publisher as inert text", () => {

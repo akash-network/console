@@ -30,10 +30,8 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useRunWhenEmailVerified } from "@src/hooks/useEmailVerificationRequiredEventHandler";
 import { usePublishTemplateMutation, useTemplatePublishReadiness, useUpdateTemplateSettingsMutation } from "@src/queries/useUserTemplateQueries";
 import type { MarketplaceTemplate, TemplateVisibility } from "@src/types/marketplace-template";
-import { UrlService } from "@src/utils/urlUtils";
 import type { PublishOrganization } from "../publishReadiness";
-import { countPublishBlockers } from "../publishReadiness";
-import type { PublishFixLinks } from "../PublishReadinessPanel/PublishReadinessPanel";
+import { countPublishBlockers, publishFixLinksOf } from "../publishReadiness";
 import { PublishReadinessPanel } from "../PublishReadinessPanel/PublishReadinessPanel";
 import type { PublishRefusal } from "../readPublishRefusal";
 import { readPublishRefusal } from "../readPublishRefusal";
@@ -102,12 +100,7 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
   const pendingVisibility = selected !== "public" && selected !== sharing.visibility ? selected : undefined;
   const isBusy = isPublishing || isChangingVisibility;
   const supportUrl = publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL || `mailto:${SUPPORT_EMAIL}`;
-  const fixLinks: PublishFixLinks = {
-    rename: `${UrlService.template(template.id)}?tab=settings`,
-    "rename-organization": organization?.type === "team" ? UrlService.organizationSettings() : undefined,
-    "edit-configuration": UrlService.configureTemplate({ mode: "edit", userTemplateId: template.id, baseVersion: template.currentVersion?.version }),
-    "edit-readme": `${UrlService.template(template.id)}?tab=readme`
-  };
+  const fixLinks = publishFixLinksOf(template, organization);
 
   const runChecksAgain = () => void readinessQuery.refetch();
 

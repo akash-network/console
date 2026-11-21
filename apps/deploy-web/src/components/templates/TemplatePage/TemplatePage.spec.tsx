@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { MarketplaceTemplate, TemplateVersionSummary } from "@src/types/marketplace-template";
+import type { OrganizationOutput } from "@src/types/organization";
 import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, TemplatePage } from "./TemplatePage";
 
@@ -380,6 +381,115 @@ describe(TemplatePage.name, () => {
     expect(Layout).not.toHaveBeenCalled();
   });
 
+  describe("when the template was removed", () => {
+    it.each(["readme", "configuration", "versions", "settings"])("says so with its title on the %s tab instead of an error", tab => {
+      const { RemovedTemplateNotice, NotFoundPage, NextSeo, useTemplateVersions } = setup({ tab, error: removedError("Open WebUI + vLLM") });
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: true }, expect.anything());
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ title: "Template removed", noindex: true }), expect.anything());
+      expect(NotFoundPage).not.toHaveBeenCalled();
+      expect(screen.queryByText("Couldn't load this template.")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Deploy" })).not.toBeInTheDocument();
+      expect(useTemplateVersions).toHaveBeenLastCalledWith(TEMPLATE_ID, { enabled: false });
+    });
+
+    it("tells the notice when the visitor is signed out", () => {
+      const { RemovedTemplateNotice } = setup({ error: removedError("Open WebUI + vLLM"), isSignedIn: false });
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: false }, expect.anything());
+    });
+
+    it("keeps a 410 that is not a removal on the retry state", () => {
+      const { RemovedTemplateNotice } = setup({ error: new ApiError(410, { code: "gone" }, "410") });
+
+      expect(RemovedTemplateNotice).not.toHaveBeenCalled();
+      expect(screen.getByText("Couldn't load this template.")).toBeInTheDocument();
+    });
+  });
+
+  describe("reporting", () => {
+    const PUBLIC_TEMPLATE: MarketplaceTemplate = { ...TEMPLATE, visibility: "public", isListed: true, canEdit: false, author: { username: "priya" } };
+
+    it("offers Report on a public template to someone outside the publishing organization", async () => {
+      const { ReportTemplateDialog } = setup({ template: PUBLIC_TEMPLATE });
+
+      expect(ReportTemplateDialog).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByRole("button", { name: "Report this template" }));
+
+      expect(ReportTemplateDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({ template: expect.objectContaining({ id: TEMPLATE_ID }) }),
+        expect.anything()
+      );
+    });
+
+    it("closes the report dialog when it asks to", async () => {
+      setup({ template: PUBLIC_TEMPLATE });
+      await userEvent.click(screen.getByRole("button", { name: "Report this template" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Close the report dialog" }));
+
+      expect(screen.queryByRole("button", { name: "Close the report dialog" })).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["an editor", { ...PUBLIC_TEMPLATE, canEdit: true }, undefined],
+      ["a template that is not public", { ...PUBLIC_TEMPLATE, visibility: "organization" as const }, undefined],
+      ["a hidden template", { ...PUBLIC_TEMPLATE, moderationStatus: "hidden" as const }, undefined],
+      ["a member of the publishing team who cannot edit", PUBLIC_TEMPLATE, [{ type: "team" as const, slug: "northwind-labs" }]]
+    ])("offers no Report to %s", (_, template, organizations) => {
+      setup({ template, organizations });
+
+      expect(screen.queryByRole("button", { name: "Report this template" })).not.toBeInTheDocument();
+    });
+
+    it("offers no Report to the owner of the personal account that published it", () => {
+      setup({
+        template: {
+          ...PUBLIC_TEMPLATE,
+          publisher: {
+            name: "sam.rivera",
+            slug: null,
+            type: "personal",
+            handle: "sam-rivera",
+            verified: false,
+            memberSince: null,
+            counts: { templates: 0, deploys: 0 }
+          },
+          author: { username: "sam.rivera" }
+        }
+      });
+
+      expect(screen.queryByRole("button", { name: "Report this template" })).not.toBeInTheDocument();
+    });
+
+    it("sends a signed-out visitor to sign in and back to the template", async () => {
+      const { router, ReportTemplateDialog } = setup({ template: PUBLIC_TEMPLATE, isSignedIn: false });
+
+      await userEvent.click(screen.getByRole("button", { name: "Report this template" }));
+
+      expect(router.push).toHaveBeenCalledWith(UrlService.newLogin({ returnTo: UrlService.template(TEMPLATE_ID) }));
+      expect(ReportTemplateDialog).not.toHaveBeenCalled();
+    });
+
+    it("sends a reporter whose session ended to sign in and back to the template", async () => {
+      const { router } = setup({ template: PUBLIC_TEMPLATE });
+      await userEvent.click(screen.getByRole("button", { name: "Report this template" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Report while signed out" }));
+
+      expect(router.push).toHaveBeenCalledWith(UrlService.newLogin({ returnTo: UrlService.template(TEMPLATE_ID) }));
+    });
+
+    it("reloads the template when the report finds it was removed", async () => {
+      const { refetch } = setup({ template: PUBLIC_TEMPLATE });
+      await userEvent.click(screen.getByRole("button", { name: "Report this template" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Report a removed template" }));
+
+      expect(refetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("offers a retry when the template fails to load", async () => {
     const { refetch, NotFoundPage } = setup({ error: new ApiError(503, { message: "Unavailable" }, "unavailable") });
 
@@ -554,6 +664,10 @@ describe(TemplatePage.name, () => {
     expect(within(breadcrumb).getByRole("link", { name: "Templates" })).toHaveAttribute("href", UrlService.templates());
   });
 
+  function removedError(title: string) {
+    return new ApiError(410, { code: "template_removed", message: "This template was removed", data: { title } }, "410");
+  }
+
   function setup(input: {
     template?: MarketplaceTemplate;
     versions?: TemplateVersionSummary[];
@@ -565,6 +679,7 @@ describe(TemplatePage.name, () => {
     isLoadingVersions?: boolean;
     isFailingVersions?: boolean;
     isSignedIn?: boolean;
+    organizations?: { type: "personal" | "team"; slug: string }[];
     isFavoriteFailing?: boolean;
     isFavoriteChangeHeld?: boolean;
     arrivalSource?: string;
@@ -602,6 +717,9 @@ describe(TemplatePage.name, () => {
     const addFavoriteMutation = mock<FavoriteMutation>({ mutateAsync: addFavorite });
     const removeFavoriteMutation = mock<FavoriteMutation>({ mutateAsync: removeFavorite });
     const customUser = mock<ReturnType<typeof DEPENDENCIES.useCustomUser>>({ user: input.isSignedIn === false ? undefined : { username: "sam.rivera" } });
+    const activeOrganization = mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+      organizations: (input.organizations ?? [{ type: "personal", slug: "sam-rivera" }]).map(organization => mock<OrganizationOutput>(organization))
+    });
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({
       pathname: "/template/[id]",
@@ -633,6 +751,21 @@ describe(TemplatePage.name, () => {
       </button>
     ));
 
+    const ReportTemplateDialog = vi.fn<typeof DEPENDENCIES.ReportTemplateDialog>(({ onClose, onSignedOut, onTemplateRemoved }) => (
+      <>
+        <button type="button" onClick={onClose}>
+          Close the report dialog
+        </button>
+        <button type="button" onClick={onSignedOut}>
+          Report while signed out
+        </button>
+        <button type="button" onClick={onTemplateRemoved}>
+          Report a removed template
+        </button>
+      </>
+    ));
+    const RemovedTemplateNotice = vi.fn<typeof DEPENDENCIES.RemovedTemplateNotice>(() => null);
+
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       NotFoundPage,
@@ -643,6 +776,9 @@ describe(TemplatePage.name, () => {
       TemplateIcon,
       NextSeo,
       ShareTemplateDialog,
+      ReportTemplateDialog,
+      RemovedTemplateNotice,
+      useActiveOrganization: () => activeOrganization,
       useMarketplaceTemplate,
       useTemplateVersions,
       useTemplateVersion,
@@ -675,6 +811,8 @@ describe(TemplatePage.name, () => {
       enqueueSnackbar,
       analyticsService,
       ShareTemplateDialog,
+      ReportTemplateDialog,
+      RemovedTemplateNotice,
       addFavorite,
       removeFavorite,
       useMarketplaceTemplate,

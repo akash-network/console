@@ -23,3 +23,7 @@ export type TemplatePublishReadiness = components["schemas"]["TemplatePublishRea
 export type TemplatePublishCheck = components["schemas"]["TemplatePublishCheck"];
 
 export type TemplateCheckResults = NonNullable<TemplateVersionSummary["checkResults"]>;
+
+export type TemplateVersionHoldReason = components["schemas"]["TemplateVersionHoldReason"];
+
+export type TemplateReportReason = components["schemas"]["CreateTemplateReportRequest"]["data"]["reason"];

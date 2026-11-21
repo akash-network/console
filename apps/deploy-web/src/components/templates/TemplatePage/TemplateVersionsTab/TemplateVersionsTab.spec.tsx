@@ -74,7 +74,9 @@ describe(TemplateVersionsTab.name, () => {
     expect(screen.getByRole("heading", { name: "Version history" })).toBeInTheDocument();
     expect(screen.getByText("Published versions never change. Deployments and forks stay on the version they started from.")).toBeInTheDocument();
     expect(
-      screen.getByText("New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass.")
+      screen.getByText(
+        "New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass, and a risky change to a popular or Official template waits for staff review first."
+      )
     ).toBeInTheDocument();
   });
 
@@ -148,6 +150,151 @@ describe(TemplateVersionsTab.name, () => {
     setup({ versions: [buildTemplateVersionSummary({ version: 5, status: "held" })], currentVersion: undefined, canEdit: false });
 
     expect(screen.getByText("Held for staff review")).toHaveClass("text-amber-700");
+  });
+
+  it("shows why a held version waits for review while the current one stays marked", () => {
+    const held = buildTemplateVersionSummary({
+      version: 5,
+      status: "held",
+      holdReasons: [
+        { kind: "official_template", message: "Akash staff review every new version of an Official template." },
+        { kind: "global_port_added", message: "web newly opens port 8188 to the internet.", service: "web", port: 8188, protocol: "tcp" }
+      ]
+    });
+    const published = buildTemplateVersionSummary({ version: 4, status: "live" });
+    setup({ versions: [held, published], currentVersion: 4, canEdit: true });
+
+    const [heldRow, publishedRow] = screen.getAllByRole("row").slice(1);
+    const reasons = within(within(heldRow).getByRole("list", { name: "Why v5 waits for review" })).getAllByRole("listitem");
+    expect(reasons.map(reason => reason.textContent)).toEqual([
+      "Akash staff review every new version of an Official template.",
+      "web newly opens port 8188 to the internet."
+    ]);
+    expect(reasons[0]).toHaveClass("text-amber-700");
+    expect(within(heldRow).queryByText("Current")).not.toBeInTheDocument();
+    expect(within(publishedRow).getByText("Current")).toBeInTheDocument();
+    expect(within(publishedRow).queryByRole("list", { name: /waits for review/ })).not.toBeInTheDocument();
+  });
+
+  it("gives no reasons for a held version whose reasons the viewer may not read", () => {
+    setup({ versions: [buildTemplateVersionSummary({ version: 5, status: "held", holdReasons: null })], currentVersion: undefined, canEdit: false });
+
+    expect(screen.getByText("Held for staff review")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: /waits for review/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the recorded hold reasons of a version staff already decided out of its row", () => {
+    const holdReasons = [{ kind: "image_repository_changed" as const, message: "web now runs ghcr.io/acme/web:2.0." }];
+    const approved = buildTemplateVersionSummary({ version: 3, status: "live", holdReasons, reviewedAt: "2026-11-06T15:00:00.000Z" });
+    const rejected = buildTemplateVersionSummary({ version: 2, status: "rejected", holdReasons, reviewedAt: "2026-11-05T15:00:00.000Z" });
+    setup({ versions: [approved, rejected], currentVersion: 3, canEdit: true });
+
+    expect(screen.queryByRole("list", { name: /waits for review/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("web now runs ghcr.io/acme/web:2.0.")).not.toBeInTheDocument();
+  });
+
+  it("says above the history that the newest held version waits and which version stays current", () => {
+    const held = buildTemplateVersionSummary({ version: 5, status: "held" });
+    const olderHeld = buildTemplateVersionSummary({ version: 4, status: "held" });
+    const published = buildTemplateVersionSummary({ version: 3, status: "live" });
+    setup({ versions: [olderHeld, held, published], currentVersion: 3, canEdit: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "v5 is waiting for Akash staff review. v3 stays the current version until then. You get an email and a notice in Console when it is decided."
+    );
+  });
+
+  it("says nobody deploys a held version of a template that has no current version", () => {
+    setup({ versions: [buildTemplateVersionSummary({ version: 1, status: "held" })], currentVersion: undefined, canEdit: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent("v1 is waiting for Akash staff review. Nobody deploys it until then.");
+  });
+
+  it.each([
+    ["no version is held", [buildTemplateVersionSummary({ version: 2, status: "live" }), buildTemplateVersionSummary({ version: 1, status: "rejected" })], 2],
+    [
+      "a newer version went live after the held one",
+      [buildTemplateVersionSummary({ version: 3, status: "live" }), buildTemplateVersionSummary({ version: 2, status: "held" })],
+      3
+    ],
+    ["the held version is the one marked current", [buildTemplateVersionSummary({ version: 2, status: "held" })], 2]
+  ])("shows no waiting notice when %s", (_, versions, currentVersion) => {
+    setup({ versions, currentVersion, canEdit: true });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("shows when staff rejected a version and the note they left", () => {
+    const rejected = buildTemplateVersionSummary({
+      version: 2,
+      status: "rejected",
+      reviewedAt: "2026-11-05T15:00:00.000Z",
+      reviewNote: "  The new image is not the project's own.\nPublish it from the upstream repository.  "
+    });
+    setup({ versions: [rejected, buildTemplateVersionSummary({ version: 1, status: "live" })], currentVersion: 1, canEdit: true });
+
+    const [rejectedRow, publishedRow] = screen.getAllByRole("row").slice(1);
+    expect(within(rejectedRow).getByText("Reviewed on Nov 5, 2026")).toBeInTheDocument();
+    expect(within(rejectedRow).getByLabelText("Staff note on v2").textContent).toBe(
+      "The new image is not the project's own.\nPublish it from the upstream repository."
+    );
+    expect(within(rejectedRow).getByLabelText("Staff note on v2")).toHaveClass("whitespace-pre-line");
+    expect(within(publishedRow).queryByText(/by Akash staff|Reviewed on/)).not.toBeInTheDocument();
+  });
+
+  it("shows a rejection without a date or without a note", () => {
+    const undated = buildTemplateVersionSummary({ version: 3, status: "rejected", reviewedAt: null, reviewNote: "Not the upstream image." });
+    const unexplained = buildTemplateVersionSummary({ version: 2, status: "rejected", reviewedAt: "2026-11-05T15:00:00.000Z", reviewNote: "   " });
+    setup({ versions: [undated, unexplained], currentVersion: undefined, canEdit: true });
+
+    const [undatedRow, unexplainedRow] = screen.getAllByRole("row").slice(1);
+    expect(within(undatedRow).queryByText(/Reviewed on/)).not.toBeInTheDocument();
+    expect(within(undatedRow).getByLabelText("Staff note on v3")).toHaveTextContent("Not the upstream image.");
+    expect(within(unexplainedRow).getByText("Reviewed on Nov 5, 2026")).toBeInTheDocument();
+    expect(within(unexplainedRow).queryByLabelText("Staff note on v2")).not.toBeInTheDocument();
+  });
+
+  it("says nothing about a review on a rejected version the viewer may not read the review of", () => {
+    setup({ versions: [buildTemplateVersionSummary({ version: 2, status: "rejected" })], currentVersion: undefined, canEdit: false });
+
+    expect(screen.getByText("Rejected by staff")).toBeInTheDocument();
+    expect(screen.queryByText(/Reviewed on/)).not.toBeInTheDocument();
+  });
+
+  it("shows when staff approved a version that was held", () => {
+    const approved = buildTemplateVersionSummary({ version: 2, status: "live", reviewedAt: "2026-11-06T15:00:00.000Z", reviewNote: "Checked the image." });
+    setup({ versions: [approved], currentVersion: 2, canEdit: true });
+
+    expect(screen.getByText("Approved by Akash staff on Nov 6, 2026")).toBeInTheDocument();
+    expect(screen.getByLabelText("Staff note on v2")).toHaveTextContent("Checked the image.");
+  });
+
+  it("shows an approval that carries a note but no date", () => {
+    const approved = buildTemplateVersionSummary({ version: 2, status: "live", reviewedAt: null, reviewNote: "Checked the image." });
+    setup({ versions: [approved], currentVersion: 2, canEdit: true });
+
+    expect(screen.getByText("Approved by Akash staff")).toBeInTheDocument();
+  });
+
+  it.each(["held", "failed_checks"] as const)("shows no review outcome on a %s version", status => {
+    setup({
+      versions: [buildTemplateVersionSummary({ version: 2, status, reviewedAt: "2026-11-06T15:00:00.000Z", reviewNote: "Left over" })],
+      currentVersion: undefined,
+      canEdit: true
+    });
+
+    expect(screen.queryByText(/by Akash staff|Reviewed on/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Staff note on v2")).not.toBeInTheDocument();
+  });
+
+  it("shows markup in a hold reason and in a staff note as text", () => {
+    const markup = '<img src=x onerror="alert(1)"> [docs](javascript:alert(1)) <a href="https://evil.example">here</a>';
+    const held = buildTemplateVersionSummary({ version: 3, status: "held", holdReasons: [{ kind: "image_repository_changed", message: markup }] });
+    const rejected = buildTemplateVersionSummary({ version: 2, status: "rejected", reviewedAt: "2026-11-05T15:00:00.000Z", reviewNote: markup });
+    const { container } = setup({ versions: [held, rejected], currentVersion: undefined, canEdit: false });
+
+    expect(screen.getAllByText(markup)).toHaveLength(2);
+    expect(container.querySelector("img, a")).toBeNull();
   });
 
   it("names every kind of change", () => {

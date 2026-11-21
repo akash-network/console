@@ -10,6 +10,9 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { DeployTargetGate } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
+import type { RemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
+import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
+import { RemovedTemplateNotice } from "@src/components/templates/removed/RemovedTemplateNotice/RemovedTemplateNotice";
 import { useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
@@ -34,6 +37,7 @@ import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
 export const DEPENDENCIES = {
   Layout,
   NextSeo,
+  RemovedTemplateNotice,
   AutoDeployFlow,
   ConfigureDeploymentForm,
   ConfigureTemplateForm,
@@ -278,6 +282,7 @@ type VersionedTemplate = {
   source: TemplateSource | undefined;
   isLoading: boolean;
   hasFailed: boolean;
+  removed: RemovedTemplate | undefined;
   pinnedVersion: number | undefined;
   pinVersion: (version: TemplateVersionDetail) => void;
 };
@@ -320,6 +325,8 @@ function usePinTemplateVersionInUrl({
 /** Mounted only with the template marketplace on, so the legacy user template path never reads the marketplace. */
 const TemplateVersionDeploymentScreen: FC<ScreenProps & { userTemplateId: string }> = ({ userTemplateId, ...screenProps }) => {
   const versionedTemplate = useTemplateVersionSource(screenProps.dependencies, userTemplateId, screenProps.intent.templateVersion);
+  if (versionedTemplate.removed) return <RemovedTemplateScreen removedTemplate={versionedTemplate.removed} dependencies={screenProps.dependencies} />;
+
   return <ConfigureDeploymentScreen {...screenProps} versionedTemplate={versionedTemplate} />;
 };
 
@@ -335,8 +342,9 @@ function useTemplateVersionSource(d: typeof DEPENDENCIES, templateId: string, na
   const hasNoVersionToDeploy = queriedVersion ? namedVersionQuery.isError : templateQuery.isSuccess;
   const hasFailed = !source && (templateQuery.isError || hasNoVersionToDeploy);
   const isLoading = !hasFailed && (templateQuery.isLoading || (!!queriedVersion && namedVersionQuery.isLoading));
+  const removed = readRemovedTemplate(templateQuery.error) ?? readRemovedTemplate(namedVersionQuery.error);
 
-  return { source, isLoading, hasFailed, pinnedVersion: pinned?.version, pinVersion: setPinned };
+  return { source, isLoading, hasFailed, removed, pinnedVersion: pinned?.version, pinVersion: setPinned };
 }
 
 /** A failed attempt that left no deployment is as fresh as the form it returns to, while a cancelled deployment still closing counts, since a fresh start would never close it. */
@@ -353,6 +361,14 @@ function ReportDeployStarted({ flow, onChange }: { flow: DeploymentFlow; onChang
 
   return null;
 }
+
+/** Configure is only reached signed in, so the way back to My templates is always offered. */
+const RemovedTemplateScreen: FC<{ removedTemplate: RemovedTemplate; dependencies: typeof DEPENDENCIES }> = ({ removedTemplate, dependencies: d }) => (
+  <d.Layout background="dots">
+    <d.NextSeo title="Template removed" noindex />
+    <d.RemovedTemplateNotice title={removedTemplate.title} isSignedIn />
+  </d.Layout>
+);
 
 type TemplateScreenProps = {
   intent: DeploymentIntent;
@@ -375,8 +391,9 @@ const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdCha
   const copyQuery = d.useTemplateVersion(isCopying ? intent.copyFromTemplateId : undefined, isCopying ? intent.copyFromVersion : undefined);
   const template = isEditing ? templateQuery.data : undefined;
   const isNotEditor = !!template && !template.canEdit;
-  const hasTemplateFailed = isEditing && templateQuery.isError && !templateQuery.data;
-  const hasCopyFailed = isCopying && copyQuery.isError;
+  const removedTemplate = readRemovedTemplate(isEditing ? templateQuery.error : isCopying ? copyQuery.error : undefined);
+  const hasTemplateFailed = isEditing && templateQuery.isError && !templateQuery.data && !removedTemplate;
+  const hasCopyFailed = isCopying && copyQuery.isError && !removedTemplate;
   const copiedVersion = isCopying ? copyQuery.data : undefined;
   const [pinnedBase, setPinnedBase] = useState<{ version?: number } | null>(null);
   if (!pinnedBase && !draft.isLoading && template?.canEdit) {
@@ -443,6 +460,8 @@ const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdCha
       </div>
     </d.Layout>
   );
+
+  if (removedTemplate) return <RemovedTemplateScreen removedTemplate={removedTemplate} dependencies={d} />;
 
   const isWaitingForTemplate = isEditing && (!template || isNotEditor);
   const isWaitingForCopy = isCopying && !copiedVersion && !hasCopyFailed;
