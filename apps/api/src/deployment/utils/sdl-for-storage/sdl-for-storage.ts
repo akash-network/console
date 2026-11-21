@@ -7,6 +7,9 @@ import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 /** Why a document was not stored, so a caller can report which without reading a parse error, whose message quotes the line it failed on. */
 export type StoredSdlRefusal = "unparseable" | "too-large" | "expands-too-large";
 
+/** Distinct from the sealed-secret failure so a client can tell which half of the stored state it cannot read, both being permanent. */
+export const STORED_SDL_UNREADABLE_ERROR_CODE = "stored_sdl_unreadable";
+
 export const EXPANDED_SDL_TOO_LARGE_MESSAGE = `SDL is too large: its anchors expand it past the maximum of ${MAX_SUBMITTED_SDL_LENGTH} characters`;
 
 /** Numbers only, counted from one: a `js-yaml` mark also carries `snippet` and `buffer`, which quote the document and must never leave this function. */

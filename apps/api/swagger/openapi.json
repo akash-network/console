@@ -7698,6 +7698,193 @@
         }
       }
     },
+    "/v1/deployments/{dseq}/secrets": {
+      "get": {
+        "summary": "List a deployment's secrets",
+        "description": "Lists each secret the SDL the console stored for this deployment references, by name, with every service environment variable or private registry credential it fills. Names and places are read from the stored SDL alone: no value is ever returned, and none is decrypted to answer.",
+        "operationId": "listDeploymentSecrets",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0*[1-9]\\d*$",
+              "description": "Deployment sequence number"
+            },
+            "required": true,
+            "description": "Deployment sequence number",
+            "name": "dseq",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the deployment's secrets without their values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "secrets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "description": "Name the secret is stored under, as an `ac-secret://NAME` reference in the deployment's SDL spells it. Includes names the console chose itself when it sealed a value for you, such as `s0_e1`."
+                              },
+                              "usedBy": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "service": {
+                                          "type": "string",
+                                          "description": "Name of the service, as the deployment's SDL declares it."
+                                        },
+                                        "env": {
+                                          "type": "string",
+                                          "description": "Environment variable of the service whose value is the secret."
+                                        }
+                                      },
+                                      "required": [
+                                        "service",
+                                        "env"
+                                      ],
+                                      "description": "The secret is the value of one of the service's environment variables."
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "service": {
+                                          "type": "string",
+                                          "description": "Name of the service, as the deployment's SDL declares it."
+                                        },
+                                        "credential": {
+                                          "type": "string",
+                                          "enum": [
+                                            "username",
+                                            "password"
+                                          ],
+                                          "description": "Half of the service's private registry credentials the secret fills."
+                                        }
+                                      },
+                                      "required": [
+                                        "service",
+                                        "credential"
+                                      ],
+                                      "description": "The secret is the username or password the service pulls its image from a private registry with."
+                                    }
+                                  ]
+                                },
+                                "description": "Every place the SDL uses the secret, in the order the SDL lists its services, environment variables before registry credentials within a service. An entry carries `env` for an environment variable and `credential` for a registry credential."
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "usedBy"
+                            ]
+                          },
+                          "description": "Each secret the deployment's SDL references, listed once and sorted by name. Values are never returned."
+                        }
+                      },
+                      "required": [
+                        "secrets"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No deployment of yours matches `dseq`, or the console holds no definition for it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The SDL recorded for this deployment could not be read: `code` is `stored_sdl_unreadable`, which is permanent, so a retry cannot help",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/deployments/{dseq}/info": {
       "get": {
         "summary": "Get a deployment as the Akash Network holds it",

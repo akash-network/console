@@ -560,6 +560,64 @@ describe(SdlReferenceService.name, () => {
     });
   });
 
+  describe("usagesOf", () => {
+    it("reports nothing for an sdl carrying no sdl references", () => {
+      const { service } = setup();
+
+      expect(service.usagesOf(sdlWithEnv(["PORT=8080"]), "secret")).toEqual([]);
+    });
+
+    it("reports the variable an env reference fills, with no credential half", () => {
+      const { service } = setup();
+
+      const [usage] = service.usagesOf(sdlWithEnv(["PORT=8080", "TOKEN=ac-secret://TOKEN"]), "secret");
+
+      expect(usage.name).toBe("TOKEN");
+      expect(usage.slot).toMatchObject({ serviceName: "web", envVariable: "TOKEN", instancePath: "/services/web/env/1" });
+      expect(usage.slot.credentialField).toBeUndefined();
+    });
+
+    it("reports the credential half a registry reference fills, with no variable", () => {
+      const { service } = setup();
+
+      const usages = service.usagesOf(sdlWithCredentials({ username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" }), "secret");
+
+      expect(usages.map(({ name, slot }) => [name, slot.credentialField, slot.envVariable])).toEqual([
+        ["REG_USER", "username", undefined],
+        ["REG_PASS", "password", undefined]
+      ]);
+    });
+
+    it("reports every service, env entries before credentials within a service", () => {
+      const { service } = setup();
+
+      const usages = service.usagesOf(
+        sdlWithCredentials({ password: "ac-secret://REG_PASS" }, { password: "ac-secret://REG_PASS" }, ["TOKEN=ac-secret://TOKEN"]),
+        "secret"
+      );
+
+      expect(usages.map(({ name, slot }) => [slot.serviceName, name])).toEqual([
+        ["web", "TOKEN"],
+        ["web", "REG_PASS"],
+        ["worker", "REG_PASS"]
+      ]);
+    });
+
+    it("reports only the kind it was asked about", () => {
+      const { service } = setup({ resolvers: [{ kind: "probe", resolve: () => "resolved" }] });
+
+      const usages = service.usagesOf(sdlWithEnv(["TOKEN=ac-secret://TOKEN", "MODE=ac-probe://MODE"]), "secret");
+
+      expect(usages.map(usage => usage.name)).toEqual(["TOKEN"]);
+    });
+
+    it("skips a reserved value that is not a reference", () => {
+      const { service } = setup();
+
+      expect(service.usagesOf(sdlWithEnv(["MODE=ac-secret://"]), "secret")).toEqual([]);
+    });
+  });
+
   describe("hasAnyReference", () => {
     it("reports none for an sdl whose values are all plain", () => {
       const { service } = setup();

@@ -204,6 +204,14 @@ export const operations = {
       queryParams: ["async"],
       hasBody: true
     },
+    listDeploymentSecrets: {
+      path: "/v1/deployments/{dseq}/secrets",
+      method: "get",
+      operationId: "listDeploymentSecrets",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: false
+    },
     getDeploymentInfo: {
       path: "/v1/deployments/{dseq}/info",
       method: "get",

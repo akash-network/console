@@ -39,9 +39,11 @@ import {
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
 import type { GetDeploymentInfoResponse } from "@src/deployment/http-schemas/deployment-rpc.schema";
+import type { ListDeploymentSecretsResponse } from "@src/deployment/http-schemas/deployment-secret.schema";
 import { DeploymentListService } from "@src/deployment/services/deployment-list/deployment-list.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentSdlSourceService } from "@src/deployment/services/deployment-sdl-source/deployment-sdl-source.service";
+import { DeploymentSecretsReaderService } from "@src/deployment/services/deployment-secrets-reader/deployment-secrets-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { SpendRateService } from "@src/deployment/services/spend-rate/spend-rate.service";
 
@@ -54,7 +56,8 @@ export class DeploymentController {
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly spendRateService: SpendRateService,
     private readonly deploymentListService: DeploymentListService,
-    private readonly deploymentSdlSourceService: DeploymentSdlSourceService
+    private readonly deploymentSdlSourceService: DeploymentSdlSourceService,
+    private readonly deploymentSecretsReaderService: DeploymentSecretsReaderService
   ) {}
 
   @Protected([
@@ -64,6 +67,14 @@ export class DeploymentController {
   async findByDseq(dseq: string): Promise<GetDeploymentResponse> {
     const deployment = await this.deploymentReaderService.findByUserIdAndDseq(this.authService.currentUser.id, dseq);
     return { data: deployment };
+  }
+
+  @Protected([
+    { action: "read", subject: "UserWallet" },
+    { action: "read", subject: "DeploymentSetting" }
+  ])
+  async listSecrets(dseq: string): Promise<ListDeploymentSecretsResponse> {
+    return { data: await this.deploymentSecretsReaderService.listByUserIdAndDseq(this.authService.currentUser.id, dseq) };
   }
 
   @Protected([{ action: "read", subject: "UserWallet" }])
