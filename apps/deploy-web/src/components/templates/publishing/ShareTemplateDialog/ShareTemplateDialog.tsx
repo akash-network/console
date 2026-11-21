@@ -31,6 +31,7 @@ import { useRunWhenEmailVerified } from "@src/hooks/useEmailVerificationRequired
 import { usePublishTemplateMutation, useTemplatePublishReadiness, useUpdateTemplateSettingsMutation } from "@src/queries/useUserTemplateQueries";
 import type { MarketplaceTemplate, TemplateVisibility } from "@src/types/marketplace-template";
 import { UrlService } from "@src/utils/urlUtils";
+import { COMMUNITY_TEMPLATE_TERMS_VERSION } from "../CommunityTemplateTerms/CommunityTemplateTerms";
 import type { PublishOrganization } from "../publishReadiness";
 import { countPublishBlockers } from "../publishReadiness";
 import type { PublishFixLinks } from "../PublishReadinessPanel/PublishReadinessPanel";
@@ -63,6 +64,8 @@ type MembersOnlyVisibility = Exclude<TemplateVisibility, "public">;
 
 type SharingState = Pick<MarketplaceTemplate, "visibility" | "isListed" | "moderationStatus">;
 
+type SavedSharingChange = { from: SharingState; to: SharingState };
+
 export type SharedTemplate = SharingState & {
   id: string;
   title: string;
@@ -83,10 +86,10 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
   const runWhenEmailVerified = d.useRunWhenEmailVerified();
   const { mutateAsync: publish, isPending: isPublishing } = d.usePublishTemplateMutation();
   const { mutateAsync: updateSettings, isPending: isChangingVisibility } = d.useUpdateTemplateSettingsMutation();
-  const [savedState, setSavedState] = useState<SharingState>();
-  const sharing = savedState ?? template;
+  const [savedChange, setSavedChange] = useState<SavedSharingChange>();
+  const sharing = savedChange && isSameSharing(savedChange.from, template) ? savedChange.to : template;
   const [selected, setSelected] = useState<TemplateVisibility>(sharing.visibility);
-  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [acceptedTermsVersion, setAcceptedTermsVersion] = useState<string>();
   const [isConfirmingUnpublish, setIsConfirmingUnpublish] = useState(false);
   const [failure, setFailure] = useState<string>();
 
@@ -95,10 +98,12 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
   const isInGallery = isPublic && sharing.isListed && isActive;
   const isPublishOffered = template.canEdit && selected === "public" && isActive && !isInGallery;
   const readinessQuery = d.useTemplatePublishReadiness(template.id, { enabled: isPublishOffered });
-  const readiness = isPublishOffered ? readinessQuery.data : undefined;
+  const readiness = isPublishOffered && !readinessQuery.isError ? readinessQuery.data : undefined;
   const isRunningChecks = readinessQuery.isFetching;
   const blockerCount = readiness ? countPublishBlockers(readiness) : 0;
-  const canPublish = !!readiness?.canPublish && hasAcceptedTerms && !isRunningChecks && !isPublishing;
+  const hasAcceptedTerms = !!readiness && acceptedTermsVersion === readiness.termsVersion;
+  const hasOutdatedTerms = !!readiness && readiness.termsVersion !== COMMUNITY_TEMPLATE_TERMS_VERSION;
+  const canPublish = !!readiness?.canPublish && hasAcceptedTerms && !hasOutdatedTerms && !isRunningChecks && !isPublishing;
   const pendingVisibility = selected !== "public" && selected !== sharing.visibility ? selected : undefined;
   const isBusy = isPublishing || isChangingVisibility;
   const supportUrl = publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL || `mailto:${SUPPORT_EMAIL}`;
@@ -122,12 +127,12 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
 
     try {
       const response = await publish({ id: template.id, data: { acceptedTermsVersion: readiness.termsVersion } });
-      setSavedState(response.data);
+      setSavedChange({ from: template, to: response.data });
       enqueueSnackbar(<Snackbar title="The template is public" subTitle="It's in the gallery now." iconVariant="success" />, { variant: "success" });
     } catch (error) {
       const refusal = readPublishRefusal(error);
       setFailure(describePublishFailure(refusal));
-      if (refusal?.kind === "terms_changed") setHasAcceptedTerms(false);
+      if (refusal?.kind === "terms_changed") setAcceptedTermsVersion(undefined);
       if (isAnsweredByNewChecks(refusal)) runChecksAgain();
     }
   };
@@ -137,8 +142,8 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
 
     try {
       const response = await updateSettings({ id: template.id, data: { visibility } });
-      setSavedState(response.data);
-      setHasAcceptedTerms(false);
+      setSavedChange({ from: template, to: response.data });
+      setAcceptedTermsVersion(undefined);
       enqueueSnackbar(<Snackbar title={visibility === "private" ? "The template is private" : "Shared with your organization"} iconVariant="success" />, {
         variant: "success"
       });
@@ -147,6 +152,11 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
     } finally {
       setIsConfirmingUnpublish(false);
     }
+  };
+
+  const keepPublic = () => {
+    setIsConfirmingUnpublish(false);
+    setSelected(sharing.visibility);
   };
 
   const requestVisibilityChange = (visibility: MembersOnlyVisibility) => {
@@ -175,7 +185,7 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
               </p>
             </DialogV2Body>
             <DialogV2Footer className="flex items-center justify-end gap-2">
-              <Button type="button" variant="ghost" disabled={isChangingVisibility} onClick={() => setIsConfirmingUnpublish(false)}>
+              <Button type="button" variant="ghost" disabled={isChangingVisibility} onClick={keepPublic}>
                 Keep it public
               </Button>
               <LoadingButton type="button" loading={isChangingVisibility} disabled={isChangingVisibility} onClick={() => changeVisibility(pendingVisibility)}>
@@ -212,6 +222,12 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
                 </Alert>
               )}
 
+              {hasOutdatedTerms && (
+                <Alert variant="destructive">
+                  <AlertDescription>The community template terms changed since this page loaded. Reload the page to read them.</AlertDescription>
+                </Alert>
+              )}
+
               {template.canEdit && selected === "public" && (
                 <PublicState sharing={sharing} supportUrl={supportUrl}>
                   {isPublishOffered &&
@@ -224,7 +240,7 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
                         fixLinks={fixLinks}
                         supportUrl={supportUrl}
                         onRunAgain={runChecksAgain}
-                        onAcceptedTermsChange={setHasAcceptedTerms}
+                        onAcceptedTermsChange={hasAccepted => setAcceptedTermsVersion(hasAccepted ? readiness.termsVersion : undefined)}
                         onVerifyEmail={() => runWhenEmailVerified(VERIFY_EMAIL_MESSAGE, runChecksAgain)}
                         onCreditsAdded={runChecksAgain}
                         onFollowFix={onClose}
@@ -345,6 +361,10 @@ const PublicState: FC<{ sharing: SharingState; supportUrl: string; children: Rea
     </>
   );
 };
+
+function isSameSharing(left: SharingState, right: SharingState): boolean {
+  return left.visibility === right.visibility && left.isListed === right.isListed && left.moderationStatus === right.moderationStatus;
+}
 
 function describeVisibility(visibility: TemplateVisibility, organization: PublishOrganization | null): string {
   const isTeam = organization?.type === "team";

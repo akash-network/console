@@ -52,10 +52,10 @@ describe(PublishChecksList.name, () => {
   });
 
   it("names a check this build does not know", () => {
-    setup({ checks: [{ key: "text_within_limits", status: "failed", issues: [{ message: "The summary is too long." }] }] });
+    setup({ checks: [{ key: "ports_reviewed", status: "failed", issues: [{ message: "Port 22 is open to the internet." }] }] });
 
-    expect(screen.getByText("Text within limits")).toBeInTheDocument();
-    expect(screen.getByText("The summary is too long.")).toBeInTheDocument();
+    expect(screen.getByText("Ports reviewed")).toBeInTheDocument();
+    expect(screen.getByText("Port 22 is open to the internet.")).toBeInTheDocument();
   });
 
   it("shows text written by the publisher as inert text", () => {

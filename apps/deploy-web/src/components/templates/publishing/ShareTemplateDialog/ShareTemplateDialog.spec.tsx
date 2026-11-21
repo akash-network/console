@@ -189,6 +189,16 @@ describe(ShareTemplateDialog.name, () => {
       expect(refetch).toHaveBeenCalledTimes(1);
     });
 
+    it("keeps Make public off when the checks could not run again after an earlier pass", async () => {
+      setup({ readiness: READY, isReadinessFailing: true });
+
+      await userEvent.click(screen.getByRole("radio", { name: /^Public/ }));
+
+      expect(screen.getByText("Couldn't run the publish checks.")).toBeInTheDocument();
+      expect(screen.queryByText("Readiness panel")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Make public" })).toBeDisabled();
+    });
+
     it("counts what is left to fix and keeps Make public off", async () => {
       const { readPanelProps } = setup({ readiness: BLOCKED });
 
@@ -220,6 +230,36 @@ describe(ShareTemplateDialog.name, () => {
 
       expect(readPanelProps().hasAcceptedTerms).toBe(true);
       expect(screen.getByRole("button", { name: "Make public" })).toBeEnabled();
+    });
+
+    it("keeps the acceptance when the checks run again under the same terms", async () => {
+      const { readPanelProps, showChecks } = setup({ readiness: READY });
+
+      await acceptTerms();
+      showChecks({ ...READY, ranAt: "2026-11-18T18:05:00.000Z" });
+
+      expect(readPanelProps().hasAcceptedTerms).toBe(true);
+      expect(screen.getByRole("button", { name: "Make public" })).toBeEnabled();
+    });
+
+    it("asks for the terms again when the checks come back under another terms version", async () => {
+      const { readPanelProps, showChecks } = setup({ readiness: { ...READY, termsVersion: "2026-10" } });
+
+      await acceptTerms();
+      showChecks(READY);
+
+      expect(readPanelProps().hasAcceptedTerms).toBe(false);
+      expect(screen.getByRole("button", { name: "Make public" })).toBeDisabled();
+    });
+
+    it("asks for a reload when the API asks for terms this page does not show", async () => {
+      const { readPanelProps } = setup({ readiness: { ...READY, termsVersion: "2026-12" } });
+
+      await acceptTerms();
+
+      expect(readPanelProps().hasAcceptedTerms).toBe(true);
+      expect(screen.getByRole("alert")).toHaveTextContent("The community template terms changed since this page loaded. Reload the page to read them.");
+      expect(screen.getByRole("button", { name: "Make public" })).toBeDisabled();
     });
 
     it("keeps Make public off while the checks run again", async () => {
@@ -538,8 +578,41 @@ describe(ShareTemplateDialog.name, () => {
       await userEvent.click(screen.getByRole("button", { name: "Keep it public" }));
 
       expect(screen.queryByText("Take it out of the gallery?")).not.toBeInTheDocument();
-      expect(screen.getByRole("radio", { name: /^Public Current/ })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /^Public Current/ })).toBeChecked();
+      expect(screen.queryByText(/turns off its public link/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Make private" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
       expect(updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("asks before unpublishing a template someone else published after a change made in the dialog", async () => {
+      const { updateSettings, showTemplate } = setup({ template: TEMPLATE });
+
+      await userEvent.click(screen.getByRole("radio", { name: /^Organization/ }));
+      await userEvent.click(screen.getByRole("button", { name: "Share with organization only" }));
+      showTemplate(IN_GALLERY);
+      await userEvent.click(screen.getByRole("radio", { name: /^Private/ }));
+      await userEvent.click(screen.getByRole("button", { name: "Make private" }));
+
+      expect(screen.getByText("Take it out of the gallery?")).toBeInTheDocument();
+      expect(updateSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["its visibility", { visibility: "organization" }, /^Organization Current/],
+      ["its listing", { isListed: false }, /^Public Current/],
+      ["its moderation", { moderationStatus: "hidden" }, /^Public Current/]
+    ] as const)("follows the template once someone else changes %s after a change made in the dialog", async (_, change, current) => {
+      const { showTemplate } = setup({ template: IN_GALLERY });
+
+      fireEvent.click(screen.getByRole("radio", { name: /^Private/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Make private" }));
+      await userEvent.click(screen.getByRole("button", { name: "Make private" }));
+      expect(screen.getByRole("radio", { name: /^Private Current/ })).toBeChecked();
+      showTemplate({ ...IN_GALLERY, ...change });
+
+      expect(screen.getByRole("radio", { name: current })).toBeInTheDocument();
+      expect(screen.queryByRole("radio", { name: /^Private Current/ })).not.toBeInTheDocument();
     });
 
     it("makes it private once confirmed and takes the badge away", async () => {
@@ -591,12 +664,16 @@ describe(ShareTemplateDialog.name, () => {
 
       expect(readPanelProps().hasAcceptedTerms).toBe(false);
       expect(screen.getByRole("button", { name: "Make public" })).toBeDisabled();
-    }, 15_000);
+    });
   });
 
-  async function acceptAndPublish() {
+  async function acceptTerms() {
     await userEvent.click(screen.getByRole("radio", { name: /^Public/ }));
     await userEvent.click(screen.getByRole("button", { name: "Accept the terms" }));
+  }
+
+  async function acceptAndPublish() {
+    await acceptTerms();
     await userEvent.click(screen.getByRole("button", { name: "Make public" }));
   }
 
@@ -626,11 +703,11 @@ describe(ShareTemplateDialog.name, () => {
       return { data: buildMarketplaceTemplate({ id: template.id, visibility: data.visibility, isListed: false }) };
     });
     const readinessQuery = mock<ReadinessQuery>({
-      data: input.readiness,
       isError: input.isReadinessFailing ?? false,
       isFetching: input.isRunningChecks ?? false,
       refetch
     });
+    readinessQuery.data = input.readiness;
     const publishMutation = mock<PublishMutation>({ mutateAsync: publish, isPending: input.isPublishing ?? false });
     const updateMutation = mock<UpdateMutation>({ mutateAsync: updateSettings, isPending: input.isChangingVisibility ?? false });
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
@@ -652,10 +729,10 @@ describe(ShareTemplateDialog.name, () => {
       NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.supportUrl ?? SUPPORT_URL
     });
 
-    render(
+    const renderDialog = (shownTemplate: SharedTemplate) => (
       <TestContainerProvider services={{ publicConfig: () => publicConfig }}>
         <ShareTemplateDialog
-          template={template}
+          template={shownTemplate}
           organization={input.organization === undefined ? TEAM : input.organization}
           onClose={onClose}
           dependencies={{
@@ -670,7 +747,13 @@ describe(ShareTemplateDialog.name, () => {
         />
       </TestContainerProvider>
     );
+    const view = render(renderDialog(template));
 
+    const showTemplate = (next: SharedTemplate) => view.rerender(renderDialog(next));
+    const showChecks = (next: TemplatePublishReadiness) => {
+      readinessQuery.data = next;
+      view.rerender(renderDialog(template));
+    };
     const readPanelProps = () => PublishReadinessPanel.mock.lastCall?.[0] as PanelProps;
 
     return {
@@ -682,7 +765,9 @@ describe(ShareTemplateDialog.name, () => {
       updateSettings,
       useTemplatePublishReadiness,
       PublishReadinessPanel,
-      readPanelProps
+      readPanelProps,
+      showTemplate,
+      showChecks
     };
   }
 });

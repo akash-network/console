@@ -142,7 +142,7 @@ export const PublishReadinessPanel: FC<PublishReadinessPanelProps> = ({
           <Label htmlFor={termsId} className="cursor-pointer text-sm font-normal leading-snug">
             I agree to the community template terms: {COMMUNITY_TEMPLATE_TERMS_SUMMARY}.
           </Label>
-          <CommunityTemplateTerms version={readiness.termsVersion} />
+          <CommunityTemplateTerms />
         </div>
       </div>
     </div>

@@ -3,9 +3,12 @@ import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";
 
+/** Bump with any change to the copy below, together with the API's COMMUNITY_TEMPLATE_TERMS_VERSION. */
+export const COMMUNITY_TEMPLATE_TERMS_VERSION = "2026-11";
+
 export const COMMUNITY_TEMPLATE_TERMS_SUMMARY = "anyone can deploy and fork this template, and Akash can hide or remove it";
 
-export const CommunityTemplateTerms: FC<{ version: string }> = ({ version }) => (
+export const CommunityTemplateTerms: FC = () => (
   <details className="mt-1.5 text-[13px] text-muted-foreground">
     <summary className="cursor-pointer text-foreground underline underline-offset-[3px]">Read the community template terms</summary>
     <div className="mt-2 rounded-lg border border-border bg-muted/50 px-3.5 py-3">
@@ -21,7 +24,7 @@ export const CommunityTemplateTerms: FC<{ version: string }> = ({ version }) => 
         </li>
         <li>You can make it private again at any time. Deployments that are already running keep running.</li>
       </ul>
-      <p className="mt-2.5 text-xs">Terms version {version}</p>
+      <p className="mt-2.5 text-xs">Terms version {COMMUNITY_TEMPLATE_TERMS_VERSION}</p>
     </div>
   </details>
 );

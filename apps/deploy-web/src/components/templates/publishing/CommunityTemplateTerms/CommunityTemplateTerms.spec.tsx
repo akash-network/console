@@ -6,7 +6,7 @@ import { render, screen } from "@testing-library/react";
 
 describe(CommunityTemplateTerms.name, () => {
   it("states what the publisher agrees to and which version", () => {
-    render(<CommunityTemplateTerms version="2026-11" />);
+    render(<CommunityTemplateTerms />);
 
     expect(screen.getByText("Read the community template terms")).toBeInTheDocument();
     expect(screen.getByText(/Anyone can find, deploy and fork a public template/)).toBeInTheDocument();
@@ -15,7 +15,7 @@ describe(CommunityTemplateTerms.name, () => {
   });
 
   it("links to the prohibited uses in the Terms of Service", () => {
-    render(<CommunityTemplateTerms version="2026-11" />);
+    render(<CommunityTemplateTerms />);
 
     const link = screen.getByRole("link", { name: "Terms of Service", hidden: true });
     expect(link).toHaveAttribute("href", "/terms-of-service#prohibited-use");
