@@ -79,3 +79,23 @@ gpuWaitlistRouter.openapi(leaveGpuWaitlistRoute, async function routeLeaveGpuWai
   await container.resolve(GpuWaitlistController).leave(c.req.valid("param").id);
   return c.body(null, 204);
 });
+
+const keepGpuWaitlistEntryRoute = createRoute({
+  method: "post",
+  operationId: "keepGpuWaitlistEntry",
+  path: "/v1/gpu-waitlist/{id}/keep",
+  summary: "Keep waiting for a GPU setup after being asked if it is still wanted",
+  tags: ["GPU waitlist"],
+  security: SECURITY_BEARER,
+  featureFlag: FeatureFlags.GPU_AVAILABILITY_ALERTS,
+  request: { params: GpuWaitlistEntryIdParamsSchema },
+  responses: {
+    200: { description: "The waitlist entry with its place in line", content: { "application/json": { schema: GpuWaitlistEntryResponseSchema } } },
+    401: { description: "Unauthorized" },
+    404: { description: "The caller is not waiting with this id" }
+  }
+});
+
+gpuWaitlistRouter.openapi(keepGpuWaitlistEntryRoute, async function routeKeepGpuWaitlistEntry(c) {
+  return c.json(await container.resolve(GpuWaitlistController).keep(c.req.valid("param").id), 200);
+});

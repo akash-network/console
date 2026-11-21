@@ -370,6 +370,14 @@ export const operations = {
     joinGpuWaitlist: { path: "/v1/gpu-waitlist", method: "post", operationId: "joinGpuWaitlist", pathParams: [], queryParams: [], hasBody: true },
     listGpuWaitlist: { path: "/v1/gpu-waitlist", method: "get", operationId: "listGpuWaitlist", pathParams: [], queryParams: [], hasBody: false },
     leaveGpuWaitlist: { path: "/v1/gpu-waitlist/{id}", method: "delete", operationId: "leaveGpuWaitlist", pathParams: ["id"], queryParams: [], hasBody: false },
+    keepGpuWaitlistEntry: {
+      path: "/v1/gpu-waitlist/{id}/keep",
+      method: "post",
+      operationId: "keepGpuWaitlistEntry",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     createNotificationAddressConfirmation: {
       path: "/v1/notification-address-confirmations",
       method: "post",

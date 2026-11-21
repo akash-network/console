@@ -27,6 +27,17 @@ function liveManaged(overrides: Partial<LiveManagedDeployment> = {}): LiveManage
 
 describe(LeaseGpuOfferJobService.name, () => {
   describe("schedule", () => {
+    it("keys a job that carries a lease time apart from the sweep's job", async () => {
+      const { service, jobQueueService } = setup({});
+      const leaseTarget = { ...TARGET, leaseCreatedAt: "2026-11-18T12:00:00.000Z" };
+
+      await service.schedule(leaseTarget);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: leaseTarget }), {
+        singletonKey: `${recordLeaseGpuOffersKeyFor(TARGET)}.lease`
+      });
+    });
+
     it("holds one job per deployment and starts it right away", async () => {
       const { service, jobQueueService } = setup({});
 
@@ -96,6 +107,28 @@ describe(LeaseGpuOfferJobService.name, () => {
         candidates: [liveManaged()],
         onGpu: [{ owner: OWNER, dseq: TARGET.dseq }],
         recentlyTried: [recordLeaseGpuOffersKeyFor(TARGET)]
+      });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0, recentlyTried: 1 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("counts a deployment whose lease-created job is queued rather than queueing a sweep job for it", async () => {
+      const { service, jobQueueService } = setup({
+        candidates: [liveManaged()],
+        onGpu: [{ owner: OWNER, dseq: TARGET.dseq }],
+        pending: [`${recordLeaseGpuOffersKeyFor(TARGET)}.lease`]
+      });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0, alreadyScheduled: 1 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("waits out the backoff for a deployment whose lease-created job ran recently", async () => {
+      const { service, jobQueueService } = setup({
+        candidates: [liveManaged()],
+        onGpu: [{ owner: OWNER, dseq: TARGET.dseq }],
+        recentlyTried: [`${recordLeaseGpuOffersKeyFor(TARGET)}.lease`]
       });
 
       await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0, recentlyTried: 1 });

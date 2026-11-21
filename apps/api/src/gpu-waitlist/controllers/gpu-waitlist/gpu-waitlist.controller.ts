@@ -45,4 +45,9 @@ export class GpuWaitlistController {
   async leave(id: string): Promise<void> {
     await this.gpuWaitlistService.leave(id);
   }
+
+  @Protected([{ action: "update", subject: "GpuWaitlistEntry" }])
+  async keep(id: string): Promise<GpuWaitlistEntryResponse> {
+    return { data: toOutput(await this.gpuWaitlistService.keep(id)) };
+  }
 }
