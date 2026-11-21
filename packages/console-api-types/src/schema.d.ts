@@ -2372,7 +2372,7 @@ export interface paths {
     put?: never;
     /**
      * Check a definition before creating a deployment from it
-     * @description Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every problem at once, each at its path in the document. Creates, records, seals and sends nothing. Every problem with the document and its secrets answers 200 with `valid` false and the problems listed; an error status means the check itself could not run.
+     * @description Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every error at once, each at its path in the document. Creates, records, seals and sends nothing. Every error in the document and its secrets answers 200 with `valid` false and the errors listed; an error status means the check itself could not run.
      */
     post: operations["validateDeployment"];
     delete?: never;
@@ -2392,7 +2392,7 @@ export interface paths {
     put?: never;
     /**
      * Check a definition before replacing a deployment's with it
-     * @description Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every problem at once. `keptSecrets` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. Every problem with the document and its secrets answers 200 with `valid` false and the problems listed; an error status means the check itself could not run.
+     * @description Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every error at once. `keptSecrets` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. Every error in the document and its secrets answers 200 with `valid` false and the errors listed; an error status means the check itself could not run.
      */
     post: operations["validateDeploymentDefinition"];
     delete?: never;
@@ -14443,11 +14443,11 @@ export interface operations {
         content: {
           "application/json": {
             data: {
-              /** @description True when the check found no problem, so the same request would not be refused for its document or its secrets. */
+              /** @description True when the check found no error, so the same request would not be refused for its document or its secrets. */
               valid: boolean;
-              /** @description Every problem found, not only the first. */
-              problems: {
-                /** @description JSON pointer into the document, such as `/services/web/env/1`. Empty when the problem is the document as a whole. */
+              /** @description Every error found, not only the first. Each one would make the same request fail. */
+              errors: {
+                /** @description JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole. */
                 path: string;
                 /** @description What kind of check failed, such as `required`, `sdl-reference` or `deployment_resources_changed`. */
                 keyword: string;
@@ -14621,11 +14621,11 @@ export interface operations {
         content: {
           "application/json": {
             data: {
-              /** @description True when the check found no problem, so the same request would not be refused for its document or its secrets. */
+              /** @description True when the check found no error, so the same request would not be refused for its document or its secrets. */
               valid: boolean;
-              /** @description Every problem found, not only the first. */
-              problems: {
-                /** @description JSON pointer into the document, such as `/services/web/env/1`. Empty when the problem is the document as a whole. */
+              /** @description Every error found, not only the first. Each one would make the same request fail. */
+              errors: {
+                /** @description JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole. */
                 path: string;
                 /** @description What kind of check failed, such as `required`, `sdl-reference` or `deployment_resources_changed`. */
                 keyword: string;

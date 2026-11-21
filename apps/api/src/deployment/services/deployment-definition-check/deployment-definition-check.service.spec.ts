@@ -34,21 +34,21 @@ describe(DeploymentDefinitionCheckService.name, () => {
 
       await expect(service.checkNew("user-1", { sdl: sdlWith(["MODE=production"]), secretEnv: [] })).resolves.toEqual({
         valid: true,
-        problems: [],
+        errors: [],
         keptSecrets: []
       });
     });
 
-    it("answers only the parse problems of a document that does not parse", async () => {
+    it("answers only the parse errors of a document that does not parse", async () => {
       const { service, sdlService } = setup();
 
       const result = await service.checkNew("user-1", { sdl: "services: [" });
 
-      expect(result).toEqual({ valid: false, problems: [{ path: "", keyword: "yaml", message: expect.any(String) }], keptSecrets: [] });
+      expect(result).toEqual({ valid: false, errors: [{ path: "", keyword: "yaml", message: expect.any(String) }], keptSecrets: [] });
       expect(sdlService.generateManifestFrom).not.toHaveBeenCalled();
     });
 
-    it("reports reference, manifest, secretEnv and intake problems together", async () => {
+    it("reports reference, manifest, secretEnv and intake errors together", async () => {
       const { service } = setup({
         manifestErrors: [{ schemaPath: "", instancePath: "/services/web", keyword: "required", params: {}, message: "must have required property 'expose'" }],
         receiveErrors: [{ schemaPath: "", instancePath: "/services/web/env/1", keyword: "sdl-reference", params: {}, message: "no value supplied" }]
@@ -57,7 +57,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
       const result = await service.checkNew("user-1", { sdl: sdlWith(["MODE=ac-oops", "KEY=ac-secret://KEY"]), secretEnv: ["MISSPELT"] });
 
       expect(result.valid).toBe(false);
-      expect(result.problems).toEqual([
+      expect(result.errors).toEqual([
         { path: "/services/web/env/0", keyword: "sdl-reference", message: expect.stringContaining("ac-oops") },
         { path: "/services/web", keyword: "required", message: "must have required property 'expose'" },
         { path: "/secretEnv", keyword: "secretEnv", message: '"MISSPELT" is listed in secretEnv, but the request sets no environment variable of that name' },
@@ -71,7 +71,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
       const result = await service.checkNew("user-1", { sdl: sdlWith([]), secretEnv: [] });
 
       expect(result.valid).toBe(false);
-      expect(result.problems).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
     });
 
     it("validates the manifest under the wallet's trial limits without touching the document", async () => {
@@ -106,7 +106,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
       const result = await service.checkNew("user-1", { sdl: sdlWith(["KEY=ac-secret://KEY", "MODE=production"]), inheritSecretsFrom: "999" });
 
       expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ KEY: "value", s0_e1: "production" }, "stored");
-      expect(result.problems).toEqual([{ path: "", keyword: "secrets", message: "At most 1 secrets may be stored" }]);
+      expect(result.errors).toEqual([{ path: "", keyword: "secrets", message: "At most 1 secrets may be stored" }]);
     });
 
     it("lets an unexpected failure of the bound through", async () => {
@@ -131,7 +131,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
         dseq: DSEQ,
         sealedSecrets: STORED_TOKEN
       });
-      expect(result).toEqual({ valid: true, problems: [], keptSecrets: ["KEY"] });
+      expect(result).toEqual({ valid: true, errors: [], keptSecrets: ["KEY"] });
     });
 
     it("opens nothing for a deployment that stores no token", async () => {
@@ -158,7 +158,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
 
       const result = await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith([]) }, ability);
 
-      expect(result.problems).toEqual([{ path: "/deployment", keyword: "deployment_resources_changed", message: expect.stringContaining('"other-group"') }]);
+      expect(result.errors).toEqual([{ path: "/deployment", keyword: "deployment_resources_changed", message: expect.stringContaining('"other-group"') }]);
     });
 
     it("skips the resource check for a deployment the chain could not describe", async () => {

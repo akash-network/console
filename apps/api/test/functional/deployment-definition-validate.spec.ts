@@ -110,19 +110,19 @@ describe("Checking a deployment definition", () => {
       const response = await check(apiKey, { sdl: sdlWith(["MODE=production"]), secretEnv: [] });
 
       expect(response.status).toBe(200);
-      expect(await problemsOf(response)).toEqual({ valid: true, problems: [], keptSecrets: [] });
+      expect(await resultOf(response)).toEqual({ valid: true, errors: [], keptSecrets: [] });
     });
 
-    it("reports every problem at once, each at its path", async () => {
+    it("reports every error at once, each at its path", async () => {
       const { apiKey } = await setup({ record: false });
       const sdl = sdlWith(["MODE=ac-oops", "API_KEY=ac-secret://API_KEY"]).replace("    image: nginx\n", "");
 
       const response = await check(apiKey, { sdl, secretEnv: ["MISSPELT"] });
 
-      const result = await problemsOf(response);
+      const result = await resultOf(response);
       expect(response.status).toBe(200);
       expect(result.valid).toBe(false);
-      expect(result.problems).toEqual(
+      expect(result.errors).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ path: "/services/web/env/0", keyword: "sdl-reference" }),
           expect.objectContaining({ path: "/services/web/env/1", message: expect.stringContaining("ac-secret://API_KEY") }),
@@ -137,7 +137,7 @@ describe("Checking a deployment definition", () => {
 
       const response = await check(apiKey, { definition: yaml.raw<SDLInput>(sdlWith(["MODE=production"])), secretEnv: [] });
 
-      expect(await problemsOf(response)).toMatchObject({ valid: true });
+      expect(await resultOf(response)).toMatchObject({ valid: true });
     });
 
     it("creates, records and broadcasts nothing", async () => {
@@ -175,7 +175,7 @@ describe("Checking a deployment definition", () => {
 
       const response = await check(apiKey, { sdl: sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"], { image: "nginx:1.27" }) }, DSEQ);
 
-      expect(await problemsOf(response)).toEqual({ valid: true, problems: [], keptSecrets: ["s0_e0", "s0_e1"] });
+      expect(await resultOf(response)).toEqual({ valid: true, errors: [], keptSecrets: ["s0_e0", "s0_e1"] });
     });
 
     it("reports a change only a new deployment can take", async () => {
@@ -183,7 +183,7 @@ describe("Checking a deployment definition", () => {
 
       const response = await check(apiKey, { sdl: sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"], { cpu: 0.5 }) }, DSEQ);
 
-      expect((await problemsOf(response)).problems).toEqual([expect.objectContaining({ keyword: "deployment_resources_changed" })]);
+      expect((await resultOf(response)).errors).toEqual([expect.objectContaining({ keyword: "deployment_resources_changed" })]);
     });
 
     it("reports a reference with neither a new value nor a stored one", async () => {
@@ -191,9 +191,9 @@ describe("Checking a deployment definition", () => {
 
       const response = await check(apiKey, { sdl: sdlWith(["API_TOKEN=ac-secret://s0_e0", "NEW_KEY=ac-secret://NEW_KEY"]) }, DSEQ);
 
-      expect(await problemsOf(response)).toMatchObject({
+      expect(await resultOf(response)).toMatchObject({
         valid: false,
-        problems: [expect.objectContaining({ path: "/services/web/env/1", keyword: "sdl-reference" })],
+        errors: [expect.objectContaining({ path: "/services/web/env/1", keyword: "sdl-reference" })],
         keptSecrets: ["s0_e0"]
       });
     });
@@ -232,8 +232,8 @@ describe("Checking a deployment definition", () => {
     });
   }
 
-  async function problemsOf(response: Response) {
-    const { data } = (await response.json()) as { data: { valid: boolean; problems: Array<{ path: string; keyword: string; message: string }>; keptSecrets: string[] } };
+  async function resultOf(response: Response) {
+    const { data } = (await response.json()) as { data: { valid: boolean; errors: Array<{ path: string; keyword: string; message: string }>; keptSecrets: string[] } };
 
     return data;
   }

@@ -801,13 +801,13 @@ deploymentsRouter.openapi(replaceDefinitionRoute, async function routeReplaceDep
 });
 
 const CHECK_REFUSALS_DESCRIPTION =
-  "Every problem with the document and its secrets answers 200 with `valid` false and the problems listed; an error status means the check itself could not run";
+  "Every error in the document and its secrets answers 200 with `valid` false and the errors listed; an error status means the check itself could not run";
 
 const validateRoute = createRoute({
   method: "post",
   path: "/v1/deployments/validate",
   summary: "Check a definition before creating a deployment from it",
-  description: `Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every problem at once, each at its path in the document. Creates, records, seals and sends nothing. ${CHECK_REFUSALS_DESCRIPTION}.`,
+  description: `Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every error at once, each at its path in the document. Creates, records, seals and sends nothing. ${CHECK_REFUSALS_DESCRIPTION}.`,
   operationId: "validateDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -833,7 +833,7 @@ const validateDefinitionRoute = createRoute({
   method: "post",
   path: "/v1/deployments/{dseq}/definition/validate",
   summary: "Check a definition before replacing a deployment's with it",
-  description: `Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every problem at once. \`keptSecrets\` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. ${CHECK_REFUSALS_DESCRIPTION}.`,
+  description: `Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every error at once. \`keptSecrets\` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. ${CHECK_REFUSALS_DESCRIPTION}.`,
   operationId: "validateDeploymentDefinition",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,

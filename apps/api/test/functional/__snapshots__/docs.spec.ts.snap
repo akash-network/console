@@ -10603,7 +10603,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deployments/validate": {
       "post": {
-        "description": "Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every problem at once, each at its path in the document. Creates, records, seals and sends nothing. Every problem with the document and its secrets answers 200 with \`valid\` false and the problems listed; an error status means the check itself could not run.",
+        "description": "Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every error at once, each at its path in the document. Creates, records, seals and sends nothing. Every error in the document and its secrets answers 200 with \`valid\` false and the errors listed; an error status means the check itself could not run.",
         "operationId": "validateDeployment",
         "parameters": [
           {
@@ -10730,15 +10730,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
-                        "keptSecrets": {
-                          "description": "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of \`inheritSecretsFrom\`) rather than from this request.",
-                          "items": {
-                            "type": "string",
-                          },
-                          "type": "array",
-                        },
-                        "problems": {
-                          "description": "Every problem found, not only the first.",
+                        "errors": {
+                          "description": "Every error found, not only the first. Each one would make the same request fail.",
                           "items": {
                             "properties": {
                               "keyword": {
@@ -10749,7 +10742,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "string",
                               },
                               "path": {
-                                "description": "JSON pointer into the document, such as \`/services/web/env/1\`. Empty when the problem is the document as a whole.",
+                                "description": "JSON pointer into the document, such as \`/services/web/env/1\`. Empty when the error concerns the document as a whole.",
                                 "type": "string",
                               },
                             },
@@ -10762,14 +10755,21 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           },
                           "type": "array",
                         },
+                        "keptSecrets": {
+                          "description": "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of \`inheritSecretsFrom\`) rather than from this request.",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
                         "valid": {
-                          "description": "True when the check found no problem, so the same request would not be refused for its document or its secrets.",
+                          "description": "True when the check found no error, so the same request would not be refused for its document or its secrets.",
                           "type": "boolean",
                         },
                       },
                       "required": [
                         "valid",
-                        "problems",
+                        "errors",
                         "keptSecrets",
                       ],
                       "type": "object",
@@ -14756,7 +14756,7 @@ services:
     },
     "/v1/deployments/{dseq}/definition/validate": {
       "post": {
-        "description": "Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every problem at once. \`keptSecrets\` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. Every problem with the document and its secrets answers 200 with \`valid\` false and the problems listed; an error status means the check itself could not run.",
+        "description": "Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every error at once. \`keptSecrets\` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. Every error in the document and its secrets answers 200 with \`valid\` false and the errors listed; an error status means the check itself could not run.",
         "operationId": "validateDeploymentDefinition",
         "parameters": [
           {
@@ -14889,15 +14889,8 @@ services:
                   "properties": {
                     "data": {
                       "properties": {
-                        "keptSecrets": {
-                          "description": "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of \`inheritSecretsFrom\`) rather than from this request.",
-                          "items": {
-                            "type": "string",
-                          },
-                          "type": "array",
-                        },
-                        "problems": {
-                          "description": "Every problem found, not only the first.",
+                        "errors": {
+                          "description": "Every error found, not only the first. Each one would make the same request fail.",
                           "items": {
                             "properties": {
                               "keyword": {
@@ -14908,7 +14901,7 @@ services:
                                 "type": "string",
                               },
                               "path": {
-                                "description": "JSON pointer into the document, such as \`/services/web/env/1\`. Empty when the problem is the document as a whole.",
+                                "description": "JSON pointer into the document, such as \`/services/web/env/1\`. Empty when the error concerns the document as a whole.",
                                 "type": "string",
                               },
                             },
@@ -14921,14 +14914,21 @@ services:
                           },
                           "type": "array",
                         },
+                        "keptSecrets": {
+                          "description": "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of \`inheritSecretsFrom\`) rather than from this request.",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
                         "valid": {
-                          "description": "True when the check found no problem, so the same request would not be refused for its document or its secrets.",
+                          "description": "True when the check found no error, so the same request would not be refused for its document or its secrets.",
                           "type": "boolean",
                         },
                       },
                       "required": [
                         "valid",
-                        "problems",
+                        "errors",
                         "keptSecrets",
                       ],
                       "type": "object",

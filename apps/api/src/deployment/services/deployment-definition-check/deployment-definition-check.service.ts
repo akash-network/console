@@ -20,19 +20,19 @@ import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sd
 
 const SECRET_REFERENCE_KIND = "secret";
 
-export type DefinitionProblem = { path: string; keyword: string; message: string };
+export type DefinitionError = { path: string; keyword: string; message: string };
 
-export type DefinitionCheck = { valid: boolean; problems: DefinitionProblem[]; keptSecrets: string[] };
+export type DefinitionCheck = { valid: boolean; errors: DefinitionError[]; keptSecrets: string[] };
 
 export type DefinitionCheckInput = { sdl: string; sealedSecrets?: string; secretEnv?: string[]; inheritSecretsFrom?: string };
 
 type CheckContext = { wallet: WalletInitialized; held: SdlSecrets; storedDocument?: SDLInput; dseq?: string };
 
-function problemOf(error: ValidationError): DefinitionProblem {
+function errorOf(error: ValidationError): DefinitionError {
   return { path: error.instancePath, keyword: error.keyword, message: error.message };
 }
 
-/** Runs the checks a create or a replacement would, collecting every problem rather than stopping at the first, and writes, seals and sends nothing. */
+/** Runs the checks a create or a replacement would, collecting every error rather than stopping at the first, and writes, seals and sends nothing. */
 @singleton()
 export class DeploymentDefinitionCheckService {
   constructor(
@@ -84,51 +84,51 @@ export class DeploymentDefinitionCheckService {
   async #check(input: DefinitionCheckInput, context: CheckContext): Promise<DefinitionCheck> {
     const parsed = this.sdlService.parse(input.sdl);
 
-    if (!parsed.ok) return { valid: false, problems: parsed.value.map(problemOf), keptSecrets: [] };
+    if (!parsed.ok) return { valid: false, errors: parsed.value.map(errorOf), keptSecrets: [] };
 
     const document = parsed.value;
-    const problems = [
-      ...this.sdlReferenceService.validate(document).map(problemOf),
-      ...(await this.#manifestProblemsOf(document, context)),
-      ...this.#unsetSecretEnvProblemsOf(document, input, context)
+    const errors = [
+      ...this.sdlReferenceService.validate(document).map(errorOf),
+      ...(await this.#manifestErrorsOf(document, context)),
+      ...this.#unsetSecretEnvErrorsOf(document, input, context)
     ];
     const received = await this.sdlSecretsService.receive({ sdl: document, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets, inherited: context.held });
     const supplied = received.ok ? received.value : {};
 
-    if (!received.ok) problems.push(...received.value.map(problemOf));
+    if (!received.ok) errors.push(...received.value.map(errorOf));
 
-    problems.push(...this.#storageProblemsOf(document, input, { ...context, supplied }));
+    errors.push(...this.#storageErrorsOf(document, input, { ...context, supplied }));
 
     const keptSecrets = this.#referencedNamesOf(document).filter(name => !Object.hasOwn(supplied, name) && ownValue(context.held, name) !== undefined);
 
-    return { valid: problems.length === 0, problems, keptSecrets };
+    return { valid: errors.length === 0, errors, keptSecrets };
   }
 
-  async #manifestProblemsOf(document: SDLInput, context: CheckContext): Promise<DefinitionProblem[]> {
+  async #manifestErrorsOf(document: SDLInput, context: CheckContext): Promise<DefinitionError[]> {
     const manifest = await this.sdlService.generateManifestFrom(structuredClone(document), { isTrialing: !!context.wallet.isTrialing });
 
-    if (!manifest.ok) return manifest.value.map(problemOf);
+    if (!manifest.ok) return manifest.value.map(errorOf);
 
     const missingGlobalExposure = findMissingGlobalExposure(manifest.value.groups);
-    const problems = missingGlobalExposure ? [problemOf(missingGlobalExposure)] : [];
+    const errors = missingGlobalExposure ? [errorOf(missingGlobalExposure)] : [];
 
-    if (context.dseq === undefined) return problems;
+    if (context.dseq === undefined) return errors;
 
     const { groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(context.wallet, context.dseq);
     const changedGroup = groupSpecs && findGroupWithChangedResources(manifest.value.groupSpecs, groupSpecs);
 
     if (changedGroup) {
-      problems.push({
+      errors.push({
         path: "/deployment",
         keyword: "deployment_resources_changed",
         message: `The SDL changes the resources of group "${changedGroup}", which only a new deployment can take: a running deployment's groups, compute resources, replica counts and globally exposed ports are fixed`
       });
     }
 
-    return problems;
+    return errors;
   }
 
-  #unsetSecretEnvProblemsOf(document: SDLInput, input: DefinitionCheckInput, context: CheckContext): DefinitionProblem[] {
+  #unsetSecretEnvErrorsOf(document: SDLInput, input: DefinitionCheckInput, context: CheckContext): DefinitionError[] {
     const unset = this.sdlSecretsDerivationService.unsetEnvVariablesOf(document, {
       sealedEnv: sealedEnvOf(input),
       onlyAt: this.#positionsToDerive(document, input, context)
@@ -142,7 +142,7 @@ export class DeploymentDefinitionCheckService {
   }
 
   /** Measured on the very set a write would seal, so a definition this answers as storable is never refused for its size on the way in. */
-  #storageProblemsOf(document: SDLInput, input: DefinitionCheckInput, context: CheckContext & { supplied: SdlSecrets }): DefinitionProblem[] {
+  #storageErrorsOf(document: SDLInput, input: DefinitionCheckInput, context: CheckContext & { supplied: SdlSecrets }): DefinitionError[] {
     const sealed = structuredClone(document);
     const derived = this.sdlSecretsDerivationService.derive(sealed, {
       sealedEnv: sealedEnvOf(input),

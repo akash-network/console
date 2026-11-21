@@ -807,16 +807,16 @@ export const ValidateDeploymentDefinitionRequestSchema = z.object({
 
 export const ValidateDeploymentResponseSchema = z.object({
   data: z.object({
-    valid: z.boolean().openapi({ description: "True when the check found no problem, so the same request would not be refused for its document or its secrets." }),
-    problems: z
+    valid: z.boolean().openapi({ description: "True when the check found no error, so the same request would not be refused for its document or its secrets." }),
+    errors: z
       .array(
         z.object({
-          path: z.string().openapi({ description: "JSON pointer into the document, such as `/services/web/env/1`. Empty when the problem is the document as a whole." }),
+          path: z.string().openapi({ description: "JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole." }),
           keyword: z.string().openapi({ description: "What kind of check failed, such as `required`, `sdl-reference` or `deployment_resources_changed`." }),
           message: z.string()
         })
       )
-      .openapi({ description: "Every problem found, not only the first." }),
+      .openapi({ description: "Every error found, not only the first. Each one would make the same request fail." }),
     keptSecrets: z.array(z.string()).openapi({
       description:
         "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of `inheritSecretsFrom`) rather than from this request."
