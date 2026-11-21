@@ -1,11 +1,11 @@
 import type { FC } from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { format } from "date-fns";
 import Link from "next/link";
 
 import { PublisherLink } from "@src/components/templates/communityGallery/PublisherLink/PublisherLink";
 import { pluralize } from "@src/components/templates/communityGallery/usageNumbers";
+import { formatCalendarDay, formatCalendarMonth } from "@src/components/templates/marketplaceDates/marketplaceDates";
 import type { MarketplaceTemplate } from "@src/types/marketplace-template";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -29,7 +29,7 @@ export const TemplatePublisherCard: FC<TemplatePublisherCardProps> = ({ publishe
       <div className="flex flex-col gap-1">
         <PublisherLink publisher={publisher} className="text-[15px]" />
         <p className="text-[12.5px] text-muted-foreground">{counts.join(" · ")}</p>
-        {publisher.memberSince && <p className="text-[12.5px] text-muted-foreground">Member since {format(new Date(publisher.memberSince), "MMM yyyy")}</p>}
+        {publisher.memberSince && <p className="text-[12.5px] text-muted-foreground">Member since {formatCalendarMonth(publisher.memberSince)}</p>}
       </div>
       {publisher.handle && (
         <Link href={UrlService.templatePublisher(publisher.handle)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
@@ -41,7 +41,7 @@ export const TemplatePublisherCard: FC<TemplatePublisherCardProps> = ({ publishe
           {publishedAt && (
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Published</dt>
-              <dd className="font-medium">{format(new Date(publishedAt), "MMM d, yyyy")}</dd>
+              <dd className="font-medium">{formatCalendarDay(publishedAt)}</dd>
             </div>
           )}
           {currentVersion !== undefined && (

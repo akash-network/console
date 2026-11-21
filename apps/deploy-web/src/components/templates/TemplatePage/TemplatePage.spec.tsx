@@ -141,12 +141,10 @@ describe(TemplatePage.name, () => {
     });
   });
 
-  it("shows deploys, the still-up share and the last deploy", () => {
+  it("shows deploys, the still-up share and how long before the read the last deploy was", () => {
     setup({
-      template: {
-        ...TEMPLATE,
-        usage: { deploys: 1284, stillUpAfter24h: 0.936, lastDeployedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), forks: 0, favorites: 0 }
-      }
+      readAt: Date.parse("2026-01-10T12:00:00.000Z"),
+      template: { ...TEMPLATE, usage: { deploys: 1284, stillUpAfter24h: 0.936, lastDeployedAt: "2026-01-10T10:00:00.000Z", forks: 0, favorites: 0 } }
     });
 
     expect(screen.getByText("1,284 deploys · 94% still up after 24 h · Last deployed 2 hours ago")).toBeInTheDocument();
@@ -926,6 +924,7 @@ describe(TemplatePage.name, () => {
     organizations?: { type: "personal" | "team"; slug: string }[];
     isFavoriteFailing?: boolean;
     isFavoriteChangeHeld?: boolean;
+    readAt?: number;
     arrivalSource?: string;
     removedOnServer?: { title: string | null };
     TemplateReadmeTab?: typeof DEPENDENCIES.TemplateReadmeTab;
@@ -948,7 +947,14 @@ describe(TemplatePage.name, () => {
         ? mock<TemplateQuery>({ data: undefined, isLoading: true, isError: false, error: null, refetch })
         : input.error
           ? mock<TemplateQuery>({ data: undefined, isLoading: false, isError: true, error: input.error, refetch })
-          : mock<TemplateQuery>({ data: structuredClone(input.template ?? TEMPLATE), isLoading: false, isError: false, error: null, refetch });
+          : mock<TemplateQuery>({
+              data: structuredClone(input.template ?? TEMPLATE),
+              dataUpdatedAt: input.readAt ?? Date.now(),
+              isLoading: false,
+              isError: false,
+              error: null,
+              refetch
+            });
     let versionsQuery = input.isLoadingVersions
       ? mock<VersionsQuery>({ data: undefined, isError: false })
       : input.isFailingVersions
@@ -1049,7 +1055,14 @@ describe(TemplatePage.name, () => {
     const { unmount, rerender } = render(renderPage());
 
     const receiveFromServer = (next: { template: MarketplaceTemplate; versions?: TemplateVersionSummary[] }) => {
-      templateQuery = mock<TemplateQuery>({ data: structuredClone(next.template), isLoading: false, isError: false, error: null, refetch });
+      templateQuery = mock<TemplateQuery>({
+        data: structuredClone(next.template),
+        dataUpdatedAt: Date.now(),
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch
+      });
       versionsQuery = mock<VersionsQuery>({ data: structuredClone(next.versions ?? VERSIONS), isError: false });
       rerender(renderPage());
     };
