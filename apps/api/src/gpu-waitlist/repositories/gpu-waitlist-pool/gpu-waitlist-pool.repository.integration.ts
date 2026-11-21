@@ -84,6 +84,93 @@ describe(GpuWaitlistPoolRepository.name, () => {
     });
   });
 
+  describe("closeWaveIfUnchanged", () => {
+    it("closes the wave when no round started since the pool was read", async () => {
+      const { repository, poolKey } = setup();
+      await repository.upsert({ poolKey, lastFreeUnits: 2, lastMaxNodeFreeUnits: 2 });
+      await repository.update(poolKey, { waveStartedAt: new Date("2026-11-18T12:00:00.123Z"), lastRoundAt: new Date("2026-11-18T12:30:00.456Z") });
+      const read = await repository.findByPoolKeyAndLock(poolKey);
+
+      await repository.closeWaveIfUnchanged(poolKey, read!);
+
+      expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(
+        expect.objectContaining({ waveStartedAt: null, lastRoundAt: new Date("2026-11-18T12:30:00.456Z") })
+      );
+    });
+
+    it("closes a wave that never had a round when none started since the pool was read", async () => {
+      const { repository, poolKey } = setup();
+      await repository.upsert({ poolKey, lastFreeUnits: 2, lastMaxNodeFreeUnits: 2 });
+      await repository.update(poolKey, { waveStartedAt: new Date("2026-11-18T12:00:00Z") });
+      const read = await repository.findByPoolKeyAndLock(poolKey);
+
+      await repository.closeWaveIfUnchanged(poolKey, read!);
+
+      expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(expect.objectContaining({ waveStartedAt: null, lastRoundAt: null }));
+    });
+
+    it("keeps the wave open when a round started after the pool was read", async () => {
+      const { repository, poolKey } = setup();
+      const waveStartedAt = new Date("2026-11-18T12:00:00Z");
+      await repository.upsert({ poolKey, lastFreeUnits: 2, lastMaxNodeFreeUnits: 2 });
+      await repository.update(poolKey, { waveStartedAt, lastRoundAt: waveStartedAt });
+      const read = await repository.findByPoolKeyAndLock(poolKey);
+      await repository.update(poolKey, { lastRoundAt: new Date("2026-11-18T12:31:00Z") });
+
+      await repository.closeWaveIfUnchanged(poolKey, read!);
+
+      expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(expect.objectContaining({ waveStartedAt }));
+    });
+
+    it("keeps a wave that opened after the pool was read", async () => {
+      const { repository, poolKey } = setup();
+      const waveStartedAt = new Date("2026-11-18T12:00:00Z");
+      await repository.upsert({ poolKey, lastFreeUnits: 2, lastMaxNodeFreeUnits: 2 });
+      const read = await repository.findByPoolKeyAndLock(poolKey);
+      await repository.update(poolKey, { waveStartedAt, lastRoundAt: waveStartedAt });
+
+      await repository.closeWaveIfUnchanged(poolKey, read!);
+
+      expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(expect.objectContaining({ waveStartedAt }));
+    });
+
+    it("leaves other pools alone", async () => {
+      const { repository, poolKey } = setup();
+      const otherPoolKey = `${poolKey}-other`;
+      const waveStartedAt = new Date("2026-11-18T12:00:00Z");
+      await repository.upsert({ poolKey: otherPoolKey, lastFreeUnits: 2, lastMaxNodeFreeUnits: 2 });
+      await repository.update(otherPoolKey, { waveStartedAt, lastRoundAt: waveStartedAt });
+
+      await repository.closeWaveIfUnchanged(poolKey, { waveStartedAt, lastRoundAt: waveStartedAt });
+
+      expect(await repository.findByPoolKeyAndLock(otherPoolKey)).toEqual(expect.objectContaining({ waveStartedAt }));
+    });
+  });
+
+  describe("resetFreeUnits", () => {
+    it("zeroes the free units of the given pools only", async () => {
+      const { repository, poolKey } = setup();
+      const otherPoolKey = `${poolKey}-other`;
+      await repository.upsert({ poolKey, lastFreeUnits: 6, lastMaxNodeFreeUnits: 4 });
+      await repository.upsert({ poolKey: otherPoolKey, lastFreeUnits: 3, lastMaxNodeFreeUnits: 3 });
+
+      await repository.resetFreeUnits([poolKey]);
+
+      expect(await repository.findByPoolKeys([poolKey, otherPoolKey])).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ poolKey, lastFreeUnits: 0, lastMaxNodeFreeUnits: 4 }),
+          expect.objectContaining({ poolKey: otherPoolKey, lastFreeUnits: 3 })
+        ])
+      );
+    });
+
+    it("does nothing for no key", async () => {
+      const { repository } = setup();
+
+      await expect(repository.resetFreeUnits([])).resolves.toBeUndefined();
+    });
+  });
+
   describe("findByPoolKeyAndLock", () => {
     it("returns undefined for an unknown pool", async () => {
       const { repository, poolKey } = setup();

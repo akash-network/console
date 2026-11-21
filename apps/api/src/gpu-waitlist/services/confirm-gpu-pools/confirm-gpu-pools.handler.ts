@@ -53,6 +53,7 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
 
     const now = new Date();
     const prepared: PoolToCheck[] = [];
+    const unanswered: string[] = [];
     const rowsByKey = new Map((await this.gpuWaitlistPoolRepository.findByPoolKeys(poolKeys)).map(row => [row.poolKey, row]));
 
     for (const poolKey of poolKeys) {
@@ -61,19 +62,38 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
         if (pool) prepared.push(pool);
       } catch (error) {
         this.#logger.error({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey, error });
+        unanswered.push(poolKey);
       }
     }
 
     const pools = await this.#claim(prepared, now);
     const results = await this.#check(pools);
-    if (!results) return;
 
-    for (const [index, pool] of pools.entries()) {
-      try {
-        await this.#startWaveOnLiveBid(pool, results[index]);
-      } catch (error) {
-        this.#logger.error({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey: pool.poolKey, error });
+    if (!results) {
+      unanswered.push(...pools.map(pool => pool.poolKey));
+    } else {
+      for (const [index, pool] of pools.entries()) {
+        try {
+          await this.#startWaveOnLiveBid(pool, results[index]);
+        } catch (error) {
+          this.#logger.error({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey: pool.poolKey, error });
+          unanswered.push(pool.poolKey);
+        }
       }
+    }
+
+    await this.#giveRisesBack(unanswered);
+  }
+
+  /** The watcher consumed the rise that handed these pools over, so a pool this run could not answer for gets it back and is handed over again after the cooldown. */
+  async #giveRisesBack(poolKeys: string[]): Promise<void> {
+    if (!poolKeys.length) return;
+
+    try {
+      await this.gpuWaitlistPoolRepository.resetFreeUnits(poolKeys);
+      this.#logger.info({ event: "GPU_WAITLIST_CONFIRM_RISE_KEPT", poolKeys });
+    } catch (error) {
+      this.#logger.error({ event: "GPU_WAITLIST_CONFIRM_RISE_KEEP_FAILED", poolKeys, error });
     }
   }
 

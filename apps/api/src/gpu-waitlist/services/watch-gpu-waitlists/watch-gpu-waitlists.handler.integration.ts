@@ -31,13 +31,13 @@ describe(WatchGpuWaitlistsHandler.name, () => {
     vi.restoreAllMocks();
   });
 
-  it("hands a pool whose free gpus rose to a confirmation and queues its next watch, run the way a worker runs it", async () => {
+  it("hands a rising pool to a confirmation that gives the rise back at the check cap, and queues the next watch, run the way a worker runs it", async () => {
     const { entry, check, run } = await setup();
 
     await run();
 
     const [pool] = await container.resolve(GpuWaitlistPoolRepository).findByPoolKeys([entry.poolKey]);
-    expect(pool).toEqual(expect.objectContaining({ lastFreeUnits: 8, lastMaxNodeFreeUnits: 8, lastCheckAt: expect.any(Date) }));
+    expect(pool).toEqual(expect.objectContaining({ lastFreeUnits: 0, lastMaxNodeFreeUnits: 8, lastCheckAt: expect.any(Date) }));
     expect(check).toHaveBeenCalledWith([{ vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm", count: 2 }]);
     expect(await findJobRows(WatchGpuWaitlists[JOB_NAME], { singletonKey: WATCH_GPU_WAITLISTS_KEY, state: "created" })).toHaveLength(1);
   });

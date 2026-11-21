@@ -100,6 +100,7 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
 
       for (const pool of watched) {
         await this.gpuWaitlistPoolRepository.upsert(this.#toPoolRow(pool, handedOver));
+        if (pool.closesWave && pool.previous) await this.gpuWaitlistPoolRepository.closeWaveIfUnchanged(pool.poolKey, pool.previous);
       }
     });
   }
@@ -180,14 +181,13 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
   }
 
   /** A rise no confirmation took, whether the cooldown held it back or no confirmation was queued, keeps the previous free count so it is still a rise on the next watch. */
-  #toPoolRow({ poolKey, supply, isDue, isRiseHeldByCooldown, closesWave, previous }: WatchedPool, handedOver: Set<string>): GpuWaitlistPoolInput {
+  #toPoolRow({ poolKey, supply, isDue, isRiseHeldByCooldown, previous }: WatchedPool, handedOver: Set<string>): GpuWaitlistPoolInput {
     const keepsBaseline = isRiseHeldByCooldown || (isDue && !handedOver.has(poolKey));
 
     return {
       poolKey,
       lastFreeUnits: keepsBaseline ? previous?.lastFreeUnits ?? 0 : toStoredUnits(supply.freeUnits),
-      lastMaxNodeFreeUnits: toStoredUnits(Math.max(0, ...supply.nodeFreeUnits)),
-      ...(closesWave && { waveStartedAt: null })
+      lastMaxNodeFreeUnits: toStoredUnits(Math.max(0, ...supply.nodeFreeUnits))
     };
   }
 }

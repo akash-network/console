@@ -191,7 +191,7 @@ describe(WatchGpuWaitlistsHandler.name, () => {
     });
 
     it("closes the wave once supply no longer fits", async () => {
-      const { handler, upserts, confirmedPoolKeys } = setup({
+      const { handler, upserts, confirmedPoolKeys, gpuWaitlistPoolRepository } = setup({
         pools: {
           h100: { gpuCounts: [8], supply: [{ units: 4 }], pool: { lastFreeUnits: 8, waveStartedAt: minutesAgo(30), lastRoundAt: minutesAgo(30) } },
           a100: { gpuCounts: [8], supply: [{ units: 8 }], pool: { lastFreeUnits: 8, waveStartedAt: minutesAgo(30), lastRoundAt: minutesAgo(5) } }
@@ -202,9 +202,13 @@ describe(WatchGpuWaitlistsHandler.name, () => {
 
       expect(confirmedPoolKeys()).toBeUndefined();
       expect(upserts).toEqual([
-        { poolKey: "nvidia/h100/*/*", lastFreeUnits: 4, lastMaxNodeFreeUnits: 4, waveStartedAt: null },
+        { poolKey: "nvidia/h100/*/*", lastFreeUnits: 4, lastMaxNodeFreeUnits: 4 },
         { poolKey: "nvidia/a100/*/*", lastFreeUnits: 8, lastMaxNodeFreeUnits: 8 }
       ]);
+      expect(gpuWaitlistPoolRepository.closeWaveIfUnchanged).toHaveBeenCalledExactlyOnceWith(
+        "nvidia/h100/*/*",
+        expect.objectContaining({ waveStartedAt: minutesAgo(30), lastRoundAt: minutesAgo(30) })
+      );
     });
 
     it("clamps the supply of a node reporting unlimited capacity to what the pool row holds", async () => {
@@ -363,7 +367,7 @@ describe(WatchGpuWaitlistsHandler.name, () => {
     });
 
     it("closes an open episode where only trial users fit, and does not walk it again while supply holds", async () => {
-      const { handler, accountService, upserts, confirmedPoolKeys } = setup({
+      const { handler, accountService, upserts, confirmedPoolKeys, gpuWaitlistPoolRepository } = setup({
         pools: {
           h100: {
             gpuCounts: [8, 8],
@@ -379,7 +383,8 @@ describe(WatchGpuWaitlistsHandler.name, () => {
       const readsOnFirstWatch = accountService.findAccountType.mock.calls.length;
       await handler.handle();
 
-      expect(upserts[0]).toEqual({ poolKey: "nvidia/h100/*/*", lastFreeUnits: 8, lastMaxNodeFreeUnits: 8, waveStartedAt: null });
+      expect(upserts[0]).toEqual({ poolKey: "nvidia/h100/*/*", lastFreeUnits: 8, lastMaxNodeFreeUnits: 8 });
+      expect(gpuWaitlistPoolRepository.closeWaveIfUnchanged).toHaveBeenCalledExactlyOnceWith("nvidia/h100/*/*", expect.anything());
       expect(readsOnFirstWatch).toBe(2);
       expect(accountService.findAccountType).toHaveBeenCalledTimes(2);
       expect(confirmedPoolKeys()).toBeUndefined();
@@ -528,6 +533,10 @@ describe(WatchGpuWaitlistsHandler.name, () => {
         writesInsideTransaction.push(`upsert:${insideTransaction}`);
         upserts.push(values);
         storedPools.set(values.poolKey, { ...(storedPools.get(values.poolKey) ?? aPoolRow({ poolKey: values.poolKey })), ...values });
+      }),
+      closeWaveIfUnchanged: vi.fn(async poolKey => {
+        writesInsideTransaction.push(`closeWave:${insideTransaction}`);
+        storedPools.set(poolKey, { ...storedPools.get(poolKey)!, waveStartedAt: null });
       })
     });
     const gpuSupplyHttpService = mock<GpuSupplyHttpService>({
@@ -594,6 +603,7 @@ describe(WatchGpuWaitlistsHandler.name, () => {
       gpuBidCheckRepository,
       accountService,
       logger,
+      gpuWaitlistPoolRepository,
       upserts,
       writesInsideTransaction,
       confirmedPoolKeys

@@ -53,6 +53,29 @@ export class GpuWaitlistPoolRepository {
       .onConflictDoUpdate({ target: this.table.poolKey, set: { ...values, updatedAt: sql`now()` } });
   }
 
+  /** Leaves the episode open when a round started since the caller read the pool, so a confirmation that just emailed people keeps its wave. */
+  async closeWaveIfUnchanged(poolKey: string, { waveStartedAt, lastRoundAt }: Pick<GpuWaitlistPoolRow, "waveStartedAt" | "lastRoundAt">): Promise<void> {
+    await this.#cursor
+      .update(this.table)
+      .set({ waveStartedAt: null, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(this.table.poolKey, poolKey),
+          waveStartedAt ? eq(this.table.waveStartedAt, waveStartedAt) : isNull(this.table.waveStartedAt),
+          lastRoundAt ? eq(this.table.lastRoundAt, lastRoundAt) : isNull(this.table.lastRoundAt)
+        )
+      );
+  }
+
+  async resetFreeUnits(poolKeys: string[]): Promise<void> {
+    if (!poolKeys.length) return;
+
+    await this.#cursor
+      .update(this.table)
+      .set({ lastFreeUnits: 0, updatedAt: sql`now()` })
+      .where(inArray(this.table.poolKey, poolKeys));
+  }
+
   async update(poolKey: string, values: Partial<Omit<GpuWaitlistPoolInput, "poolKey">>): Promise<void> {
     await this.#cursor
       .update(this.table)

@@ -79,6 +79,7 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     expect(gpuWaitlistPoolRepository.update).toHaveBeenCalledWith(A100, { waveStartedAt: null });
     expect(gpuWaitlistPoolRepository.update).not.toHaveBeenCalledWith(A100, { lastCheckPriceUsdPerHour: expect.anything() });
     expect(logger.info).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_NO_LIVE_BID", poolKey: A100 });
+    expect(gpuWaitlistPoolRepository.resetFreeUnits).not.toHaveBeenCalled();
   });
 
   it("sizes the wave on the free gpus of the providers that bid in the check", async () => {
@@ -254,25 +255,45 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CHECK_CAP_REACHED", poolKeys: [H100] });
     expect(gpuWaveService.startWave).not.toHaveBeenCalled();
     expect(gpuWaitlistPoolRepository.update).not.toHaveBeenCalled();
+    expect(gpuWaitlistPoolRepository.resetFreeUnits).toHaveBeenCalledWith([H100]);
   });
 
   it("logs and stops when no check can run", async () => {
-    const { handler, gpuWaveService, logger } = setup({ pools: { [H100]: { gpuCounts: [8], supply: [{ units: 8 }] } }, outcome: { status: "unavailable" } });
+    const { handler, gpuWaveService, gpuWaitlistPoolRepository, logger } = setup({
+      pools: { [H100]: { gpuCounts: [8], supply: [{ units: 8 }] } },
+      outcome: { status: "unavailable" }
+    });
 
     await handler.handle({ poolKeys: [H100], version: 1 });
 
     expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CHECK_UNAVAILABLE", poolKeys: [H100] });
     expect(gpuWaveService.startWave).not.toHaveBeenCalled();
+    expect(gpuWaitlistPoolRepository.resetFreeUnits).toHaveBeenCalledWith([H100]);
   });
 
   it("claims every pool before the check runs, so a failing check still honours the cooldown", async () => {
     const error = new Error("chain down");
-    const { handler, calls, logger } = setup({ pools: { [H100]: { gpuCounts: [8], supply: [{ units: 8 }] } }, checkError: error });
+    const { handler, calls, logger, gpuWaitlistPoolRepository } = setup({ pools: { [H100]: { gpuCounts: [8], supply: [{ units: 8 }] } }, checkError: error });
 
     await handler.handle({ poolKeys: [H100], version: 1 });
 
     expect(calls).toEqual([`claim:${H100}`, "check"]);
     expect(logger.error).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CHECK_FAILED", poolKeys: [H100], error });
+    expect(gpuWaitlistPoolRepository.resetFreeUnits).toHaveBeenCalledWith([H100]);
+    expect(logger.info).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_RISE_KEPT", poolKeys: [H100] });
+  });
+
+  it("logs instead of throwing when giving a rise back fails", async () => {
+    const error = new Error("db down");
+    const { handler, logger, gpuWaitlistPoolRepository } = setup({
+      pools: { [H100]: { gpuCounts: [8], supply: [{ units: 8 }] } },
+      outcome: { status: "unavailable" }
+    });
+    gpuWaitlistPoolRepository.resetFreeUnits.mockRejectedValue(error);
+
+    await handler.handle({ poolKeys: [H100], version: 1 });
+
+    expect(logger.error).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_RISE_KEEP_FAILED", poolKeys: [H100], error });
   });
 
   it("runs no second check when the job is retried inside the cooldown", async () => {
@@ -328,7 +349,7 @@ describe(ConfirmGpuPoolsHandler.name, () => {
 
   it("keeps confirming the other pools when one fails", async () => {
     const waveError = new Error("lock timeout");
-    const { handler, gpuWaveService, gpuSetupCheckService, logger } = setup({
+    const { handler, gpuWaveService, gpuSetupCheckService, gpuWaitlistPoolRepository, logger } = setup({
       pools: {
         [H100]: { gpuCounts: [1], supply: [{ units: 8 }], bids: [bid("bidder", 2)] },
         [A100]: { gpuCounts: [1], memory: "80Gi", interface: "SXM5", supply: [{ memory: "80Gi", interface: "sxm5", units: 8 }], bids: [bid("bidder", 2)] },
@@ -347,6 +368,7 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     expect(gpuWaveService.startWave).toHaveBeenCalledWith(A100, { nodeFreeUnits: [8] }, 2);
     expect(logger.error).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey: "nvidia/broken/*/*", error: expect.any(Error) });
     expect(logger.error).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey: H100, error: waveError });
+    expect(gpuWaitlistPoolRepository.resetFreeUnits).toHaveBeenCalledExactlyOnceWith(["nvidia/broken/*/*", H100]);
   });
 
   it("does nothing on a network that does not serve gpu waitlists", async () => {
