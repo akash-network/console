@@ -7,11 +7,16 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
+import type { CommunityTemplateRepository, PublisherCounts } from "@src/template-marketplace/repositories/community-template/community-template.repository";
 import type {
   MarketplaceTemplateRepository,
   MarketplaceTemplateRow,
   UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+import type {
+  TemplatePublisherProfile,
+  TemplatePublisherRepository
+} from "@src/template-marketplace/repositories/template-publisher/template-publisher.repository";
 import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type {
   TemplateUsageEventRepository,
@@ -78,16 +83,80 @@ describe(MarketplaceTemplateService.name, () => {
         moderationStatus: template.moderationStatus,
         projectId: template.projectId,
         copiedFromId: template.copiedFromId,
+        copiedFrom: null,
         createdAt: template.createdAt,
         updatedAt: template.updatedAt,
         publishedAt: null,
         author: { username: "alice" },
-        publisher: { name: "Team", slug: "team", type: "team", handle: "team" },
+        publisher: {
+          name: "Team",
+          slug: "team",
+          type: "team",
+          handle: "team",
+          verified: false,
+          memberSince: null,
+          counts: { templates: 0, deploys: 0 }
+        },
         currentVersion: version,
         canEdit: false,
         isFavorite: false,
-        usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
+        usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0, favorites: 0 }
       });
+    });
+
+    it("describes the publisher as its page does once the organization has published", async () => {
+      const template = createTemplateRow({ publisher: { name: "Team", slug: "team", type: "team", handle: "team" } });
+      const memberSince = faker.date.past();
+      const publisherProfile: TemplatePublisherProfile = {
+        organizationId: template.organizationId,
+        name: "Team",
+        type: "team",
+        handle: "team",
+        bio: null,
+        links: [],
+        isVerified: true,
+        isSuspended: false,
+        memberSince
+      };
+      const { service, templatePublisherRepository, communityTemplateRepository } = setup({
+        template,
+        publisherProfile,
+        publisherCounts: { templates: 7, deploys: 18_400 }
+      });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.publisher).toEqual({
+        name: "Team",
+        slug: "team",
+        type: "team",
+        handle: "team",
+        verified: true,
+        memberSince,
+        counts: { templates: 7, deploys: 18_400 }
+      });
+      expect(templatePublisherRepository.findProfileOfOrganization).toHaveBeenCalledWith(template.organizationId);
+      expect(communityTemplateRepository.countOfPublisher).toHaveBeenCalledWith(template.organizationId);
+    });
+
+    it("counts nothing for an organization that has not published yet", async () => {
+      const template = createTemplateRow({ publisher: { name: "Team", slug: "team", type: "team", handle: null } });
+      const { service, communityTemplateRepository } = setup({ template, publisherCounts: { templates: 3, deploys: 9 } });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.publisher).toMatchObject({ verified: false, memberSince: null, counts: { templates: 0, deploys: 0 } });
+      expect(communityTemplateRepository.countOfPublisher).not.toHaveBeenCalled();
+    });
+
+    it("counts the people who keep the template among their favorites", async () => {
+      const template = createTemplateRow();
+      const { service, userTemplateRepository } = setup({ template, favorites: 214 });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.usage.favorites).toBe(214);
+      expect(userTemplateRepository.countFavorites).toHaveBeenCalledWith(template.id);
     });
 
     it.each<[string, string, string | null]>([
@@ -111,6 +180,7 @@ describe(MarketplaceTemplateService.name, () => {
       const result = await service.getTemplate(template.id);
 
       expect(result.copiedFromId).toBe(source.id);
+      expect(result.copiedFrom).toEqual({ id: source.id, title: source.title });
       expect(repository.findReadable).toHaveBeenCalledWith(source.id);
     });
 
@@ -122,6 +192,7 @@ describe(MarketplaceTemplateService.name, () => {
       const result = await service.getTemplate(template.id);
 
       expect(result.copiedFromId).toBeNull();
+      expect(result.copiedFrom).toBeNull();
     });
 
     it("looks up no source for a template that was not copied", async () => {
@@ -131,6 +202,7 @@ describe(MarketplaceTemplateService.name, () => {
       const result = await service.getTemplate(template.id);
 
       expect(result.copiedFromId).toBeNull();
+      expect(result.copiedFrom).toBeNull();
       expect(repository.findReadable).toHaveBeenCalledTimes(1);
     });
 
@@ -147,12 +219,12 @@ describe(MarketplaceTemplateService.name, () => {
 
     it("reports the template's usage", async () => {
       const template = createTemplateRow();
-      const usage: TemplateUsageSummary = { deploys: 12, lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.75 };
+      const usage: TemplateUsageSummary = { deploys: 12, lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.75, forks: 4 };
       const { service, templateUsageEventRepository } = setup({ template, usages: new Map([[template.id, usage]]) });
 
       const result = await service.getTemplate(template.id);
 
-      expect(result.usage).toEqual(usage);
+      expect(result.usage).toEqual({ ...usage, favorites: 0 });
       expect(templateUsageEventRepository.summarize).toHaveBeenCalledWith([template.id]);
     });
 
@@ -184,7 +256,7 @@ describe(MarketplaceTemplateService.name, () => {
 
       const result = await service.getTemplate(template.id);
 
-      expect(result.publisher).toEqual({ name: "Alice", slug: null, type: "personal", handle: null });
+      expect(result.publisher).toMatchObject({ name: "Alice", slug: null, type: "personal", handle: null });
     });
 
     it("tells when the template first went public", async () => {
@@ -758,7 +830,7 @@ describe(MarketplaceTemplateService.name, () => {
       const { service, readableRepository, templateUsageEventRepository } = setup({
         rules: [{ action: "read", subject: "Template" }],
         activeOrganizationId: organizationId,
-        usages: new Map([[deployed.id, { deploys: 3, lastDeployedAt, stillUpAfter24h: 0.5 }]])
+        usages: new Map([[deployed.id, { deploys: 3, lastDeployedAt, stillUpAfter24h: 0.5, forks: 0 }]])
       });
       readableRepository.listInOrganization.mockResolvedValue([deployed, quiet]);
 
@@ -906,6 +978,9 @@ describe(MarketplaceTemplateService.name, () => {
       activeOrganizationId?: string | null;
       usages?: Map<string, TemplateUsageSummary>;
       removedTitle?: string;
+      favorites?: number;
+      publisherProfile?: TemplatePublisherProfile;
+      publisherCounts?: PublisherCounts;
     } = {}
   ) {
     const ability = createMongoAbility<MongoAbility>(input.rules ?? []);
@@ -925,6 +1000,7 @@ describe(MarketplaceTemplateService.name, () => {
     templateVersionRepository.findNewestOf.mockResolvedValue(new Map());
     const userTemplateRepository = mock<UserTemplateRepository>();
     userTemplateRepository.isFavorite.mockResolvedValue(false);
+    userTemplateRepository.countFavorites.mockResolvedValue(input.favorites ?? 0);
     const executionContextService = mock<ExecutionContextService>();
     const activeOrganizationId = input.activeOrganizationId === undefined ? faker.string.uuid() : input.activeOrganizationId;
     executionContextService.get
@@ -935,6 +1011,10 @@ describe(MarketplaceTemplateService.name, () => {
     templateUsageEventRepository.countDeploysByVersion.mockResolvedValue(new Map());
     const templateRemovalRepository = mock<TemplateRemovalRepository>();
     templateRemovalRepository.findRemovedTitle.mockResolvedValue(input.removedTitle);
+    const templatePublisherRepository = mock<TemplatePublisherRepository>();
+    templatePublisherRepository.findProfileOfOrganization.mockResolvedValue(input.publisherProfile);
+    const communityTemplateRepository = mock<CommunityTemplateRepository>();
+    communityTemplateRepository.countOfPublisher.mockResolvedValue(input.publisherCounts ?? { templates: 0, deploys: 0 });
     const service = new MarketplaceTemplateService(
       repository,
       templateVersionRepository,
@@ -942,7 +1022,9 @@ describe(MarketplaceTemplateService.name, () => {
       authService,
       executionContextService,
       templateUsageEventRepository,
-      templateRemovalRepository
+      templateRemovalRepository,
+      templatePublisherRepository,
+      communityTemplateRepository
     );
 
     return {
@@ -953,6 +1035,8 @@ describe(MarketplaceTemplateService.name, () => {
       userTemplateRepository,
       templateUsageEventRepository,
       templateRemovalRepository,
+      templatePublisherRepository,
+      communityTemplateRepository,
       ability,
       user
     };

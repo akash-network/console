@@ -8195,6 +8195,58 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/community-templates": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the public templates of the gallery, newest first, with how much each is used */
+    get: operations["listCommunityTemplates"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/template-publishers/current": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the publisher profile of the active organization */
+    get: operations["getCurrentTemplatePublisher"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Change the bio and the links on the publisher page of the active organization */
+    patch: operations["updateCurrentTemplatePublisher"];
+    trace?: never;
+  };
+  "/v1/template-publishers/{handle}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a publisher's public page: who it is and the templates it lists in the gallery */
+    get: operations["getTemplatePublisher"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/user-templates/{id}": {
     parameters: {
       query?: never;
@@ -8537,6 +8589,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    TemplatePublisherCounts: {
+      /** @description The templates the publisher page lists */
+      templates: number;
+      /** @description Deploys made from Console on mainnet */
+      deploys: number;
+    };
     TemplatePublishCheck: {
       /** @enum {string} */
       key: "sdl_valid" | "no_secrets" | "images_allowed" | "fixed_tags" | "name_not_reserved" | "text_within_limits";
@@ -9481,6 +9539,12 @@ export interface components {
        * @description The template this one was copied from, null unless the caller may read it
        */
       copiedFromId: string | null;
+      /** @description The template this one was copied from, null once the caller may no longer read it */
+      copiedFrom: {
+        /** Format: uuid */
+        id: string;
+        title: string;
+      } | null;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -9503,6 +9567,14 @@ export interface components {
         type: "personal" | "team";
         /** @description The name of the publisher page, null until the organization first publishes a template */
         handle: string | null;
+        /** @description Whether Akash staff verified who the publisher is */
+        verified: boolean;
+        /**
+         * Format: date-time
+         * @description When the person or the team joined Console, null until the organization first publishes a template
+         */
+        memberSince: string | null;
+        counts: components["schemas"]["TemplatePublisherCounts"];
       } | null;
       /** @description Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded */
       currentVersion: {
@@ -9589,6 +9661,10 @@ export interface components {
         lastDeployedAt: string | null;
         /** @description The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases */
         stillUpAfter24h: number | null;
+        /** @description Copies made on mainnet from outside the publishing organization, one per person a day */
+        forks: number;
+        /** @description The people who keep the template among their favorites */
+        favorites: number;
       };
     };
     GetUserTemplateResponse: {
@@ -9662,13 +9738,11 @@ export interface components {
           | "Wallet"
           | "Web Frameworks"
         )[];
-        sdl: string;
+        /** @description Required unless `copiedFromId` is sent without content, which copies the current version of that template */
+        sdl?: string;
         readme?: string;
-        /**
-         * @description The values the deployer fills in, bound to the SDL's env vars
-         * @default []
-         */
-        askedValues: components["schemas"]["TemplateAskedValue"][];
+        /** @description The values the deployer fills in, bound to the SDL's env vars; none when left out */
+        askedValues?: components["schemas"]["TemplateAskedValue"][];
         /**
          * Format: uuid
          * @description The project to file the template in, required when the caller may write to several
@@ -9676,7 +9750,7 @@ export interface components {
         projectId?: string;
         /**
          * Format: uuid
-         * @description The template this one was copied from, which the caller must be able to read
+         * @description The template this one was copied from, which the caller must be able to read; it counts as a fork of that template
          */
         copiedFromId?: string;
       };
@@ -9870,6 +9944,136 @@ export interface components {
         reason: "malware_or_miner" | "leaks_secrets" | "impersonation" | "spam" | "broken" | "other";
         /** @description What the reporter saw, as plain text; staff read it and the publisher never does */
         details?: string;
+      };
+    };
+    CommunityTemplateUsage: {
+      /** @description Deploys made from Console on mainnet */
+      deploys: number;
+      /** @description The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases */
+      stillUpAfter24h: number | null;
+      /** @description Copies made on mainnet from outside the publishing organization, one per person a day */
+      forks: number;
+    };
+    TemplateScores: {
+      /** @description Null until scores are computed */
+      popular: number | null;
+      /** @description Null until scores are computed */
+      trending: number | null;
+      isTrending: boolean;
+    };
+    CommunityTemplateCard: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      summary: string | null;
+      icon: string | null;
+      categories: string[];
+      /** @description Whether Akash staff promoted the template; every other one is not reviewed by Akash */
+      isOfficial: boolean;
+      isFeatured: boolean;
+      publisher: {
+        name: string;
+        /** @description The name of the publisher page */
+        handle: string;
+        /** @description Whether Akash staff verified who the publisher is */
+        verified: boolean;
+      };
+      /** @description What the current version asks for, null when its SDL cannot be read */
+      resources: {
+        /** @description vCPUs across every service and replica */
+        cpu: number;
+        memoryBytes: number;
+        /** @description Ephemeral and persistent storage combined */
+        storageBytes: number;
+        gpu?: {
+          units: number;
+          /** @description Model names, or a vendor name when any of its models will do; empty when any GPU will do */
+          models: string[];
+        };
+      } | null;
+      /** @description The versions that went live, the current one included */
+      versionCount: number;
+      /**
+       * Format: date-time
+       * @description When the template first went public
+       */
+      publishedAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      usage: components["schemas"]["CommunityTemplateUsage"];
+      scores: components["schemas"]["TemplateScores"];
+    };
+    ListCommunityTemplatesResponse: {
+      data: {
+        templates: components["schemas"]["CommunityTemplateCard"][];
+        /** @description The same numbers for the awesome-akash templates, by template id; a template nobody deployed is missing */
+        officialUsage: {
+          [key: string]: components["schemas"]["CommunityTemplateUsage"];
+        };
+      };
+    };
+    CurrentTemplatePublisher: {
+      name: string;
+      handle: string;
+      /** @enum {string} */
+      type: "personal" | "team";
+      /** @description Plain text written by the publisher, shown as stored */
+      bio: string | null;
+      links: {
+        /** @description An https link to a public website */
+        url: string;
+        /** @description What the publisher calls the link, null to show its host */
+        label: string | null;
+      }[];
+      /** @description Whether Akash staff verified who the publisher is */
+      verified: boolean;
+      /**
+       * Format: date-time
+       * @description When the person or the team joined Console
+       */
+      memberSince: string;
+      /** @description Whether the caller may change the bio and the links */
+      canEdit: boolean;
+    };
+    GetCurrentTemplatePublisherResponse: {
+      data: components["schemas"]["CurrentTemplatePublisher"];
+    };
+    TemplatePublisherPage: {
+      name: string;
+      handle: string;
+      /** @enum {string} */
+      type: "personal" | "team";
+      /** @description Plain text written by the publisher, shown as stored */
+      bio: string | null;
+      links: {
+        /** @description An https link to a public website */
+        url: string;
+        /** @description What the publisher calls the link, null to show its host */
+        label: string | null;
+      }[];
+      /** @description Whether Akash staff verified who the publisher is */
+      verified: boolean;
+      /**
+       * Format: date-time
+       * @description When the person or the team joined Console
+       */
+      memberSince: string;
+      counts: components["schemas"]["TemplatePublisherCounts"];
+      templates: components["schemas"]["CommunityTemplateCard"][];
+    };
+    GetTemplatePublisherResponse: {
+      data: components["schemas"]["TemplatePublisherPage"];
+    };
+    UpdateCurrentTemplatePublisherRequest: {
+      data: {
+        /** @description Null or blank clears it */
+        bio?: string | null;
+        /** @description Replaces every link */
+        links?: {
+          /** @description An https link to a public website, without a port, a username or an address for a host */
+          url: string;
+          label?: string | null;
+        }[];
       };
     };
     CreateUserTemplateVersionResponse: {
@@ -19885,7 +20089,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The project or the template copied from does not exist or the caller may not read it */
+      /** @description The project does not exist, or the template copied from does not exist or the caller may not read it (`template_copy_source_not_found`) */
       404: {
         headers: {
           [name: string]: unknown;
@@ -20102,6 +20306,158 @@ export interface operations {
       };
       /** @description The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listCommunityTemplates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description At most 1000 templates, the same for every caller */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListCommunityTemplatesResponse"];
+        };
+      };
+    };
+  };
+  getCurrentTemplatePublisher: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The profile, and whether the caller may change it */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetCurrentTemplatePublisherResponse"];
+        };
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The active organization has not published a template yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateCurrentTemplatePublisher: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateCurrentTemplatePublisherRequest"];
+      };
+    };
+    responses: {
+      /** @description The profile changed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetCurrentTemplatePublisherResponse"];
+        };
+      };
+      /** @description The body changes nothing, the bio is too long or not readable text, or a link is not an https link to a public website */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not an owner or an admin of the active organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The active organization has not published a template yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getTemplatePublisher: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        handle: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The publisher page, the same for every caller */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetTemplatePublisherResponse"];
+        };
+      };
+      /** @description The handle is not one a publisher can have */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No publisher has this handle, or its publishing is suspended */
+      404: {
         headers: {
           [name: string]: unknown;
         };

@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, ne, or, type SQL } from "drizzle-orm";
+import { and, eq, isNotNull, ne, or, type SQL, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { singleton } from "tsyringe";
 
@@ -140,6 +140,15 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       .where(and(eq(this.favoriteTable.templateId, templateId), eq(this.favoriteTable.userId, requestedUserId)))
       .limit(1);
     return !!result;
+  }
+
+  async countFavorites(templateId: string): Promise<number> {
+    const [{ favorites }] = await this.cursor
+      .select({ favorites: sql<number>`count(*)`.mapWith(Number) })
+      .from(this.favoriteTable)
+      .where(eq(this.favoriteTable.templateId, templateId));
+
+    return favorites;
   }
 
   /** Answers whether the favorite was added, so a repeat or an unreadable template records no usage. */

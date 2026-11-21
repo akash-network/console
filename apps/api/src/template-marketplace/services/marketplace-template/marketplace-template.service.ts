@@ -9,11 +9,13 @@ import type { OrganizationType } from "@src/organization/model-schemas/organizat
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import { createTemplateRemovedError } from "@src/template-marketplace/lib/template-removed/template-removed-error";
 import { findTemplateWriteRefusal, isInActiveOrganization } from "@src/template-marketplace/lib/template-write-access/template-write-access";
+import { CommunityTemplateRepository, type PublisherCounts } from "@src/template-marketplace/repositories/community-template/community-template.repository";
 import {
   MarketplaceTemplateRepository,
   type MarketplaceTemplateRow,
   type UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+import { TemplatePublisherRepository } from "@src/template-marketplace/repositories/template-publisher/template-publisher.repository";
 import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import {
   NO_TEMPLATE_USAGE,
@@ -50,19 +52,25 @@ export interface MarketplaceTemplateOutput {
   projectId: string | null;
   /** Withheld unless the caller may read the template it was copied from. */
   copiedFromId: string | null;
+  /** Null once the template it was copied from is private, hidden or removed for the caller, so its title never outlives its page. */
+  copiedFrom: { id: string; title: string } | null;
   createdAt: Date;
   updatedAt: Date;
   /** The first time the template went public through the publish gate, kept after it leaves public visibility. */
   publishedAt: Date | null;
   author: { username: string } | null;
   /** A personal organization's slug is derived from its owner's internal id, so it is withheld; the handle is null until the organization first publishes. */
-  publisher: { name: string; slug: string | null; type: OrganizationType; handle: string | null } | null;
+  publisher: ({ name: string; slug: string | null; type: OrganizationType; handle: string | null } & PublisherCard) | null;
   /** Null only on a template an older API pod saved without a version, until it is saved again or healed. */
   currentVersion: PublishedTemplateVersion | null;
   canEdit: boolean;
   isFavorite: boolean;
-  usage: TemplateUsageSummary;
+  usage: TemplateUsageSummary & { favorites: number };
 }
+
+export type PublisherCard = { verified: boolean; memberSince: Date | null; counts: PublisherCounts };
+
+const NOT_A_PUBLISHER_YET: PublisherCard = { verified: false, memberSince: null, counts: { templates: 0, deploys: 0 } };
 
 export interface UserTemplateListItem
   extends Pick<
@@ -109,7 +117,9 @@ export class MarketplaceTemplateService {
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
     private readonly templateUsageEventRepository: TemplateUsageEventRepository,
-    private readonly templateRemovalRepository: TemplateRemovalRepository
+    private readonly templateRemovalRepository: TemplateRemovalRepository,
+    private readonly templatePublisherRepository: TemplatePublisherRepository,
+    private readonly communityTemplateRepository: CommunityTemplateRepository
   ) {}
 
   /** Reads the version the readable row pointed at rather than the template's latest pointer, which a save that also hides the template may have moved since. */
@@ -117,7 +127,7 @@ export class MarketplaceTemplateService {
     const template = await this.findReadable(id);
     const currentVersion = template.currentVersionId ? await this.templateVersionRepository.findById(template.currentVersionId) : undefined;
     const favoritingUserId = this.authService.safeCurrentUser?.userId;
-    const isCopiedFromReadable = !!template.copiedFromId && !!(await this.#findReadableOrNone(template.copiedFromId));
+    const copiedFrom = template.copiedFromId ? await this.#findReadableOrNone(template.copiedFromId) : undefined;
     const usages = await this.templateUsageEventRepository.summarize([id]);
 
     return {
@@ -131,16 +141,33 @@ export class MarketplaceTemplateService {
       isOfficial: template.isOfficial,
       moderationStatus: template.moderationStatus,
       projectId: isInActiveOrganization(template, this.#activeOrganizationId) ? template.projectId : null,
-      copiedFromId: isCopiedFromReadable ? template.copiedFromId : null,
+      copiedFromId: copiedFrom?.id ?? null,
+      copiedFrom: copiedFrom ? { id: copiedFrom.id, title: copiedFrom.title } : null,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
       publishedAt: template.publishedAt,
       author: template.authorUsername ? { username: template.authorUsername } : null,
-      publisher: template.publisher && { ...template.publisher, slug: template.publisher.type === "team" ? template.publisher.slug : null },
+      publisher: template.publisher && {
+        ...template.publisher,
+        slug: template.publisher.type === "team" ? template.publisher.slug : null,
+        ...(await this.#describePublisher(template.organizationId))
+      },
       currentVersion: currentVersion ? this.#toPublishedVersion(currentVersion, template) : null,
       canEdit: this.#canEditInActiveOrganization(template),
       isFavorite: favoritingUserId ? await this.userTemplateRepository.isFavorite(id, favoritingUserId) : false,
-      usage: usages.get(id) ?? NO_TEMPLATE_USAGE
+      usage: { ...(usages.get(id) ?? NO_TEMPLATE_USAGE), favorites: await this.userTemplateRepository.countFavorites(id) }
+    };
+  }
+
+  async #describePublisher(organizationId: string): Promise<PublisherCard> {
+    const profile = await this.templatePublisherRepository.findProfileOfOrganization(organizationId);
+
+    if (!profile) return NOT_A_PUBLISHER_YET;
+
+    return {
+      verified: profile.isVerified,
+      memberSince: profile.memberSince,
+      counts: await this.communityTemplateRepository.countOfPublisher(organizationId)
     };
   }
 

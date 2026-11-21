@@ -147,7 +147,9 @@ const createUserTemplateRoute = createRoute({
     400: { description: `${TEMPLATE_INVALID_DESCRIPTION}, or a project must be named (\`project_required\`)` },
     401: { description: "The caller is not signed in" },
     403: { description: "The caller may not create templates" },
-    404: { description: "The project or the template copied from does not exist or the caller may not read it" },
+    404: {
+      description: "The project does not exist, or the template copied from does not exist or the caller may not read it (`template_copy_source_not_found`)"
+    },
     429: { description: RATE_LIMITED_DESCRIPTION }
   }
 });

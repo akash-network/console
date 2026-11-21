@@ -531,11 +531,12 @@ describe("Marketplace template writes", () => {
         moderationStatus: "active",
         projectId: project.id,
         copiedFromId: null,
+        copiedFrom: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
         publishedAt: null,
         author: { username: member.username },
-        publisher: { name: team.name, slug: team.slug, type: "team", handle: null },
+        publisher: { name: team.name, slug: team.slug, type: "team", handle: null, verified: false, memberSince: null, counts: { templates: 0, deploys: 0 } },
         currentVersion: {
           id: expect.any(String),
           templateId: data.id,
@@ -556,7 +557,7 @@ describe("Marketplace template writes", () => {
         },
         canEdit: true,
         isFavorite: false,
-        usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
+        usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0, favorites: 0 }
       });
       expect(await storedTemplate(data.id)).toMatchObject({
         visibility: "private",
@@ -799,7 +800,7 @@ describe("Marketplace template writes", () => {
       });
 
       expect(response.status).toBe(404);
-      expect(await response.json()).toMatchObject({ message: "Template not found" });
+      expect(await response.json()).toMatchObject({ code: "template_copy_source_not_found", message: "The template to copy was not found" });
       expect(await templatesAuthoredBy(owner)).toEqual([]);
     });
   });
