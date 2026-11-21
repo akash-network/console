@@ -3,6 +3,8 @@
 import * as amplitude from "@amplitude/analytics-browser";
 import { sessionReplayPlugin } from "@amplitude/plugin-session-replay-browser";
 
+import { createMarketplacePageTitlePlugin } from "./marketplace-page-title.plugin";
+
 declare global {
   interface Window {
     dataLayer?: Record<string, unknown>[];
@@ -181,7 +183,9 @@ export type AnalyticsEvent =
   | "gpu_request_withdrawn"
   | "gpu_offer_accepted"
   | "gpu_offer_declined"
-  | "template_badge_arrival";
+  | "template_badge_arrival"
+  | "template_page_viewed"
+  | "template_configure_opened";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 
@@ -423,6 +427,7 @@ export class AnalyticsService {
     const sessionReplayTracking = sessionReplayPlugin();
     this.amplitudeClient.add(sessionReplayTracking);
     this.amplitudeClient.add(createStaticDeploymentPageViewPlugin());
+    this.amplitudeClient.add(createMarketplacePageTitlePlugin());
 
     this.amplitudeClient.init(this.options.amplitude.apiKey, undefined, initOptions);
     this.amplitudeInitialized = true;

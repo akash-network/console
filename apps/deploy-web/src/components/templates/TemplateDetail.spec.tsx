@@ -135,7 +135,30 @@ describe(TemplateDetail.name, () => {
     expect(useFlag).toHaveBeenCalledWith("onboarding_intent_first");
   });
 
-  function setup(input: { template?: Partial<ApiTemplate>; hasInAppHistory?: boolean; isTrialing?: boolean; isIntentFirst?: boolean; isSignedIn?: boolean }) {
+  it("names the template as an Official one without a version for the page view event, with the marketplace on", () => {
+    const { useTrackTemplateEvent } = setup({ isMarketplaceEnabled: true });
+
+    expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", {
+      source: "official",
+      templateId: "akash-network-awesome-akash-comfyui",
+      templateVersion: null
+    });
+  });
+
+  it("names nothing for the page view event while the marketplace is off", () => {
+    const { useTrackTemplateEvent } = setup({ isMarketplaceEnabled: false, isIntentFirst: true });
+
+    expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", undefined);
+  });
+
+  function setup(input: {
+    template?: Partial<ApiTemplate>;
+    hasInAppHistory?: boolean;
+    isTrialing?: boolean;
+    isIntentFirst?: boolean;
+    isSignedIn?: boolean;
+    isMarketplaceEnabled?: boolean;
+  }) {
     const template: ApiTemplate = {
       id: "akash-network-awesome-akash-comfyui",
       name: "ComfyUI",
@@ -151,7 +174,8 @@ describe(TemplateDetail.name, () => {
     const TemplateDocuments = vi.fn(() => null);
     const TemplateDeploysAs = vi.fn(() => null);
     const BlockedGpuAlternatives = vi.fn(ComponentMock);
-    const useFlag = vi.fn(() => input.isIntentFirst ?? false);
+    const useFlag = vi.fn((flag: string) => (flag === "template_marketplace" ? !!input.isMarketplaceEnabled : !!input.isIntentFirst));
+    const useTrackTemplateEvent = vi.fn<typeof DEPENDENCIES.useTrackTemplateEvent>();
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
@@ -166,6 +190,7 @@ describe(TemplateDetail.name, () => {
       useWallet,
       useFlag,
       useServices,
+      useTrackTemplateEvent,
       TemplateDocuments,
       TemplateDeploysAs,
       BlockedGpuAlternatives
@@ -185,6 +210,6 @@ describe(TemplateDetail.name, () => {
       return wasPrevented;
     };
 
-    return { container, router, TemplateDocuments, TemplateDeploysAs, BlockedGpuAlternatives, useFlag, clickAndReportPrevented };
+    return { container, router, TemplateDocuments, TemplateDeploysAs, BlockedGpuAlternatives, useFlag, useTrackTemplateEvent, clickAndReportPrevented };
   }
 });

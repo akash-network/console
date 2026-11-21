@@ -59,7 +59,7 @@ describe(TemplatePage.name, () => {
 
     expect(screen.queryByText("Private ChatGPT-style chat on your own GPU.")).not.toBeInTheDocument();
     expect(NextSeo).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Open WebUI + vLLM", description: "A template you can deploy on Akash Network from Akash Console." }),
+      expect.objectContaining({ title: "Open WebUI + vLLM · Template", description: "A template you can deploy on Akash Network from Akash Console." }),
       expect.anything()
     );
   });
@@ -68,9 +68,39 @@ describe(TemplatePage.name, () => {
     const { NextSeo } = setup({});
 
     expect(NextSeo).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Open WebUI + vLLM", description: "Private ChatGPT-style chat on your own GPU." }),
+      expect.objectContaining({
+        title: "Open WebUI + vLLM · Template",
+        description: "Private ChatGPT-style chat on your own GPU.",
+        openGraph: expect.objectContaining({ title: "Open WebUI + vLLM" })
+      }),
       expect.anything()
     );
+  });
+
+  describe("the page view event", () => {
+    it("names the template and its current version once the template has loaded", () => {
+      const { useTrackTemplateEvent } = setup({ template: { ...TEMPLATE, visibility: "public" } });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", { source: "community", templateId: TEMPLATE_ID, templateVersion: 3 });
+    });
+
+    it("names a private template as private and one without a version with none", () => {
+      const { useTrackTemplateEvent } = setup({ template: { ...TEMPLATE, visibility: "private", currentVersion: null } });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", { source: "private", templateId: TEMPLATE_ID, templateVersion: null });
+    });
+
+    it("names nothing while the template loads", () => {
+      const { useTrackTemplateEvent } = setup({ isLoading: true });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", undefined);
+    });
+
+    it("names nothing for a template that cannot be read", () => {
+      const { useTrackTemplateEvent } = setup({ error: new ApiError(404, { message: "Not found" }, "404") });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", undefined);
+    });
   });
 
   describe("head tags", () => {
@@ -984,6 +1014,7 @@ describe(TemplatePage.name, () => {
     const TemplateReviewNotice = vi.fn<typeof DEPENDENCIES.TemplateReviewNotice>(() => null);
     const TemplatePublisherCard = vi.fn<typeof DEPENDENCIES.TemplatePublisherCard>(() => null);
 
+    const useTrackTemplateEvent = vi.fn<typeof DEPENDENCIES.useTrackTemplateEvent>();
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       NotFoundPage,
@@ -1006,7 +1037,8 @@ describe(TemplatePage.name, () => {
       useRemoveFavoriteTemplate: () => removeFavoriteMutation,
       useCustomUser: () => customUser,
       useSnackbar: () => snackbar,
-      useRouter: () => router
+      useRouter: () => router,
+      useTrackTemplateEvent
     });
 
     const renderPage = () => (
@@ -1047,7 +1079,8 @@ describe(TemplatePage.name, () => {
       TemplateVersionsTab,
       TemplateSettingsTab,
       TemplateIcon,
-      NextSeo
+      NextSeo,
+      useTrackTemplateEvent
     };
   }
 });

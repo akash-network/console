@@ -20,6 +20,8 @@ import Layout from "../layout/Layout";
 import { needsTrialBlockedGpu } from "./TemplateDeploysAs/templateDeploymentSummary";
 import { TemplateDeploysAs } from "./TemplateDeploysAs/TemplateDeploysAs";
 import { TemplateDocuments } from "./TemplateDocuments/TemplateDocuments";
+import { describeAwesomeAkashTemplate } from "./templateEvents/templateEvents";
+import { useTrackTemplateEvent } from "./templateEvents/useTrackTemplateEvent";
 
 const OVERLINE_CLASSES = "font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
 
@@ -30,6 +32,7 @@ export const DEPENDENCIES = {
   useWallet,
   useFlag,
   useServices,
+  useTrackTemplateEvent,
   Layout,
   TemplateDocuments,
   TemplateDeploysAs,
@@ -47,6 +50,8 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
   const beforeYouDeployId = useId();
   const { isTrialing } = d.useWallet();
   const isIntentFirst = d.useFlag("onboarding_intent_first");
+  const isMarketplaceEnabled = d.useFlag("template_marketplace");
+  d.useTrackTemplateEvent("template_page_viewed", isMarketplaceEnabled ? describeAwesomeAkashTemplate(template.id) : undefined);
   const { publicConfig } = d.useServices();
   const blockedGpuModels = publicConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS;
   const isGpuBlockedForTrial = useMemo(() => needsTrialBlockedGpu(template.deploy, blockedGpuModels), [template.deploy, blockedGpuModels]);

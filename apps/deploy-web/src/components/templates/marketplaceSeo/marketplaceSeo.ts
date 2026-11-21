@@ -1,5 +1,6 @@
 import type { NextSeoProps } from "next-seo";
 
+import { PUBLISHER_PAGE_TITLE_SUFFIX, TEMPLATE_PAGE_TITLE_SUFFIX } from "@src/services/analytics/marketplace-page-title.plugin";
 import { isListedInGallery } from "@src/services/marketplace-preview-image/preview-image-content";
 import type { MarketplaceTemplate, TemplatePublisherPage } from "@src/types/marketplace-template";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -21,6 +22,7 @@ export function buildTemplateSeo(template: TemplateSeoFields): NextSeoProps {
   const isListed = isListedInGallery(template);
 
   return buildSeo({
+    pageTitle: `${template.title}${TEMPLATE_PAGE_TITLE_SUFFIX}`,
     title: template.title,
     description: toDescription(template.summary) || TEMPLATE_WITHOUT_SUMMARY_DESCRIPTION,
     path: UrlService.template(template.id),
@@ -30,8 +32,11 @@ export function buildTemplateSeo(template: TemplateSeoFields): NextSeoProps {
 }
 
 export function buildPublisherSeo(publisher: PublisherSeoFields, view: { isOwnProfile: boolean }): NextSeoProps {
+  const title = `${publisher.name}${PUBLISHER_PAGE_TITLE_SUFFIX}`;
+
   return buildSeo({
-    title: `${publisher.name} · Templates`,
+    pageTitle: title,
+    title,
     description: toDescription(publisher.bio) || `Templates published by ${publisher.name} on Akash Console.`,
     path: UrlService.templatePublisher(publisher.handle),
     noindex: publisher.counts.templates === 0 || view.isOwnProfile,
@@ -40,6 +45,8 @@ export function buildPublisherSeo(publisher: PublisherSeoFields, view: { isOwnPr
 }
 
 interface SeoInput {
+  /** The browser tab's title, whose ending tells analytics the page is one whose title an author wrote. */
+  pageTitle: string;
   title: string;
   description: string;
   path: string;
@@ -47,12 +54,12 @@ interface SeoInput {
   image: { path: string; alt: string } | undefined;
 }
 
-function buildSeo({ title, description, path, noindex, image }: SeoInput): NextSeoProps {
+function buildSeo({ pageTitle, title, description, path, noindex, image }: SeoInput): NextSeoProps {
   const url = `${domainName}${path}`;
   const images = image && [{ url: `${domainName}${image.path}`, width: PREVIEW_IMAGE_WIDTH, height: PREVIEW_IMAGE_HEIGHT, alt: image.alt, type: "image/png" }];
 
   return {
-    title,
+    title: pageTitle,
     description,
     canonical: url,
     noindex,
