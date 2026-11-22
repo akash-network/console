@@ -11944,6 +11944,10 @@ export interface operations {
                 sdl: string;
                 /** @description Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above. */
                 manifestVersion: string;
+                /** @description The same stored SDL as a JSON object, in the shape `definition` takes on PUT /v1/deployments/{dseq}/definition, so it can be edited and sent back as it is. Secrets appear only as their `ac-secret://NAME` references. Null only if the stored SDL cannot be read as a document. */
+                definition: {
+                  [key: string]: unknown;
+                } | null;
                 /** @description ID of the gallery template the deployment was created from, or null when it was not created from one. */
                 templateId: string | null;
               } | null;

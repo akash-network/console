@@ -206,6 +206,19 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
       await expect(openStored(user)).resolves.toEqual({ s0_e0: rotated, s0_e1: secrets.s0_e1 });
     });
 
+    it("accepts the definition GET returns as it is, keeping every stored value", async () => {
+      const { apiKey, user, secrets } = await setup();
+      const read = await app.request(`/v1/deployments/${DSEQ}`, { headers: new Headers({ "x-api-key": apiKey }) });
+      const { data } = (await read.json()) as { data: { consoleSettings: { definition: Record<string, unknown> } } };
+
+      const response = await replace(apiKey, { definition: data.consoleSettings.definition });
+
+      expect(read.status).toBe(200);
+      expect(data.consoleSettings.definition).toEqual(yaml.raw<SDLInput>((await settingOf(user))!.sdl!));
+      expect(response.status).toBe(200);
+      await expect(openStored(user)).resolves.toEqual(secrets);
+    });
+
     it("refuses a request carrying both spellings", async () => {
       const { apiKey } = await setup();
       const sdl = sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"]);
