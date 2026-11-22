@@ -6,6 +6,7 @@ import { singleton } from "tsyringe";
 import type { WalletInitialized } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -15,7 +16,7 @@ import { SdlSecretsDerivationService, sealedEnvOf } from "@src/deployment/servic
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { findGroupWithChangedResources } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
-import { parseSdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { mayShareNodesOf, parseSdlForStorage, sdlForStorage, STORED_SDL_TOO_LARGE_MESSAGE } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 
 const SECRET_REFERENCE_KIND = "secret";
@@ -27,6 +28,10 @@ export type DefinitionCheck = { valid: boolean; errors: DefinitionError[]; keptS
 export type DefinitionCheckInput = { sdl: string; sealedSecrets?: string; secretEnv?: string[]; inheritSecretsFrom?: string };
 
 type CheckContext = { wallet: WalletInitialized; held: SdlSecrets; storedDocument?: SDLInput; dseq?: string };
+
+function valuesNamed(secrets: SdlSecrets, names: string[]): SdlSecrets {
+  return Object.fromEntries(names.flatMap(name => (Object.hasOwn(secrets, name) ? [[name, secrets[name]]] : [])));
+}
 
 function errorOf(error: ValidationError): DefinitionError {
   return { path: error.instancePath, keyword: error.keyword, message: error.message };
@@ -141,23 +146,46 @@ export class DeploymentDefinitionCheckService {
     }));
   }
 
-  /** Measured on the very set a write would seal, so a definition this answers as storable is never refused for its size on the way in. */
+  /** Measured on the document and the secret sets the write would measure, so a definition this answers as storable is never refused for its size on the way in. */
   #storageErrorsOf(document: SDLInput, input: DefinitionCheckInput, context: CheckContext & { supplied: SdlSecrets }): DefinitionError[] {
-    const sealed = structuredClone(document);
-    const derived = this.sdlSecretsDerivationService.derive(sealed, {
+    const storedDocument = structuredClone(document);
+    const derived = this.sdlSecretsDerivationService.derive(storedDocument, {
       sealedEnv: sealedEnvOf(input),
       onlyAt: this.#positionsToDerive(document, input, context)
     });
-    const carried: SdlSecrets = { ...context.held, ...context.supplied, ...derived };
-    const stored = Object.fromEntries(this.#referencedNamesOf(sealed).flatMap(name => (Object.hasOwn(carried, name) ? [[name, carried[name]]] : [])));
 
-    try {
-      this.sdlSecretsService.assertStorable(stored, "stored");
-      return [];
-    } catch (error) {
-      if (isHttpError(error) && error.status === 400) return [{ path: "", keyword: "secrets", message: error.message }];
-      throw error;
+    return [
+      ...this.#storedSdlSizeErrorsOf(storedDocument, input.sdl),
+      ...this.#secretBoundErrorsOf({ held: context.held, supplied: context.supplied, derived }, this.#referencedNamesOf(storedDocument), context)
+    ];
+  }
+
+  #storedSdlSizeErrorsOf(storedDocument: SDLInput, rawSdl: string): DefinitionError[] {
+    const { sdl } = sdlForStorage({ document: storedDocument, mayShareNodes: mayShareNodesOf(rawSdl) }, SDL_MAX_LENGTH);
+
+    return sdl === null ? [{ path: "", keyword: "maxLength", message: STORED_SDL_TOO_LARGE_MESSAGE }] : [];
+  }
+
+  /** A create bounds only what the deployment keeps from elsewhere, while a replacement also bounds the whole set it stores, each stopping at its first refusal as the write does. */
+  #secretBoundErrorsOf(sets: { held: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, referenced: string[], context: CheckContext): DefinitionError[] {
+    const carried = valuesNamed(
+      { ...sets.held, ...sets.supplied },
+      referenced.filter(name => !Object.hasOwn(sets.derived, name))
+    );
+    const bounds: [SdlSecrets, "carried" | "stored"][] = [[carried, "carried"]];
+
+    if (context.storedDocument) bounds.push([valuesNamed({ ...sets.held, ...sets.supplied, ...sets.derived }, referenced), "stored"]);
+
+    for (const [secrets, origin] of bounds) {
+      try {
+        this.sdlSecretsService.assertStorable(secrets, origin);
+      } catch (error) {
+        if (isHttpError(error) && error.status === 400) return [{ path: "", keyword: "secrets", message: error.message }];
+        throw error;
+      }
     }
+
+    return [];
   }
 
   #positionsToDerive(document: SDLInput, input: DefinitionCheckInput, context: CheckContext): ReadonlySet<string> | undefined {

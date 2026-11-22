@@ -16,6 +16,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { CORE_CONFIG } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -86,6 +87,7 @@ describe("Checking a deployment definition", () => {
   const signerService = container.resolve(ManagedSignerService);
   const providerService = container.resolve(ProviderService);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+  const deploymentConfig = container.resolve(DeploymentConfigService);
 
   beforeAll(async () => {
     await startJobQueues();
@@ -138,6 +140,28 @@ describe("Checking a deployment definition", () => {
       const response = await check(apiKey, { definition: yaml.raw<SDLInput>(sdlWith(["MODE=production"])), secretEnv: [] });
 
       expect(await resultOf(response)).toMatchObject({ valid: true });
+    });
+
+    it("reports a document too large to store once the values it keeps in the clear stay in it", async () => {
+      const { apiKey } = await setup({ record: false });
+      const env = Array.from({ length: 30 }, (_, index) => `VALUE_${index}=${"x".repeat(5_000)}`);
+
+      const response = await check(apiKey, { sdl: sdlWith(env), secretEnv: [] });
+
+      expect(await resultOf(response)).toEqual({
+        valid: false,
+        errors: [{ path: "", keyword: "maxLength", message: "SDL is too large: it exceeds the maximum of 131072 characters once stored" }],
+        keptSecrets: []
+      });
+    });
+
+    it("answers valid for more values than may be stored when the console takes them out, as a create does", async () => {
+      const { apiKey } = await setup({ record: false });
+      const env = Array.from({ length: deploymentConfig.get("SDL_SECRETS_MAX_COUNT") + 1 }, (_, index) => `VALUE_${index}=plain`);
+
+      const response = await check(apiKey, { sdl: sdlWith(env) });
+
+      expect(await resultOf(response)).toEqual({ valid: true, errors: [], keptSecrets: [] });
     });
 
     it("creates, records and broadcasts nothing", async () => {
@@ -233,7 +257,9 @@ describe("Checking a deployment definition", () => {
   }
 
   async function resultOf(response: Response) {
-    const { data } = (await response.json()) as { data: { valid: boolean; errors: Array<{ path: string; keyword: string; message: string }>; keptSecrets: string[] } };
+    const { data } = (await response.json()) as {
+      data: { valid: boolean; errors: Array<{ path: string; keyword: string; message: string }>; keptSecrets: string[] };
+    };
 
     return data;
   }
@@ -241,10 +267,6 @@ describe("Checking a deployment definition", () => {
   async function settingOf(user: UserOutput) {
     return await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: DSEQ });
   }
-
-
-
-
 
   function referencedNamesIn(env: string[]) {
     return env.flatMap(entry => entry.match(/ac-secret:\/\/([A-Za-z_][A-Za-z0-9_]*)/)?.slice(1) ?? []);

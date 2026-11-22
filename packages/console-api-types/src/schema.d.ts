@@ -14501,6 +14501,20 @@ export interface operations {
           };
         };
       };
+      /** @description Either the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again, or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
       /** @description The key management service is temporarily unreachable. Transient and worth retrying */
       503: {
         headers: {
@@ -14651,7 +14665,7 @@ export interface operations {
           };
         };
       };
-      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted */
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
       403: {
         headers: {
           [name: string]: unknown;
@@ -14667,6 +14681,20 @@ export interface operations {
       };
       /** @description No SDL is recorded for this deployment, so there is nothing to check a replacement against */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The `sealedSecrets` value was sealed to a key the console no longer holds, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      409: {
         headers: {
           [name: string]: unknown;
         };

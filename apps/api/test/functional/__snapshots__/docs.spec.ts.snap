@@ -10874,6 +10874,36 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "No deployment you can change matches \`inheritSecretsFrom\`",
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Either the \`sealedSecrets\` value was sealed to a key the console no longer holds, so refetch \`GET /v1/sdl-secrets-context\` and seal again, or, with \`code\` \`inherited_secrets_unreadable\`, the secrets recorded for the deployment named by \`inheritSecretsFrom\` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in \`sealedSecrets\` instead",
+          },
           "503": {
             "content": {
               "application/json": {
@@ -15001,7 +15031,7 @@ services:
                 },
               },
             },
-            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
           },
           "404": {
             "content": {
@@ -15032,6 +15062,36 @@ services:
               },
             },
             "description": "No SDL is recorded for this deployment, so there is nothing to check a replacement against",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The \`sealedSecrets\` value was sealed to a key the console no longer holds, which a fresh seal cures. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
           },
           "500": {
             "content": {

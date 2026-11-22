@@ -100,6 +100,7 @@ import {
   EXPANDED_SDL_TOO_LARGE_MESSAGE,
   parseSdlForStorage,
   sdlForStorage,
+  STORED_SDL_TOO_LARGE_MESSAGE,
   STORED_SDL_UNREADABLE_ERROR_CODE
 } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
@@ -749,7 +750,7 @@ export class DeploymentWriterService {
 
     this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", ...loggable, maxLength: SDL_MAX_LENGTH });
 
-    return new UnstorableSdlError(refusal, `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`);
+    return new UnstorableSdlError(refusal, STORED_SDL_TOO_LARGE_MESSAGE);
   }
 
   /**
@@ -1200,7 +1201,12 @@ export class DeploymentWriterService {
     const sdl = this.#serializeSubmitted(submitted, dseq);
 
     const held = stored.sealedSecrets
-      ? await this.sdlSecretsService.openStored({ userId: filedUserId, organizationId: stored.organizationId ?? null, dseq, sealedSecrets: stored.sealedSecrets })
+      ? await this.sdlSecretsService.openStored({
+          userId: filedUserId,
+          organizationId: stored.organizationId ?? null,
+          dseq,
+          sealedSecrets: stored.sealedSecrets
+        })
       : {};
     const supplied = await this.#receiveSecrets(input, held);
     const merged = this.#storedSecretsOf({ inherited: held, supplied, derived }, document);
@@ -1236,7 +1242,6 @@ export class DeploymentWriterService {
       prepared: { actingUserId: userId, wallet, dseq, resolved: { manifestVersion, manifest }, deployment }
     };
   }
-
 
   async #savePatch({ definition, savedEvent, counts, saved }: PatchWrite, ability: AnyAbility): Promise<{ name: string | null }> {
     const recorded = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches(definition);

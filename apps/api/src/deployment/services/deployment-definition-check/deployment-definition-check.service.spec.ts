@@ -23,6 +23,10 @@ import { createDeploymentInfoGroupSeed } from "@test/seeders/deployment-info.see
 const DSEQ = "1234";
 const STORED_TOKEN = "stored.token.aaa.bbb.ccc";
 
+function oversizedEnv() {
+  return Array.from({ length: 30 }, (_, index) => `VALUE_${index}=${"x".repeat(5_000)}`);
+}
+
 function sdlWith(env: string[]) {
   return ['version: "2.0"', "services:", "  web:", "    image: nginx", "    env:", ...env.map(entry => `      - ${JSON.stringify(entry)}`), ""].join("\n");
 }
@@ -100,13 +104,60 @@ describe(DeploymentDefinitionCheckService.name, () => {
       expect(result.keptSecrets).toEqual([]);
     });
 
-    it("bounds the very set a create would store, derived values included", async () => {
+    it("bounds only what a create carries in, as the create does, leaving derived values unbounded", async () => {
       const { service, sdlSecretsService } = setup({ inherited: { KEY: "value", OTHER: "unused" }, maxCount: 1 });
 
       const result = await service.checkNew("user-1", { sdl: sdlWith(["KEY=ac-secret://KEY", "MODE=production"]), inheritSecretsFrom: "999" });
 
-      expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ KEY: "value", s0_e1: "production" }, "stored");
-      expect(result.errors).toEqual([{ path: "", keyword: "secrets", message: "At most 1 secrets may be stored" }]);
+      expect(sdlSecretsService.assertStorable).toHaveBeenCalledTimes(1);
+      expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ KEY: "value" }, "carried");
+      expect(result).toEqual({ valid: true, errors: [], keptSecrets: ["KEY"] });
+    });
+
+    it("reports a carried set a create would refuse", async () => {
+      const { service } = setup({ inherited: { KEY: "value", OTHER: "value" }, maxCount: 1 });
+
+      const result = await service.checkNew("user-1", { sdl: sdlWith(["KEY=ac-secret://KEY", "OTHER=ac-secret://OTHER"]), inheritSecretsFrom: "999" });
+
+      expect(result.errors).toEqual([{ path: "", keyword: "secrets", message: "At most 1 secrets may be carried" }]);
+    });
+
+    it("reports a document too large to store once the values it keeps in the clear stay in it", async () => {
+      const { service } = setup();
+
+      const result = await service.checkNew("user-1", { sdl: sdlWith(oversizedEnv()), secretEnv: [] });
+
+      expect(result).toEqual({
+        valid: false,
+        errors: [{ path: "", keyword: "maxLength", message: "SDL is too large: it exceeds the maximum of 131072 characters once stored" }],
+        keptSecrets: []
+      });
+    });
+
+    it("measures the document after its values are taken out of it, as a create does", async () => {
+      const { service } = setup();
+
+      await expect(service.checkNew("user-1", { sdl: sdlWith(oversizedEnv()) })).resolves.toEqual({ valid: true, errors: [], keptSecrets: [] });
+    });
+
+    it("measures an anchored document by what it expands to once stored", async () => {
+      const { service } = setup();
+      const anchored = [
+        'version: "2.0"',
+        "services:",
+        "  web:",
+        "    image: nginx",
+        "    env: &env",
+        `      - "VALUE=${"x".repeat(70_000)}"`,
+        "  api:",
+        "    image: nginx",
+        "    env: *env",
+        ""
+      ].join("\n");
+
+      const result = await service.checkNew("user-1", { sdl: anchored, secretEnv: [] });
+
+      expect(result.errors).toEqual([expect.objectContaining({ keyword: "maxLength" })]);
     });
 
     it("lets an unexpected failure of the bound through", async () => {
@@ -147,7 +198,33 @@ describe(DeploymentDefinitionCheckService.name, () => {
 
       await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["MODE=production", "ADDED=value"]) }, ability);
 
+      expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({}, "carried");
       expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ s0_e1: "value" }, "stored");
+    });
+
+    it("leaves a held value the replacement derives anew out of the carried set", async () => {
+      const { service, sdlSecretsService, ability } = setup({ stored: { sdl: sdlWith(["MODE=ac-secret://s0_e0"]), held: { s0_e0: "old" } } });
+
+      await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["MODE=new"]) }, ability);
+
+      expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({}, "carried");
+      expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ s0_e0: "new" }, "stored");
+    });
+
+    it("reports a stored set the replacement would refuse once its carried set passes", async () => {
+      const { service, ability } = setup({ stored: { sdl: sdlWith(["KEY=ac-secret://KEY"]), held: { KEY: "value" } }, maxCount: 1 });
+
+      const result = await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["KEY=ac-secret://KEY", "ADDED=value"]) }, ability);
+
+      expect(result.errors).toEqual([{ path: "", keyword: "secrets", message: "At most 1 secrets may be stored" }]);
+    });
+
+    it("reports only the carried refusal when both sets are too large, as the replacement stops at it", async () => {
+      const { service, ability } = setup({ stored: { sdl: sdlWith(["A=ac-secret://A", "B=ac-secret://B"]), held: { A: "a", B: "b" } }, maxCount: 1 });
+
+      const result = await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["A=ac-secret://A", "B=ac-secret://B", "ADDED=value"]) }, ability);
+
+      expect(result.errors).toEqual([{ path: "", keyword: "secrets", message: "At most 1 secrets may be carried" }]);
     });
 
     it("reports a change only a new deployment can take", async () => {
@@ -264,8 +341,8 @@ describe(DeploymentDefinitionCheckService.name, () => {
     sdlSecretsService.receive.mockResolvedValue(input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} });
     sdlSecretsService.openStored.mockResolvedValue(stored?.held ?? {});
     const maxCount = input?.maxCount;
-    sdlSecretsService.assertStorable.mockImplementation(secrets => {
-      if (maxCount !== undefined && Object.keys(secrets).length > maxCount) throw createError(400, `At most ${maxCount} secrets may be stored`);
+    sdlSecretsService.assertStorable.mockImplementation((secrets, origin) => {
+      if (maxCount !== undefined && Object.keys(secrets).length > maxCount) throw createError(400, `At most ${maxCount} secrets may be ${origin}`);
     });
 
     const sdlSecretsInheritanceService = mock<SdlSecretsInheritanceService>();
