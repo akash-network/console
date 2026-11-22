@@ -1,4 +1,5 @@
 import type * as unleashModule from "@unleash/nextjs";
+import type { IToggle } from "@unleash/nextjs";
 import type { GetServerSidePropsContext } from "next";
 import { describe, expect, it, type Mock, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
@@ -62,6 +63,26 @@ describe(FeatureFlagService.name, () => {
       expect(service.extractSessionId).toHaveBeenCalledWith(ctx);
       expect(getFlagSpy).toHaveBeenCalledWith("my-flag", { sessionId: "abc123" });
       expect(result).toBe(true);
+    });
+  });
+
+  describe("isEnabledIn", () => {
+    it("reads a flag from toggles already worked out for the request", () => {
+      const { service } = setup();
+      const toggles: IToggle[] = [
+        { name: "template_marketplace", enabled: true, variant: { name: "disabled", enabled: false }, impressionData: false },
+        { name: "onboarding_intent_first", enabled: false, variant: { name: "disabled", enabled: false }, impressionData: false }
+      ];
+
+      expect(service.isEnabledIn("template_marketplace", toggles)).toBe(true);
+      expect(service.isEnabledIn("onboarding_intent_first", toggles)).toBe(false);
+      expect(service.isEnabledIn("unknown_flag", toggles)).toBe(false);
+    });
+
+    it("answers on for every flag when the config enables all", () => {
+      const { service } = setup({ enableAll: true });
+
+      expect(service.isEnabledIn("template_marketplace", [])).toBe(true);
     });
   });
 

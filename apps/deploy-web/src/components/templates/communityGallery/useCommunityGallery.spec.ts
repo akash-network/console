@@ -265,17 +265,17 @@ describe(useCommunityGallery.name, () => {
       });
     });
 
-    it("keeps showing it while only the awesome-akash list is still loading", () => {
-      const { result } = setup({ firstPage: FIRST_PAGE, categories: [], isLoadingCategories: true });
+    it("keeps showing it while the awesome-akash list has not loaded, including when it failed", () => {
+      const { result } = setup({ firstPage: FIRST_PAGE, categories: [] });
 
       expect((result.current as CommunityGallery).isShowingFirstPage).toBe(true);
       expect((result.current as CommunityGallery).shownEntries).toEqual(FIRST_PAGE.shownEntries);
     });
 
     it("moves to the lists once both have loaded", () => {
-      const { result, rerenderWith } = setup({ firstPage: FIRST_PAGE, categories: [], isLoadingCategories: true });
+      const { result, rerenderWith } = setup({ firstPage: FIRST_PAGE, categories: [] });
 
-      rerenderWith({ categories: CATEGORIES, isLoadingCategories: false });
+      rerenderWith({ categories: CATEGORIES });
 
       const gallery = result.current as CommunityGallery;
       expect(gallery.isShowingFirstPage).toBe(false);
@@ -323,7 +323,6 @@ describe(useCommunityGallery.name, () => {
     community?: CommunityTemplateGallery | null;
     isLoading?: boolean;
     isError?: boolean;
-    isLoadingCategories?: boolean;
     firstPage?: GalleryFirstPage;
     view?: { category?: string | null; search?: string; source?: GallerySource; sort?: GallerySort };
   }) {
@@ -335,7 +334,6 @@ describe(useCommunityGallery.name, () => {
     let hookInput: CommunityGalleryInput = {
       isEnabled: input.isEnabled ?? true,
       categories: input.categories ?? CATEGORIES,
-      isLoadingCategories: input.isLoadingCategories,
       firstPage: input.firstPage,
       view: { category: null, search: "", source: "all", sort: "popular", ...input.view }
     };
@@ -346,14 +344,12 @@ describe(useCommunityGallery.name, () => {
       isEnabled?: boolean;
       categories?: EnhancedTemplateCategory[];
       community?: CommunityTemplateGallery;
-      isLoadingCategories?: boolean;
       view?: Partial<CommunityGalleryInput["view"]>;
     }) => {
       if (change.community) query = toQuery(change.community);
       hookInput = {
         isEnabled: change.isEnabled ?? hookInput.isEnabled,
         categories: change.categories ?? hookInput.categories,
-        isLoadingCategories: change.isLoadingCategories ?? hookInput.isLoadingCategories,
         firstPage: hookInput.firstPage,
         view: { category: null, search: "", source: "all", sort: "popular", ...change.view }
       };

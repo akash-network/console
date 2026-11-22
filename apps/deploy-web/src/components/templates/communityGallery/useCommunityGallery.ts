@@ -29,18 +29,13 @@ export const DEPENDENCIES: { useCommunityTemplates: (options: { enabled: boolean
 export interface CommunityGalleryInput {
   isEnabled: boolean;
   categories: EnhancedTemplateCategory[];
-  /** True until the awesome-akash list has answered for the first time. */
-  isLoadingCategories?: boolean;
   view: GalleryView;
   /** The first screen a server render worked out, shown until both lists have loaded in the browser. */
   firstPage?: GalleryFirstPage;
 }
 
 /** Null while the marketplace is off, so the gallery keeps showing the awesome-akash sections alone. */
-export function useCommunityGallery(
-  { isEnabled, categories, isLoadingCategories = false, view, firstPage }: CommunityGalleryInput,
-  dependencies: typeof DEPENDENCIES = DEPENDENCIES
-) {
+export function useCommunityGallery({ isEnabled, categories, view, firstPage }: CommunityGalleryInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const communityQuery = dependencies.useCommunityTemplates({ enabled: isEnabled });
   const community = communityQuery.data;
   const refetchCommunity = communityQuery.refetch;
@@ -67,7 +62,7 @@ export function useCommunityGallery(
   if (!isEnabled) return null;
 
   const retryCommunity = () => void refetchCommunity();
-  const isAwaitingLists = communityQuery.isLoading || isLoadingCategories;
+  const isAwaitingLists = communityQuery.isLoading || categories.length === 0;
 
   if (firstPage && isAwaitingLists && isSameGalleryView(firstPage.view, view)) {
     return {

@@ -22,9 +22,9 @@ const DEFINITION_UNAVAILABLE_MESSAGE = "This deployment's configuration isn't av
 
 type Props = ActionCardProps<"open_in_editor"> & { dependencies?: typeof DEPENDENCIES };
 
-/** An action that describes its template is a suggestion from the marketplace and gets the template's own card; any other opens the editor as before. */
+/** An action that only names a described template is a suggestion from the marketplace and gets the template's own card; one carrying an SDL or a deployment opens the editor as before. */
 export const OpenInEditorCard: FC<Props> = ({ action, decision, dependencies: d = DEPENDENCIES }) => {
-  if (action.template && action.templateId) {
+  if (action.template && action.templateId && !action.sdl && !action.dseq) {
     return <d.TemplateSuggestionCard templateId={action.templateId} template={action.template} decision={decision} />;
   }
 

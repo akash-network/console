@@ -33,13 +33,15 @@ export async function isMarketplaceEnabled(context: AppTypedContext) {
   }
 }
 
+/** Admits a visitor from the toggles the page hands the browser, since a visitor with no flag session yet gets a fresh draw from every evaluation. */
 async function openMarketplaceToVisitor(context: AppTypedContext): Promise<VisitorAccess | undefined> {
-  if (!(await isMarketplaceEnabled(context))) return undefined;
+  const { featureFlagService, logger } = context.services;
 
   try {
-    return { featureToggles: await context.services.featureFlagService.evaluateTogglesForCtx(context) };
+    const featureToggles = await featureFlagService.evaluateTogglesForCtx(context);
+    return featureFlagService.isEnabledIn("template_marketplace", featureToggles) ? { featureToggles } : undefined;
   } catch (error) {
-    context.services.logger.warn({ event: "VISITOR_FLAGS_EVALUATION_FAILED", error });
+    logger.warn({ event: "VISITOR_FLAGS_EVALUATION_FAILED", error });
     return undefined;
   }
 }

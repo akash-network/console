@@ -40,6 +40,22 @@ describe("marketplaceDates", () => {
       expect(formatTimeSince("2026-11-21T11:59:53.000Z", readAt)).toBe("7 seconds ago");
     });
 
+    it("counts a day as 24 hours and rounds to the nearest whole unit", () => {
+      const readAt = Date.parse("2026-11-02T06:00:00.000Z");
+
+      expect(formatTimeSince("2026-10-31T18:00:00.000Z", readAt)).toBe("2 days ago");
+      expect(formatTimeSince("2026-11-02T04:31:00.000Z", readAt)).toBe("1 hour ago");
+    });
+
+    it("writes each length in the largest unit it fills", () => {
+      const readAt = Date.parse("2026-11-21T12:00:00.000Z");
+
+      expect(formatTimeSince("2026-11-21T11:59:00.000Z", readAt)).toBe("1 minute ago");
+      expect(formatTimeSince("2026-11-20T12:00:00.000Z", readAt)).toBe("1 day ago");
+      expect(formatTimeSince("2026-09-22T12:00:00.000Z", readAt)).toBe("2 months ago");
+      expect(formatTimeSince("2024-11-21T12:00:00.000Z", readAt)).toBe("2 years ago");
+    });
+
     it("never points to the future when the reader's clock is behind", () => {
       const readAt = Date.parse("2026-11-21T12:00:00.000Z");
 

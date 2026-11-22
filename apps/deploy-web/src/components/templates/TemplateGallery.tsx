@@ -60,7 +60,7 @@ export const TemplateGallery: FC<TemplateGalleryProps> = ({ firstPage, dependenc
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const isLoadingCategories = isLoading && categories.length === 0;
 
-  const communityGallery = d.useCommunityGallery({ isEnabled: !!isMarketplaceEnabled, categories, isLoadingCategories, view: urlState, firstPage });
+  const communityGallery = d.useCommunityGallery({ isEnabled: !!isMarketplaceEnabled, categories, view: urlState, firstPage });
 
   const search = urlState.search;
   const selectedCategory = communityGallery ? communityGallery.selectedCategory : findSelectedCategory(categories, urlState.category);

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { createApiSdk } from "@src/services/api-sdk/createApiSdk";
-import { MarketplaceVisitorReadsService, VISITOR_READ_TIMEOUT_MS } from "./marketplace-visitor-reads.service";
+import { MarketplaceVisitorReadsService, MAX_VISITOR_READ_LIFETIME_MS, VISITOR_READ_TIMEOUT_MS } from "./marketplace-visitor-reads.service";
 
 import { buildMarketplaceTemplate } from "@tests/seeders/userTemplate";
 
@@ -23,7 +23,7 @@ describe(MarketplaceVisitorReadsService.name, () => {
       expect(await service.template(TEMPLATE_ID)).toEqual({ status: "found", data: templateAnswer });
       expect(await service.template(TEMPLATE_ID.toUpperCase())).toEqual({ status: "found", data: templateAnswer });
 
-      expect(v1.getUserTemplate.mock.calls).toEqual([[{ id: TEMPLATE_ID }]]);
+      expect(v1.getUserTemplate.mock.calls).toEqual([[{ id: TEMPLATE_ID }, { signal: expect.any(AbortSignal) }]]);
     });
 
     it("reads it again after half a minute, so a template staff took down stops being served", async () => {
@@ -110,6 +110,27 @@ describe(MarketplaceVisitorReadsService.name, () => {
         vi.useRealTimers();
       }
     });
+    it("aborts a read the API never answers once it has run its longest lifetime, and asks again for the next visitor", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, v1, templateAnswer } = setup();
+        v1.getUserTemplate.mockReturnValueOnce(new Promise(() => undefined));
+
+        const stalledRead = service.template(TEMPLATE_ID);
+        await vi.advanceTimersByTimeAsync(MAX_VISITOR_READ_LIFETIME_MS);
+
+        expect(await stalledRead).toEqual({ status: "unavailable" });
+        expect(v1.getUserTemplate.mock.calls[0][1]?.signal?.aborted).toBe(true);
+
+        const nextRead = service.template(TEMPLATE_ID);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(await nextRead).toEqual({ status: "found", data: templateAnswer });
+        expect(v1.getUserTemplate).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("publisher", () => {
@@ -119,7 +140,7 @@ describe(MarketplaceVisitorReadsService.name, () => {
       expect(await service.publisher("acme-labs")).toEqual({ status: "found", data: publisherAnswer });
       clock.now = 59_999;
       await service.publisher("acme-labs");
-      expect(v1.getTemplatePublisher.mock.calls).toEqual([[{ handle: "acme-labs" }]]);
+      expect(v1.getTemplatePublisher.mock.calls).toEqual([[{ handle: "acme-labs" }, { signal: expect.any(AbortSignal) }]]);
 
       clock.now = 60_000;
       await service.publisher("acme-labs");
@@ -166,6 +187,7 @@ describe(MarketplaceVisitorReadsService.name, () => {
       const { service, v1, galleryAnswer, clock } = setup();
 
       expect(await service.communityGallery()).toEqual({ status: "found", data: galleryAnswer });
+      expect(v1.listCommunityTemplates.mock.calls).toEqual([[{}, { signal: expect.any(AbortSignal) }]]);
       clock.now = 59_999;
       await service.communityGallery();
       expect(v1.listCommunityTemplates).toHaveBeenCalledTimes(1);

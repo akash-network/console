@@ -27,9 +27,11 @@ describe(AppQueryClientProvider.name, () => {
 
   it("keeps the same cache across renders", () => {
     const { seenQueryClients, rerender } = setup({ isServerRender: true });
+    const rendersBefore = seenQueryClients.length;
 
     rerender();
 
+    expect(seenQueryClients.length).toBeGreaterThan(rendersBefore);
     expect(new Set(seenQueryClients).size).toBe(1);
   });
 
@@ -60,13 +62,13 @@ describe(AppQueryClientProvider.name, () => {
 
       return <p>{data ?? "loading"}</p>;
     };
-    const tree = (
+    const buildTree = () => (
       <AppQueryClientProvider dehydratedState={input.dehydratedQuery && dehydrateVisitorQueries([input.dehydratedQuery])} dependencies={dependencies}>
         <Publisher />
       </AppQueryClientProvider>
     );
-    const { rerender } = render(tree);
+    const { rerender } = render(buildTree());
 
-    return { appQueryClient, seenQueryClients, queryFn, rerender: () => rerender(tree) };
+    return { appQueryClient, seenQueryClients, queryFn, rerender: () => rerender(buildTree()) };
   }
 });

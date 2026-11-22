@@ -171,6 +171,14 @@ describe("OpenInEditorCard", () => {
       expect(TemplateSuggestionCard).toHaveBeenCalledWith({ templateId: "akash-network-awesome-akash-ollama", template, decision }, expect.anything());
     });
 
+    it.each([{ sdl: 'version: "2.0"' }, { dseq: "42" }])("keeps the editor card for a described template that comes with %j", change => {
+      const template = { source: "awesome_akash", reviewedByAkash: true } as const;
+      const { TemplateSuggestionCard, ActionCardChrome } = setup({ action: { templateId: "akash-network-awesome-akash-ollama", template, ...change } });
+
+      expect(TemplateSuggestionCard).not.toHaveBeenCalled();
+      expect(ActionCardChrome).toHaveBeenCalled();
+    });
+
     it("keeps the editor card for a described template that names no id", () => {
       const { TemplateSuggestionCard, chromeProps } = setup({ action: { templateId: null, template: { source: "console", reviewedByAkash: false } } });
 

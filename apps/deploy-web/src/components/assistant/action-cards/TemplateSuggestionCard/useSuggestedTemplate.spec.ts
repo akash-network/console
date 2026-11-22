@@ -91,7 +91,7 @@ describe(useSuggestedTemplate.name, () => {
       expect(result.current).toEqual({ status: "loading" });
     });
 
-    it.each([400, 401, 403, 404, 410, 429])("calls a template the API refuses with %s unavailable", status => {
+    it.each([400, 401, 403, 404, 410])("calls a template the API refuses with %s unavailable", status => {
       const { result } = setup({ source: "console", error: new ApiError(status, { message: "refused" }, String(status)) });
 
       expect(result.current).toEqual({ status: "unavailable" });
@@ -106,6 +106,16 @@ describe(useSuggestedTemplate.name, () => {
     it("offers to read again a template the API failed to answer for", () => {
       const refetch = vi.fn();
       const { result } = setup({ source: "console", error: new ApiError(503, { message: "down" }, "503"), refetch });
+
+      expect(result.current.status).toBe("failed");
+      (result.current as Extract<typeof result.current, { status: "failed" }>).retry();
+
+      expect(refetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("offers to read again a template the API turned away for asking too often", () => {
+      const refetch = vi.fn();
+      const { result } = setup({ source: "console", error: new ApiError(429, { message: "slow down" }, "429"), refetch });
 
       expect(result.current.status).toBe("failed");
       (result.current as Extract<typeof result.current, { status: "failed" }>).retry();

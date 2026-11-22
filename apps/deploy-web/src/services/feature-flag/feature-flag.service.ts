@@ -39,6 +39,13 @@ export class FeatureFlagService {
     return await this.getFlag(name, { sessionId, ...extraContext });
   }
 
+  /** Forced on when every flag is, since the toggles are then empty. */
+  isEnabledIn(name: string, toggles: IToggle[]): boolean {
+    if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return true;
+
+    return toggles.some(toggle => toggle.name === name && toggle.enabled);
+  }
+
   /** Every flag as the request's visitor gets it, for a server render the browser has to repeat; empty when every flag is forced on, which the browser forces too. */
   async evaluateTogglesForCtx(ctx: Pick<GetServerSidePropsContext, "req">, extraContext: Context = {}): Promise<IToggle[]> {
     if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return [];

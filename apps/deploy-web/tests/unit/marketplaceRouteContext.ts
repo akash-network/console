@@ -33,8 +33,11 @@ export function buildMarketplaceRouteContext(input: {
   });
   featureFlagService.evaluateTogglesForCtx.mockImplementation(async () => {
     if (input.toggles instanceof Error) throw input.toggles;
-    return input.toggles ?? VISITOR_TOGGLES;
+    if (input.toggles) return input.toggles;
+    if (input.flag === "failing") throw new Error("unleash down");
+    return input.flag === "off" ? VISITOR_TOGGLES.map(toggle => ({ ...toggle, enabled: false })) : VISITOR_TOGGLES;
   });
+  featureFlagService.isEnabledIn.mockImplementation((name, toggles) => toggles.some(toggle => toggle.name === name && toggle.enabled));
 
   const nowSeconds = Math.floor(Date.now() / 1000);
   const session =

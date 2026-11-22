@@ -22,6 +22,9 @@ export type VisitorRead<T> =
 /** A page that waits longer than this for the API is sent without its data, and the browser loads it instead. */
 export const VISITOR_READ_TIMEOUT_MS = 2_500;
 
+/** A read a page gave up on may still fill the cache for the next visitor until it has run this long, and is then aborted. */
+export const MAX_VISITOR_READ_LIFETIME_MS = 10_000;
+
 /** A template taken down by staff stops being served to visitors within this long. */
 const TEMPLATE_TTL_MS = 30_000;
 const LISTING_TTL_MS = 60_000;
@@ -76,36 +79,42 @@ export class MarketplaceVisitorReadsService {
     if (!TEMPLATE_ID.test(id)) return { status: "missing" };
 
     const templateId = id.toLowerCase();
-    return this.#settle("template", () => this.#templates.read(templateId, () => this.#api.v1.getUserTemplate({ id: templateId })));
+    return this.#settle("template", () =>
+      this.#readThrough(this.#templates, templateId, signal => this.#api.v1.getUserTemplate({ id: templateId }, { signal }))
+    );
   }
 
   async publisher(handle: string): Promise<VisitorRead<VisitorPublisherResponse>> {
     if (handle.length > MAX_PUBLISHER_HANDLE_LENGTH || !PUBLISHER_HANDLE.test(handle)) return { status: "missing" };
 
-    return this.#settle("publisher", () => this.#publishers.read(handle, () => this.#api.v1.getTemplatePublisher({ handle })));
+    return this.#settle("publisher", () => this.#readThrough(this.#publishers, handle, signal => this.#api.v1.getTemplatePublisher({ handle }, { signal })));
   }
 
   communityGallery(): Promise<VisitorRead<VisitorCommunityGalleryResponse>> {
-    return this.#settle("community_gallery", () => this.#communityGallery.read(ONLY_ENTRY, () => this.#api.v1.listCommunityTemplates()));
+    return this.#settle("community_gallery", () =>
+      this.#readThrough(this.#communityGallery, ONLY_ENTRY, signal => this.#api.v1.listCommunityTemplates({}, { signal }))
+    );
   }
 
   awesomeAkashCategories(): Promise<VisitorRead<TemplateCategory[]>> {
     return this.#settle("awesome_akash", () =>
-      this.#awesomeAkashCategories.read(ONLY_ENTRY, async () => (await this.#templateService.findGroupedByCategory()).data)
+      this.#readThrough(this.#awesomeAkashCategories, ONLY_ENTRY, async () => (await this.#templateService.findGroupedByCategory()).data)
     );
   }
 
   async awesomeAkashTemplate(id: string): Promise<VisitorRead<TemplateOutput>> {
     if (!AWESOME_AKASH_TEMPLATE_ID.test(id)) return { status: "missing" };
 
-    const read = await this.#settle("awesome_akash_template", () => this.#awesomeAkashTemplates.read(id, () => this.#templateService.findById(id)));
+    const read = await this.#settle("awesome_akash_template", () =>
+      this.#readThrough(this.#awesomeAkashTemplates, id, () => this.#templateService.findById(id))
+    );
     if (read.status !== "found") return read;
     return read.data ? { status: "found", data: read.data } : { status: "missing" };
   }
 
   async #settle<T>(read: string, load: () => Promise<T>): Promise<VisitorRead<T>> {
     try {
-      return { status: "found", data: await this.#withinTimeout(load()) };
+      return { status: "found", data: await this.#withinDeadline(this.#timeoutMs, load) };
     } catch (error) {
       const removed = readRemovedTemplate(error);
       if (removed) return { status: "removed", title: removed.title };
@@ -117,13 +126,22 @@ export class MarketplaceVisitorReadsService {
     }
   }
 
-  #withinTimeout<T>(read: Promise<T>): Promise<T> {
-    let timer: ReturnType<typeof setTimeout>;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new VisitorReadTimeoutError(this.#timeoutMs)), this.#timeoutMs);
+  #readThrough<T>(cache: VisitorReadCache<T>, key: string, read: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    return cache.read(key, () => this.#withinDeadline(MAX_VISITOR_READ_LIFETIME_MS, read));
+  }
+
+  #withinDeadline<T>(deadlineMs: number, read: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new VisitorReadTimeoutError(deadlineMs);
+        controller.abort(error);
+        reject(error);
+      }, deadlineMs);
     });
 
-    return Promise.race([read, timeout]).finally(() => clearTimeout(timer));
+    return Promise.race([read(controller.signal), deadline]).finally(() => clearTimeout(timer));
   }
 }
 

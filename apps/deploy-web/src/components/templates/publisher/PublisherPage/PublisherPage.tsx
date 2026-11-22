@@ -83,15 +83,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
             <Spinner size="large" />
           </div>
         )}
-        {publisherQuery.isError && (
-          <div role="alert" className="flex flex-col items-center gap-2 py-14 text-center">
-            <p className="text-muted-foreground">Couldn&apos;t load this publisher.</p>
-            <Button variant="outline" size="sm" onClick={() => publisherQuery.refetch()}>
-              <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-              Retry
-            </Button>
-          </div>
-        )}
+        {publisherQuery.isError && <PublisherReadFailed message="Couldn't load this publisher." className="py-14" onRetry={() => publisherQuery.refetch()} />}
       </d.Layout>
     );
   }
@@ -182,6 +174,10 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
           </div>
         </div>
 
+        {publisherQuery.isError && (
+          <PublisherReadFailed message="Couldn't load all of this publisher's templates." className="pb-6" onRetry={() => publisherQuery.refetch()} />
+        )}
+
         <d.GalleryEntryList
           key={`${urlState.sort}|${urlState.search}`}
           title={`${pluralize(entries.length, "template")} · ${GALLERY_SORT_LABELS[urlState.sort]}`}
@@ -197,6 +193,16 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
     </d.Layout>
   );
 };
+
+const PublisherReadFailed: FC<{ message: string; className: string; onRetry: () => void }> = ({ message, className, onRetry }) => (
+  <div role="alert" className={`flex flex-col items-center gap-2 text-center ${className}`}>
+    <p className="text-muted-foreground">{message}</p>
+    <Button variant="outline" size="sm" onClick={onRetry}>
+      <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+      Retry
+    </Button>
+  </div>
+);
 
 const PublisherNotFound: FC<{ dependencies: typeof DEPENDENCIES }> = ({ dependencies: d }) => (
   <d.Layout background="dots">

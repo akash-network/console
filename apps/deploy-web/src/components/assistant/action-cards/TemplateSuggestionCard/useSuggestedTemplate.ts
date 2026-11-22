@@ -4,7 +4,7 @@ import { AWESOME_AKASH_PUBLISHER } from "@src/components/templates/communityGall
 import { pluralize } from "@src/components/templates/communityGallery/usageNumbers";
 import { usePublicTemplate } from "@src/queries/useTemplateQuery";
 import { useMarketplaceTemplate } from "@src/queries/useUserTemplateQueries";
-import { isClientError } from "@src/services/query-error-policy/query-error-policy";
+import { isClientError, isRateLimited } from "@src/services/query-error-policy/query-error-policy";
 import type { AssistantActionOf } from "@src/types/assistant";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
@@ -55,7 +55,7 @@ export function useSuggestedTemplate(source: SuggestedTemplateSource, templateId
 
   const query = source === "console" ? consoleQuery : awesomeAkashQuery;
   if (query.isLoading) return { status: "loading" };
-  if (isClientError(query.error)) return { status: "unavailable" };
+  if (isClientError(query.error) && !isRateLimited(query.error)) return { status: "unavailable" };
 
   if (source === "console" && consoleQuery.data) {
     const template = consoleQuery.data;

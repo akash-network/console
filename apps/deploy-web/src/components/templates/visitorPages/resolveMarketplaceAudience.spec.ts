@@ -21,8 +21,15 @@ describe(resolveMarketplaceAudience.name, () => {
     const { context, featureFlagService } = buildMarketplaceRouteContext({ session: "none", flag: "on" });
 
     expect(await resolveMarketplaceAudience(context)).toEqual({ kind: "visitor", visitorAccess: { featureToggles: VISITOR_TOGGLES } });
-    expect(featureFlagService.isEnabledForCtx).toHaveBeenCalledWith("template_marketplace", context, { userId: undefined });
-    expect(featureFlagService.evaluateTogglesForCtx).toHaveBeenCalledWith(context);
+    expect(featureFlagService.evaluateTogglesForCtx.mock.calls).toEqual([[context]]);
+    expect(featureFlagService.isEnabledForCtx).not.toHaveBeenCalled();
+  });
+
+  it("sends a visitor to sign in when the toggles the page would hand the browser have the marketplace off", async () => {
+    const marketplaceOff = VISITOR_TOGGLES.map(toggle => ({ ...toggle, enabled: false }));
+    const { context } = buildMarketplaceRouteContext({ session: "none", flag: "on", toggles: marketplaceOff });
+
+    expect(await resolveMarketplaceAudience(context)).toMatchObject({ kind: "signIn" });
   });
 
   it.each(["off", "failing"] as const)("sends a visitor to sign in and back while the marketplace is %s for them", async flag => {

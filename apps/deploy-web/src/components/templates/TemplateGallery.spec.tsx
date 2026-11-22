@@ -274,7 +274,6 @@ describe(TemplateGallery.name, () => {
       expect(useCommunityGallery).toHaveBeenLastCalledWith({
         isEnabled: true,
         categories: CATEGORIES,
-        isLoadingCategories: false,
         firstPage: undefined,
         view: expect.objectContaining({ category: "Games", search: "craft", source: "community", sort: "newest" })
       });
@@ -399,21 +398,15 @@ describe(TemplateGallery.name, () => {
       expect(retryCommunity).toHaveBeenCalledOnce();
     });
 
-    it("hands the hook the first screen the server worked out and whether the awesome-akash list is still loading", () => {
+    it("hands the hook the first screen the server worked out and the awesome-akash list once it arrives", () => {
       const firstPage = mock<GalleryFirstPage>();
       const { useCommunityGallery, rerenderWithTemplates } = setupMarketplace({ firstPage, categories: [], isLoading: true });
 
-      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ firstPage, isLoadingCategories: true, categories: [] }));
+      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ firstPage, categories: [] }));
 
       rerenderWithTemplates(CATEGORIES);
 
-      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ firstPage, isLoadingCategories: false, categories: CATEGORIES }));
-    });
-
-    it("counts a refresh of a list it already has as loaded", () => {
-      const { useCommunityGallery } = setupMarketplace({ isLoading: true });
-
-      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ isLoadingCategories: false }));
+      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ firstPage, categories: CATEGORIES }));
     });
 
     it("shows no spinner over the first screen the server worked out", () => {
