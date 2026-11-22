@@ -223,9 +223,10 @@ describe(GpuWaitlistPoolRepository.name, () => {
       await Promise.race([firstHoldsLock.promise, first]);
       const second = txService.transaction(async () => (await repository.findByPoolKeyAndLock(poolKey))?.waveNumber);
       secondStarted.resolve();
-      await first;
+      const [firstOutcome, secondOutcome] = await Promise.allSettled([first, second]);
 
-      expect(await second).toBe(7);
+      expect(firstOutcome).toEqual({ status: "fulfilled", value: undefined });
+      expect(secondOutcome).toEqual({ status: "fulfilled", value: 7 });
     });
   });
 

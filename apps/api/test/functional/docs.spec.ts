@@ -63,7 +63,7 @@ const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "POST /v1/user-templates/{id}/versions"
 ];
 
-const UNRELEASED_GPU_WAITLIST_ROUTES = ["DELETE /v1/gpu-waitlist/{id}", "GET /v1/gpu-waitlist", "POST /v1/gpu-waitlist"];
+const UNRELEASED_GPU_WAITLIST_ROUTES = ["DELETE /v1/gpu-waitlist/{id}", "GET /v1/gpu-waitlist", "POST /v1/gpu-waitlist", "POST /v1/gpu-waitlist/{id}/keep"];
 
 describe("API Docs", () => {
   afterEach(() => {

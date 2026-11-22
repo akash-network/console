@@ -21,6 +21,7 @@ describe(LeaseGpuOfferService.name, () => {
 
     expect(read).toEqual({
       liveLeases: 1,
+      leasesWithoutBid: 0,
       offers: [
         {
           gseq: 1,
@@ -64,21 +65,21 @@ describe(LeaseGpuOfferService.name, () => {
     const cpuOnly = createBid({ owner: OWNER, dseq: DSEQ, gseq: 1, oseq: 1, provider: "akash1provider", bseq: 0 });
     const { service } = setup({ active: [leaseOf(cpuOnly)], bids: [cpuOnly] });
 
-    await expect(service.findOffers({ owner: OWNER, dseq: DSEQ })).resolves.toEqual({ liveLeases: 1, offers: [] });
+    await expect(service.findOffers({ owner: OWNER, dseq: DSEQ })).resolves.toEqual({ liveLeases: 1, offers: [], leasesWithoutBid: 0 });
   });
 
-  it("skips a live lease whose bid the chain did not list, and says so", async () => {
+  it("skips and counts a live lease whose bid the chain did not list, and says so", async () => {
     const leased = gpuBid({ provider: "akash1provider" });
     const { service, logger } = setup({ active: [leaseOf(leased)], bids: [] });
 
-    await expect(service.findOffers({ owner: OWNER, dseq: DSEQ })).resolves.toEqual({ liveLeases: 1, offers: [] });
+    await expect(service.findOffers({ owner: OWNER, dseq: DSEQ })).resolves.toEqual({ liveLeases: 1, offers: [], leasesWithoutBid: 1 });
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_OFFER_BID_NOT_FOUND", dseq: DSEQ, provider: "akash1provider" }));
   });
 
   it("reports no live lease when the chain shows none yet", async () => {
     const { service } = setup({ bids: [gpuBid({ provider: "akash1provider" })] });
 
-    await expect(service.findOffers({ owner: OWNER, dseq: DSEQ })).resolves.toEqual({ liveLeases: 0, offers: [] });
+    await expect(service.findOffers({ owner: OWNER, dseq: DSEQ })).resolves.toEqual({ liveLeases: 0, offers: [], leasesWithoutBid: 0 });
   });
 
   it("fails when the chain cannot list the bids, so the job retries", async () => {

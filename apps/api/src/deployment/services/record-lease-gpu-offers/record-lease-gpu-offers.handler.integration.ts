@@ -70,6 +70,15 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     await awaitRetrying(singletonKey);
   });
 
+  it("retries a lease-created job while the lease's bid is not visible on chain yet", async () => {
+    const { singletonKey, run, findOffers } = await setup({ leaseCreatedAt: new Date().toISOString(), noLeasedBid: true });
+
+    await run();
+
+    await awaitRetrying(singletonKey);
+    await expect(findOffers()).resolves.toBeNull();
+  });
+
   it("retries while the deployment has no settings row to hold the offer", async () => {
     const { singletonKey, run } = await setup({ withoutSetting: true });
 
@@ -101,7 +110,14 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     );
   }
 
-  async function setup(input: { gpuUnits?: string; noLiveLease?: boolean; withoutSetting?: boolean; filedInTeam?: boolean }) {
+  async function setup(input: {
+    gpuUnits?: string;
+    noLiveLease?: boolean;
+    withoutSetting?: boolean;
+    filedInTeam?: boolean;
+    leaseCreatedAt?: string;
+    noLeasedBid?: boolean;
+  }) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const { user, wallet, address } = await seedUserWithWallet();
@@ -114,7 +130,7 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     const lease = createLeaseApiResponse({ state: "active" }) as RpcLease;
     lease.lease.id = { ...bid.bid.id };
 
-    vi.spyOn(container.resolve(BidHttpService), "list").mockResolvedValue([bid]);
+    vi.spyOn(container.resolve(BidHttpService), "list").mockResolvedValue(input.noLeasedBid ? [] : [bid]);
     vi.spyOn(container.resolve(LeaseHttpService), "list").mockImplementation(
       async ({ state }) =>
         ({ leases: state === "active" && !input.noLiveLease ? [lease] : [], pagination: { next_key: null, total: "0" } }) as Awaited<
@@ -131,7 +147,7 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
       payload,
       singletonKey,
       run: async () => {
-        await enqueue(new RecordLeaseGpuOffers({ walletId: wallet.id, dseq }), { singletonKey });
+        await enqueue(new RecordLeaseGpuOffers({ walletId: wallet.id, dseq, leaseCreatedAt: input.leaseCreatedAt }), { singletonKey });
         await startWorkers();
       },
       findOffers: async () => {
