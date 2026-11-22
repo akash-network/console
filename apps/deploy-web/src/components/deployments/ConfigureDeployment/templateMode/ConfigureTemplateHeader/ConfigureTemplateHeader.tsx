@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import type { FC, Ref } from "react";
 import { useMemo } from "react";
 import { Badge, LoadingButton } from "@akashnetwork/ui/components";
 import { BookmarkIcon } from "lucide-react";
@@ -17,9 +17,10 @@ type Props = {
   isSaving: boolean;
   canSave?: boolean;
   onSave: () => void;
+  saveButtonRef?: Ref<HTMLButtonElement>;
 };
 
-export const ConfigureTemplateHeader: FC<Props> = ({ mode, source, services, askedCount, isSaving, canSave = true, onSave }) => {
+export const ConfigureTemplateHeader: FC<Props> = ({ mode, source, services, askedCount, isSaving, canSave = true, onSave, saveButtonRef }) => {
   const templateSummary = useMemo(() => {
     const { serviceCount, resources } = summarizeTemplateServices(services);
     return `${serviceCount} · ${resources}`;
@@ -56,7 +57,7 @@ export const ConfigureTemplateHeader: FC<Props> = ({ mode, source, services, ask
         <div className="flex flex-wrap items-center gap-6">
           <Stat label="Your template" value={templateSummary} />
           <Stat label="Asked to the deployer" value={countOf(askedCount, "value", "values")} />
-          <LoadingButton type="button" className="gap-2" loading={isSaving} disabled={isSaving || !canSave} onClick={onSave}>
+          <LoadingButton ref={saveButtonRef} type="button" className="gap-2" loading={isSaving} disabled={isSaving || !canSave} onClick={onSave}>
             <BookmarkIcon className="h-4 w-4" aria-hidden="true" />
             {mode === "edit" ? "Save new version" : "Save template"}
           </LoadingButton>

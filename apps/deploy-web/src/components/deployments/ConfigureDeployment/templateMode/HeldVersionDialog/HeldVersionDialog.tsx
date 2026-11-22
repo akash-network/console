@@ -1,5 +1,5 @@
 "use client";
-import type { FC } from "react";
+import type { FC, RefObject } from "react";
 import {
   Button,
   DialogV2,
@@ -19,15 +19,17 @@ export interface HeldVersionDialogProps {
   /** The version that stays in use while this one waits, whether the template is public at the moment or not. */
   currentVersion: number | undefined;
   onKeepEditing: () => void;
+  /** The dialog opens from a save with no trigger of its own, so closing hands focus back to the control that saved. */
+  returnFocusTo: RefObject<HTMLElement | null>;
   onViewVersions: () => void;
 }
 
-export const HeldVersionDialog: FC<HeldVersionDialogProps> = ({ version, currentVersion, onKeepEditing, onViewVersions }) => {
+export const HeldVersionDialog: FC<HeldVersionDialogProps> = ({ version, currentVersion, onKeepEditing, returnFocusTo, onViewVersions }) => {
   const reasons = version.holdReasons ?? [];
 
   return (
     <DialogV2 open onOpenChange={isOpen => (!isOpen ? onKeepEditing() : undefined)}>
-      <DialogV2Content className="max-w-xl">
+      <DialogV2Content className="max-w-xl" onCloseAutoFocus={() => returnFocusTo.current?.focus()}>
         <DialogV2Header>
           <DialogV2Title>v{version.version} is saved and waiting for review</DialogV2Title>
           <DialogV2Description>

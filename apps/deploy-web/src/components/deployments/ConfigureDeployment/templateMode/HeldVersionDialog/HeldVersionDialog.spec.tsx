@@ -1,9 +1,10 @@
+import { createRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { TemplateVersionHoldReason } from "@src/types/marketplace-template";
 import { HeldVersionDialog } from "./HeldVersionDialog";
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const HOLD_REASONS: TemplateVersionHoldReason[] = [
@@ -83,18 +84,47 @@ describe(HeldVersionDialog.name, () => {
     expect(screen.getByRole("dialog").querySelector("img, a")).not.toBeInTheDocument();
   });
 
-  function setup(input: { holdReasons?: TemplateVersionHoldReason[] | null; currentVersion?: number }) {
+  it.each([
+    ["Keep editing", async () => userEvent.click(screen.getByRole("button", { name: "Keep editing" }))],
+    ["Escape", async () => userEvent.keyboard("{Escape}")]
+  ])("hands focus back to the save button after %s", async (_, close) => {
+    setup({ closesOnKeepEditing: true });
+
+    await close();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save new version" })).toHaveFocus());
+  });
+
+  function setup(input: { closesOnKeepEditing?: boolean; holdReasons?: TemplateVersionHoldReason[] | null; currentVersion?: number }) {
     const onKeepEditing = vi.fn();
     const onViewVersions = vi.fn();
 
-    render(
-      <HeldVersionDialog
-        version={{ version: 5, holdReasons: input.holdReasons === undefined ? HOLD_REASONS : input.holdReasons }}
-        currentVersion={"currentVersion" in input ? input.currentVersion : 4}
-        onKeepEditing={onKeepEditing}
-        onViewVersions={onViewVersions}
-      />
-    );
+    const returnFocusTo = createRef<HTMLButtonElement>();
+    const DialogOpenedBySave = () => {
+      const [isOpen, setIsOpen] = useState(true);
+
+      return (
+        <>
+          <button ref={returnFocusTo} type="button">
+            Save new version
+          </button>
+          {isOpen && (
+            <HeldVersionDialog
+              version={{ version: 5, holdReasons: input.holdReasons === undefined ? HOLD_REASONS : input.holdReasons }}
+              currentVersion={"currentVersion" in input ? input.currentVersion : 4}
+              onKeepEditing={() => {
+                onKeepEditing();
+                if (input.closesOnKeepEditing) setIsOpen(false);
+              }}
+              onViewVersions={onViewVersions}
+              returnFocusTo={returnFocusTo}
+            />
+          )}
+        </>
+      );
+    };
+
+    render(<DialogOpenedBySave />);
 
     return { onKeepEditing, onViewVersions };
   }

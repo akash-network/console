@@ -141,6 +141,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
   const [failedVersion, setFailedVersion] = useState<TemplateVersionDetail>();
   const [heldVersion, setHeldVersion] = useState<TemplateVersionDetail>();
   const lastSelectedServiceId = useRef(selectedServiceId);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
   /** A draft save still pending when the template is saved would otherwise write the cleared draft back. */
   const isSavedRef = useRef(false);
   const form = useForm<SdlBuilderFormValuesType>({
@@ -338,6 +339,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
               isSaving={isSaving}
               canSave={!hasServiceNameClash && (!isEditing || (canSaveVersion && !isBaseVersionUnchanged))}
               onSave={save}
+              saveButtonRef={saveButtonRef}
             />
             {isEditing && <UnaskableSecretsAlert unaskableSecrets={askedSummary.unaskableSecrets} className="mx-6 mt-4 w-auto" />}
             {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
@@ -401,6 +403,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
               fixLinks={publishFixLinksOf(template, template.publisher)}
               onFollowFix={leaveFor}
               onKeepEditing={() => setFailedVersion(undefined)}
+              returnFocusTo={saveButtonRef}
               onViewVersions={() => leaveFor(versionsUrlOf(template.id))}
             />
           )}
@@ -409,6 +412,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
               version={heldVersion}
               currentVersion={template.currentVersion?.version}
               onKeepEditing={() => setHeldVersion(undefined)}
+              returnFocusTo={saveButtonRef}
               onViewVersions={() => leaveFor(versionsUrlOf(template.id))}
             />
           )}

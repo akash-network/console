@@ -1,5 +1,5 @@
 "use client";
-import type { FC } from "react";
+import type { FC, RefObject } from "react";
 import {
   Button,
   DialogV2,
@@ -23,12 +23,22 @@ export interface FailedChecksDialogProps {
   fixLinks: PublishFixLinks;
   onFollowFix: (href: string) => void;
   onKeepEditing: () => void;
+  /** The dialog opens from a save with no trigger of its own, so closing hands focus back to the control that saved. */
+  returnFocusTo: RefObject<HTMLElement | null>;
   onViewVersions: () => void;
 }
 
 const FIXED_ON_THIS_PAGE: PublishCheckFix = "edit-configuration";
 
-export const FailedChecksDialog: FC<FailedChecksDialogProps> = ({ version, liveVersion, fixLinks, onFollowFix, onKeepEditing, onViewVersions }) => {
+export const FailedChecksDialog: FC<FailedChecksDialogProps> = ({
+  version,
+  liveVersion,
+  fixLinks,
+  onFollowFix,
+  onKeepEditing,
+  returnFocusTo,
+  onViewVersions
+}) => {
   const failedChecks = failedPublishChecksOf(version.checkResults?.checks ?? []);
 
   const renderFix = (fix: PublishCheckFix) => {
@@ -44,7 +54,7 @@ export const FailedChecksDialog: FC<FailedChecksDialogProps> = ({ version, liveV
 
   return (
     <DialogV2 open onOpenChange={isOpen => (!isOpen ? onKeepEditing() : undefined)}>
-      <DialogV2Content className="max-w-xl">
+      <DialogV2Content className="max-w-xl" onCloseAutoFocus={() => returnFocusTo.current?.focus()}>
         <DialogV2Header>
           <DialogV2Title>v{version.version} is saved, but it isn&apos;t live</DialogV2Title>
           <DialogV2Description>

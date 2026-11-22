@@ -1,10 +1,11 @@
+import { createRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PublishFixLinks } from "@src/components/templates/publishing/publishReadiness";
 import type { TemplateCheckResults } from "@src/types/marketplace-template";
 import { FailedChecksDialog } from "./FailedChecksDialog";
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const CHECK_RESULTS: TemplateCheckResults = {
@@ -134,21 +135,50 @@ describe(FailedChecksDialog.name, () => {
     expect(onKeepEditing).not.toHaveBeenCalled();
   });
 
-  function setup(input: { liveVersion?: number; checkResults?: TemplateCheckResults | null; fixLinks?: PublishFixLinks }) {
+  it.each([
+    ["Keep editing", async () => userEvent.click(screen.getByRole("button", { name: "Keep editing" }))],
+    ["Escape", async () => userEvent.keyboard("{Escape}")]
+  ])("hands focus back to the save button after %s", async (_, close) => {
+    setup({ closesOnKeepEditing: true });
+
+    await close();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save new version" })).toHaveFocus());
+  });
+
+  function setup(input: { closesOnKeepEditing?: boolean; liveVersion?: number; checkResults?: TemplateCheckResults | null; fixLinks?: PublishFixLinks }) {
     const onFollowFix = vi.fn();
     const onKeepEditing = vi.fn();
     const onViewVersions = vi.fn();
 
-    render(
-      <FailedChecksDialog
-        version={{ version: 5, checkResults: input.checkResults === undefined ? CHECK_RESULTS : input.checkResults }}
-        liveVersion={"liveVersion" in input ? input.liveVersion : 4}
-        fixLinks={input.fixLinks ?? FIX_LINKS}
-        onFollowFix={onFollowFix}
-        onKeepEditing={onKeepEditing}
-        onViewVersions={onViewVersions}
-      />
-    );
+    const returnFocusTo = createRef<HTMLButtonElement>();
+    const DialogOpenedBySave = () => {
+      const [isOpen, setIsOpen] = useState(true);
+
+      return (
+        <>
+          <button ref={returnFocusTo} type="button">
+            Save new version
+          </button>
+          {isOpen && (
+            <FailedChecksDialog
+              version={{ version: 5, checkResults: input.checkResults === undefined ? CHECK_RESULTS : input.checkResults }}
+              liveVersion={"liveVersion" in input ? input.liveVersion : 4}
+              fixLinks={input.fixLinks ?? FIX_LINKS}
+              onFollowFix={onFollowFix}
+              onKeepEditing={() => {
+                onKeepEditing();
+                if (input.closesOnKeepEditing) setIsOpen(false);
+              }}
+              onViewVersions={onViewVersions}
+              returnFocusTo={returnFocusTo}
+            />
+          )}
+        </>
+      );
+    };
+
+    render(<DialogOpenedBySave />);
 
     return { onFollowFix, onKeepEditing, onViewVersions };
   }
