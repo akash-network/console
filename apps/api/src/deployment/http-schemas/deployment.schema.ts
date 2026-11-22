@@ -628,7 +628,7 @@ export const CreateDeploymentRequestSchema = z.object({
     }),
     overrides: z.record(RecordKeySchema, PatchServiceSchema).optional().openapi({
       description:
-        "Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl`."
+        "Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl` or `definition`."
     })
   }).superRefine((data, context) => {
     const message = sourceRefusalOf(data);

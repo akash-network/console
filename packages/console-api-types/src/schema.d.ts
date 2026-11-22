@@ -13315,7 +13315,7 @@ export interface operations {
                 [key: string]: string;
               };
             };
-            /** @description Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl`. */
+            /** @description Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl` or `definition`. */
             overrides?: {
               [key: string]: {
                 image?: string;
@@ -13405,7 +13405,7 @@ export interface operations {
           };
         };
       };
-      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. Also returned when the request names no source or more than one of `sdl`, `service` and `templateId` without `sdl`, or when `overrides` name a service or a port the template does not declare. With `code` `project_required`, a project is needed */
+      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. Also returned when the request names no source or more than one of `sdl`, `definition`, `service` and `templateId` without `sdl` or `definition`, or when `overrides` name a service or a port the template does not declare. With `code` `project_required`, a project is needed */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13433,7 +13433,7 @@ export interface operations {
           };
         };
       };
-      /** @description No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`, and for a `templateId` sent without `sdl` that the gallery does not list */
+      /** @description No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`, and for a `templateId` sent without `sdl` or `definition` that the gallery does not list */
       404: {
         headers: {
           [name: string]: unknown;
