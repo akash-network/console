@@ -272,13 +272,23 @@ describe(useCommunityGallery.name, () => {
       expect((result.current as CommunityGallery).shownEntries).toEqual(FIRST_PAGE.shownEntries);
     });
 
-    it("moves to the community list once it has loaded for a community view, without waiting for the awesome-akash list", () => {
+    it("moves to the community list for a community view once the awesome-akash list has failed", () => {
       const communityView = { category: null, search: "", source: "community" as const, sort: "popular" as const };
       const { result } = setup({ firstPage: { ...FIRST_PAGE, view: communityView }, categories: [], view: communityView });
 
       const gallery = result.current as CommunityGallery;
       expect(gallery.isShowingFirstPage).toBe(false);
       expect(gallery.shownEntries.map(entry => entry.title)).not.toContain("Server rendered");
+    });
+
+    it.each([
+      ["while the awesome-akash list is still loading", { category: null }, true],
+      ["for a category, which only the awesome-akash list can resolve", { category: "Games" }, false]
+    ])("keeps the server screen for a community view %s", (_, view, isLoadingCategories) => {
+      const communityView = { search: "", source: "community" as const, sort: "popular" as const, ...view };
+      const { result } = setup({ firstPage: { ...FIRST_PAGE, view: communityView }, categories: [], isLoadingCategories, view: communityView });
+
+      expect((result.current as CommunityGallery).isShowingFirstPage).toBe(true);
     });
 
     it("moves to the lists once both have loaded", () => {
@@ -332,17 +342,19 @@ describe(useCommunityGallery.name, () => {
     community?: CommunityTemplateGallery | null;
     isLoading?: boolean;
     isError?: boolean;
+    isLoadingCategories?: boolean;
     firstPage?: GalleryFirstPage;
     view?: { category?: string | null; search?: string; source?: GallerySource; sort?: GallerySort };
   }) {
     const refetch = vi.fn();
     const toQuery = (community: CommunityTemplateGallery | null) =>
-      mock<CommunityQuery>({ data: community ?? undefined, isLoading: input.isLoading ?? false, isError: input.isError ?? false, refetch });
+      Object.assign(mock<CommunityQuery>(), { data: community ?? undefined, isLoading: input.isLoading ?? false, isError: input.isError ?? false, refetch });
     let query = toQuery(input.community === undefined ? COMMUNITY : input.community);
     const useCommunityTemplates = vi.fn<typeof DEPENDENCIES.useCommunityTemplates>(() => query);
     let hookInput: CommunityGalleryInput = {
       isEnabled: input.isEnabled ?? true,
       categories: input.categories ?? CATEGORIES,
+      isLoadingCategories: input.isLoadingCategories,
       firstPage: input.firstPage,
       view: { category: null, search: "", source: "all", sort: "popular", ...input.view }
     };
@@ -353,12 +365,14 @@ describe(useCommunityGallery.name, () => {
       isEnabled?: boolean;
       categories?: EnhancedTemplateCategory[];
       community?: CommunityTemplateGallery;
+      isLoadingCategories?: boolean;
       view?: Partial<CommunityGalleryInput["view"]>;
     }) => {
       if (change.community) query = toQuery(change.community);
       hookInput = {
         isEnabled: change.isEnabled ?? hookInput.isEnabled,
         categories: change.categories ?? hookInput.categories,
+        isLoadingCategories: change.isLoadingCategories ?? hookInput.isLoadingCategories,
         firstPage: hookInput.firstPage,
         view: { category: null, search: "", source: "all", sort: "popular", ...change.view }
       };

@@ -29,13 +29,23 @@ export const DEPENDENCIES: { useCommunityTemplates: (options: { enabled: boolean
 export interface CommunityGalleryInput {
   isEnabled: boolean;
   categories: EnhancedTemplateCategory[];
+  /** True until the awesome-akash list has answered for the first time. */
+  isLoadingCategories?: boolean;
   view: GalleryView;
   /** The first screen a server render worked out, shown until both lists have loaded in the browser. */
   firstPage?: GalleryFirstPage;
 }
 
+/** Only a community view with no category can be built from the community list alone, since a category is resolved against the awesome-akash list. */
+function needsAwesomeAkashList(view: GalleryView): boolean {
+  return view.source !== "community" || !!view.category;
+}
+
 /** Null while the marketplace is off, so the gallery keeps showing the awesome-akash sections alone. */
-export function useCommunityGallery({ isEnabled, categories, view, firstPage }: CommunityGalleryInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
+export function useCommunityGallery(
+  { isEnabled, categories, isLoadingCategories = false, view, firstPage }: CommunityGalleryInput,
+  dependencies: typeof DEPENDENCIES = DEPENDENCIES
+) {
   const communityQuery = dependencies.useCommunityTemplates({ enabled: isEnabled });
   const community = communityQuery.data;
   const refetchCommunity = communityQuery.refetch;
@@ -62,8 +72,8 @@ export function useCommunityGallery({ isEnabled, categories, view, firstPage }: 
   if (!isEnabled) return null;
 
   const retryCommunity = () => void refetchCommunity();
-  const isAwaitingOfficialTemplates = view.source !== "community" && categories.length === 0;
-  const isAwaitingLists = communityQuery.isLoading || isAwaitingOfficialTemplates;
+  const isAwaitingCategories = categories.length === 0 && (isLoadingCategories || needsAwesomeAkashList(view));
+  const isAwaitingLists = communityQuery.isLoading || isAwaitingCategories;
 
   if (firstPage && isAwaitingLists && isSameGalleryView(firstPage.view, view)) {
     return {
