@@ -6,6 +6,9 @@ import { inboundFiltersIntegration, init as initSentry, thirdPartyErrorFilterInt
 
 import { redactBreadcrumbTokens, redactEventTokens } from "@src/lib/sentry/redactLinkTokens/redactLinkTokens";
 
+/** Cloudflare's api.js throws these uncaught on every retry, bypassing the once-per-run report in Turnstile.tsx. */
+const UNCAUGHT_TURNSTILE_ERROR_CODE = /\[Cloudflare Turnstile\] Error: \d+/;
+
 initSentry({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
@@ -14,7 +17,8 @@ initSentry({
   enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
   ignoreErrors: [
     // WalletConnect timeout - expected when users don't complete wallet connection
-    /Proposal expired/
+    /Proposal expired/,
+    UNCAUGHT_TURNSTILE_ERROR_CODE
   ],
   // propagate sentry-trace and baggage headers to internal API only
   // everything else will be done with custom interceptor
