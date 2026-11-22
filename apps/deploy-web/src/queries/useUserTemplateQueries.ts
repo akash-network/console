@@ -79,8 +79,10 @@ export function useUpdateTemplatePublisherMutation() {
 
   return api.v1.updateCurrentTemplatePublisher.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
-    onSuccess: response => {
-      queryClient.setQueryData([...api.v1.getCurrentTemplatePublisher.getKey(), activeOrganization?.id], response);
+    onSuccess: async response => {
+      const ownProfileKey = [...api.v1.getCurrentTemplatePublisher.getKey(), activeOrganization?.id];
+      await queryClient.cancelQueries({ queryKey: ownProfileKey });
+      queryClient.setQueryData(ownProfileKey, response);
       return queryClient.invalidateQueries({ queryKey: api.v1.getTemplatePublisher.getKey({ handle: response.data.handle }) });
     }
   });

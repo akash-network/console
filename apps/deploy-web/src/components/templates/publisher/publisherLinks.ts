@@ -22,10 +22,17 @@ export function readPublisherLink(link: TemplatePublisherLink): ShownPublisherLi
 }
 
 function parseWebAddress(value: string): URL | null {
-  if (!URL.canParse(value)) return null;
+  const url = parseUrl(value);
+  return url && LINKABLE_PROTOCOLS.includes(url.protocol) ? url : null;
+}
 
-  const url = new URL(value);
-  return LINKABLE_PROTOCOLS.includes(url.protocol) ? url : null;
+/** Safari before 17 has no `URL.canParse`, so a refused address is caught instead. */
+export function parseUrl(value: string): URL | null {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
 }
 
 function withoutTrailingSlash(path: string): string {

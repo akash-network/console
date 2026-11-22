@@ -298,6 +298,24 @@ describe("useUserTemplateQueries", () => {
       );
     });
 
+    it("keeps the saved profile when a read that started before the save finishes after it", async () => {
+      const saved = { ...OWN_PUBLISHER, bio: "A new bio." };
+      const { result, updateCurrentTemplatePublisher, getCurrentTemplatePublisher } = setup({
+        useHook: () => ({ own: useCurrentTemplatePublisher({ enabled: true }), update: useUpdateTemplatePublisherMutation() })
+      });
+      await waitFor(() => expect(result.current.own.isSuccess).toBe(true));
+      const olderRead = Promise.withResolvers<{ data: typeof OWN_PUBLISHER }>();
+      getCurrentTemplatePublisher.mockReturnValueOnce(olderRead.promise);
+      act(() => void result.current.own.refetch());
+      updateCurrentTemplatePublisher.mockResolvedValueOnce({ data: saved });
+
+      await act(() => result.current.update.mutateAsync({ data: { bio: "A new bio.", links: [] } }));
+      await act(async () => olderRead.resolve({ data: OWN_PUBLISHER }));
+
+      await waitFor(() => expect(result.current.own.data).toEqual(saved));
+      expect(getCurrentTemplatePublisher).toHaveBeenCalledTimes(2);
+    });
+
     it("does not report a refusal, such as a member who may not edit, and reports a server error", async () => {
       const { result, queryClient } = setup({ useHook: () => useUpdateTemplatePublisherMutation() });
 

@@ -72,9 +72,9 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
   );
   const hasCommunityTemplates = useMemo(() => entries.some(entry => !entry.isOfficial), [entries]);
 
-  if (!publisher) {
-    if (isClientError(publisherQuery.error)) return <PublisherNotFound dependencies={d} />;
+  if (isClientError(publisherQuery.error)) return <PublisherNotFound dependencies={d} />;
 
+  if (!publisher) {
     return (
       <d.Layout background="dots" isLoading={publisherQuery.isLoading}>
         {publisherQuery.isLoading && (

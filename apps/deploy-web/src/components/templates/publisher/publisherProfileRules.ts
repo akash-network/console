@@ -1,4 +1,5 @@
 import type { CurrentTemplatePublisher, TemplatePublisherProfileChange } from "@src/types/marketplace-template";
+import { parseUrl } from "./publisherLinks";
 
 export const MAX_PUBLISHER_BIO_LENGTH = 300;
 export const MAX_PUBLISHER_LINKS = 3;
@@ -81,9 +82,8 @@ function findLinkIssue(value: string): string | undefined {
   const address = value.trim();
   if (!address) return "Add the link's address, or clear its label";
   if (address.length > MAX_PUBLISHER_LINK_URL_LENGTH) return TOO_LONG_LINK_ISSUE;
-  if (!URL.canParse(address)) return "The link is not a URL";
-
-  const url = new URL(address);
+  const url = parseUrl(address);
+  if (!url) return "The link is not a URL";
   if (url.href.length > MAX_PUBLISHER_LINK_URL_LENGTH) return TOO_LONG_LINK_ISSUE;
   if (url.protocol !== "https:") return "The link must start with https://";
   if (url.username || url.password) return "The link cannot carry a username or a password";

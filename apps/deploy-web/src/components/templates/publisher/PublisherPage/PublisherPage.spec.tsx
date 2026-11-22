@@ -307,6 +307,21 @@ describe(PublisherPage.name, () => {
     expect(GalleryEntryList).not.toHaveBeenCalled();
   });
 
+  it("says the publisher was not found when a reload answers 404 after it loaded", () => {
+    const { GalleryEntryList } = setup({ error: new ApiError(404, { message: "Publisher not found" }, "404"), hasLoadedBefore: true });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Publisher not found" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Lambda Garage" })).not.toBeInTheDocument();
+    expect(GalleryEntryList).not.toHaveBeenCalled();
+  });
+
+  it("keeps a loaded publisher on screen when a reload fails for another reason", () => {
+    setup({ error: new ApiError(500, null, "500"), hasLoadedBefore: true });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Lambda Garage" })).toBeInTheDocument();
+    expect(screen.queryByText("Publisher not found")).not.toBeInTheDocument();
+  });
+
   it("shows a spinner while the publisher loads", () => {
     const { Layout } = setup({ isLoading: true });
 
@@ -424,6 +439,7 @@ describe(PublisherPage.name, () => {
   function setup(input: {
     publisher?: Partial<TemplatePublisherPage>;
     error?: Error;
+    hasLoadedBefore?: boolean;
     isLoading?: boolean;
     isSignedIn?: boolean;
     ownProfile?: CurrentTemplatePublisher;
@@ -432,7 +448,7 @@ describe(PublisherPage.name, () => {
     GalleryEntryList?: typeof DEPENDENCIES.GalleryEntryList;
   }) {
     const refetch = vi.fn();
-    const publisher = input.error || input.isLoading ? undefined : { ...PUBLISHER, ...input.publisher };
+    const publisher = (input.error && !input.hasLoadedBefore) || input.isLoading ? undefined : { ...PUBLISHER, ...input.publisher };
     const publisherQuery = Object.assign(mock<PublisherQuery>(), {
       data: publisher,
       error: input.error ?? null,
