@@ -6,10 +6,11 @@ import type { CreateDeploymentRequest } from "@src/deployment/http-schemas/deplo
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { parseSdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { buildServiceSdl } from "@src/deployment/utils/service-sdl/service-sdl";
+import { submittedSdlOf } from "@src/deployment/utils/submitted-sdl/submitted-sdl";
 import { TEMPLATE_GALLERY_SERVICE } from "@src/template/providers/template-gallery.provider";
 import { TemplateGalleryService } from "@src/template/services/template-gallery/template-gallery.service";
 
-type DeploymentSdlSource = Pick<CreateDeploymentRequest["data"], "sdl" | "service" | "templateId" | "overrides">;
+type DeploymentSdlSource = Pick<CreateDeploymentRequest["data"], "sdl" | "definition" | "service" | "templateId" | "overrides">;
 
 type TemplateOverrides = NonNullable<DeploymentSdlSource["overrides"]>;
 
@@ -22,7 +23,7 @@ export class DeploymentSdlSourceService {
   ) {}
 
   async resolve(source: DeploymentSdlSource): Promise<string> {
-    if (source.sdl !== undefined) return source.sdl;
+    if (source.sdl !== undefined || source.definition !== undefined) return submittedSdlOf(source);
     if (source.service) return dump(buildServiceSdl(source.service), { lineWidth: -1 });
 
     const templateSdl = await this.#templateSdlOf(source.templateId);

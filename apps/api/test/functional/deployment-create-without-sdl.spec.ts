@@ -78,6 +78,24 @@ const SERVICE_SDL: SDLInput = {
   deployment: { app: { dcloud: { profile: "app", count: 1 } } }
 };
 
+const WORKER_API_TOKEN = randomUUID();
+
+const TWO_SERVICE_DEFINITION: SDLInput = {
+  version: "2.0",
+  services: {
+    web: { image: "nginx:1.27.2", env: ["MODE=production"], expose: [{ port: 80, as: 80, to: [{ global: true }] }] },
+    worker: { image: "busybox:1.36", env: ["QUEUE_URL=redis://queue", `API_TOKEN=${WORKER_API_TOKEN}`], command: ["sh", "-c"], args: ["sleep infinity"] }
+  },
+  profiles: {
+    compute: {
+      web: { resources: { cpu: { units: 0.5 }, memory: { size: "512Mi" }, storage: { size: "1Gi" } } },
+      worker: { resources: { cpu: { units: 0.25 }, memory: { size: "256Mi" }, storage: { size: "512Mi" } } }
+    },
+    placement: { dcloud: { pricing: { web: { denom: "uact", amount: 1000 }, worker: { denom: "uact", amount: 1000 } } } }
+  },
+  deployment: { web: { dcloud: { profile: "web", count: 1 } }, worker: { dcloud: { profile: "worker", count: 1 } } }
+};
+
 const { client: kmsClient } = registerFakeSdlSecretsKms();
 
 describe("Deployment create without an SDL", () => {
@@ -196,6 +214,43 @@ describe("Deployment create without an SDL", () => {
     });
   });
 
+  describe("from a JSON definition", () => {
+    it("stores every service the definition declares and commits its manifest version", async () => {
+      const { apiKey, user } = await persistedUser();
+
+      const response = await postDeployment(apiKey, { definition: TWO_SERVICE_DEFINITION, secretEnv: [] });
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      expect(yaml.raw<SDLInput>(setting!.sdl!)).toEqual(TWO_SERVICE_DEFINITION);
+      expect(broadcastHash()).toEqual(await manifestVersionOf(TWO_SERVICE_DEFINITION));
+    });
+
+    it("seals the env value secretEnv names in whichever service sets it", async () => {
+      const { apiKey, user } = await persistedUser();
+
+      const response = await postDeployment(apiKey, { definition: TWO_SERVICE_DEFINITION, secretEnv: ["API_TOKEN"] });
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      expect(yaml.raw<SDLInput>(setting!.sdl!).services.worker.env).toEqual(["QUEUE_URL=redis://queue", "API_TOKEN=ac-secret://s1_e1"]);
+      expect(JSON.stringify(setting)).not.toContain(WORKER_API_TOKEN);
+    });
+
+    it("refuses an invalid definition naming where the problem is, recording nothing and broadcasting nothing", async () => {
+      const { apiKey, user } = await persistedUser();
+      const { image, ...imageless } = TWO_SERVICE_DEFINITION.services.worker;
+      const services = { ...TWO_SERVICE_DEFINITION.services, worker: imageless };
+
+      const response = await postDeployment(apiKey, { definition: { ...TWO_SERVICE_DEFINITION, services }, secretEnv: [] });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("/services/worker");
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+  });
+
   describe("from a gallery template", () => {
     it("stores the template's SDL as the gallery holds it and links the deployment to the template", async () => {
       const { apiKey, user } = await persistedUser();
@@ -259,13 +314,14 @@ describe("Deployment create without an SDL", () => {
 
   describe("when the request does not name exactly one thing to deploy", () => {
     it.each<[string, Record<string, unknown>, string]>([
-      ["neither an SDL, a service nor a template", {}, "Send one of sdl, service or templateId"],
+      ["neither an SDL, a service nor a template", {}, "Send one of sdl, definition, service or templateId"],
       ["an SDL and a service", { sdl: TEMPLATE_SDL, service: SERVICE }, "Send either sdl or service, not both"],
+      ["a definition and an SDL", { definition: TWO_SERVICE_DEFINITION, sdl: TEMPLATE_SDL }, "Send definition on its own, without sdl or service"],
       ["a service and a template", { service: SERVICE, templateId: TEMPLATE_ID }, "service cannot be combined with templateId or templateVersionId"],
       [
         "overrides for a submitted SDL",
         { sdl: TEMPLATE_SDL, templateId: TEMPLATE_ID, overrides: { web: { image: "nginx:1.27.2" } } },
-        "overrides apply only to a deployment created from templateId without sdl"
+        "overrides apply only to a deployment created from templateId without sdl or definition"
       ]
     ])("refuses %s, recording nothing and broadcasting nothing", async (_, data, message) => {
       const { apiKey, user } = await persistedUser();
