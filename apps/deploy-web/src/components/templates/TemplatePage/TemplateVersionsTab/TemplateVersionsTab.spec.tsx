@@ -73,7 +73,81 @@ describe(TemplateVersionsTab.name, () => {
 
     expect(screen.getByRole("heading", { name: "Version history" })).toBeInTheDocument();
     expect(screen.getByText("Published versions never change. Deployments and forks stay on the version they started from.")).toBeInTheDocument();
-    expect(screen.getByText("New versions come from Edit configuration → Save new version.")).toBeInTheDocument();
+    expect(
+      screen.getByText("New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass.")
+    ).toBeInTheDocument();
+  });
+
+  it("shows why a version failed its publish checks, and which version is current", () => {
+    const failed = buildTemplateVersionSummary({
+      templateId: TEMPLATE_ID,
+      version: 4,
+      status: "failed_checks",
+      checkResults: {
+        ranAt: "2026-11-10T12:00:00.000Z",
+        checks: [
+          { key: "sdl_valid", status: "passed", issues: [{ message: "A note on a check that passed" }] },
+          {
+            key: "no_secrets",
+            status: "failed",
+            issues: [{ message: "web: CIVITAI_TOKEN looks like an API key." }, { message: "db: PASSWORD has a default." }]
+          },
+          { key: "images_allowed", status: "failed", issues: [] }
+        ]
+      }
+    });
+    setup({ versions: [failed, V3], currentVersion: 3, canEdit: true });
+
+    const [failedRow, currentRow] = screen.getAllByRole("row").slice(1);
+    expect(within(failedRow).getByText("Failed checks")).toHaveClass("text-red-600");
+    expect(within(failedRow).queryByText("Current")).not.toBeInTheDocument();
+    expect(
+      within(within(failedRow).getByRole("list", { name: "Why v4 failed" }))
+        .getAllByRole("listitem")
+        .map(item => item.textContent)
+    ).toEqual(["web: CIVITAI_TOKEN looks like an API key.", "db: PASSWORD has a default.", "Images allowed"]);
+    expect(within(currentRow).getByText("Published")).toHaveClass("text-green-700");
+    expect(within(currentRow).getByText("Current")).toBeInTheDocument();
+    expect(within(currentRow).queryByRole("list", { name: /^Why/ })).not.toBeInTheDocument();
+  });
+
+  it("gives no reasons for a failed version whose check results the viewer may not see", () => {
+    const failed = buildTemplateVersionSummary({ version: 2, status: "failed_checks", checkResults: null });
+    setup({ versions: [failed], currentVersion: undefined, canEdit: false });
+
+    expect(screen.getByText("Failed checks")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Why v2 failed" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the stored check results of a published version out of its row", () => {
+    const live = buildTemplateVersionSummary({
+      version: 2,
+      status: "live",
+      checkResults: { ranAt: "2026-11-10T12:00:00.000Z", checks: [{ key: "fixed_tags", status: "failed", issues: [{ message: "An old finding" }] }] }
+    });
+    setup({ versions: [live], currentVersion: 2, canEdit: true });
+
+    expect(screen.queryByText("An old finding")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Why v2 failed" })).not.toBeInTheDocument();
+  });
+
+  it("shows a publisher's text in a failure reason as inert text", () => {
+    const markup = '<img src=x onerror="alert(1)"> has no tag';
+    const failed = buildTemplateVersionSummary({
+      version: 2,
+      status: "failed_checks",
+      checkResults: { ranAt: "2026-11-10T12:00:00.000Z", checks: [{ key: "fixed_tags", status: "failed", issues: [{ message: markup }] }] }
+    });
+    const { container } = setup({ versions: [failed], currentVersion: undefined, canEdit: false });
+
+    expect(screen.getByText(markup)).toBeInTheDocument();
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("marks a version held for staff review", () => {
+    setup({ versions: [buildTemplateVersionSummary({ version: 5, status: "held" })], currentVersion: undefined, canEdit: false });
+
+    expect(screen.getByText("Held for staff review")).toHaveClass("text-amber-700");
   });
 
   it("names every kind of change", () => {

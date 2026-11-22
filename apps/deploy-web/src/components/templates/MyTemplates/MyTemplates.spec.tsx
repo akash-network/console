@@ -103,8 +103,72 @@ describe(MyTemplates.name, () => {
     setup({ templates: [unlisted] });
 
     expect(within(rowOf(unlisted)).getByText("Not in gallery")).toBeInTheDocument();
-    expect(within(rowOf(unlisted)).getByText("Saved before checks existed.")).toBeInTheDocument();
+    expect(cellTexts(rowOf(unlisted))[2]).toBe("Not in galleryIt went public before publish checks existed. Share to list it.");
     expect(within(rowOf(unlisted)).queryByRole("link", { name: "Contact support" })).not.toBeInTheDocument();
+  });
+
+  it("opens the share dialog from the next step of a template that is not in the gallery", async () => {
+    const unlisted = buildUserTemplateListItem({ title: "Open WebUI for support team", visibility: "public", isListed: false });
+    const { ShareTemplateDialog } = setup({ templates: [unlisted] });
+
+    await userEvent.click(screen.getByRole("button", { name: "Share Open WebUI for support team to list it" }));
+
+    expect(ShareTemplateDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ template: expect.objectContaining({ id: unlisted.id }), organization: { name: "Northwind Labs", type: "team" } }),
+      expect.anything()
+    );
+  });
+
+  it("explains a template that is not in the gallery to a viewer without offering to share it", () => {
+    const unlisted = buildUserTemplateListItem({ title: "Open WebUI for support team", visibility: "public", isListed: false, canEdit: false });
+    setup({ templates: [unlisted] });
+
+    expect(cellTexts(rowOf(unlisted))[2]).toBe("Not in galleryIt went public before publish checks existed.");
+    expect(within(rowOf(unlisted)).queryByRole("button", { name: /to list it/ })).not.toBeInTheDocument();
+  });
+
+  it("flags a current version that is held or failed its checks next to the template's status", () => {
+    const held = buildUserTemplateListItem({
+      title: "Held one",
+      visibility: "public",
+      isListed: true,
+      currentVersion: { version: 5, status: "held", createdAt: "2026-11-05T12:00:00.000Z" }
+    });
+    const failed = buildUserTemplateListItem({
+      title: "Failed one",
+      currentVersion: { version: 2, status: "failed_checks", createdAt: "2026-11-05T12:00:00.000Z" }
+    });
+    setup({ templates: [held, failed] });
+
+    expect(cellTexts(rowOf(held))[2]).toBe("In galleryv5 held for review");
+    expect(within(rowOf(held)).getByText("v5 held for review")).toHaveClass("text-amber-700");
+    expect(cellTexts(rowOf(failed))[2]).toBe("Not sharedv2 failed checks");
+    expect(within(rowOf(failed)).getByText("v2 failed checks")).toHaveClass("text-red-600");
+  });
+
+  it("opens the share dialog from the actions of a template the user may change, and closes it", async () => {
+    const { ShareTemplateDialog } = setup({});
+
+    expect(ShareTemplateDialog).not.toHaveBeenCalled();
+    await openMenuOf(RAG);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Share" }));
+
+    expect(ShareTemplateDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ template: expect.objectContaining({ id: RAG.id, title: RAG.title, visibility: "organization" }) }),
+      expect.anything()
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Close the share dialog" }));
+
+    expect(screen.queryByRole("button", { name: "Close the share dialog" })).not.toBeInTheDocument();
+  });
+
+  it("shares under no organization while there is none", async () => {
+    const { ShareTemplateDialog } = setup({ organization: null });
+
+    await openMenuOf(RAG);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Share" }));
+
+    expect(ShareTemplateDialog).toHaveBeenLastCalledWith(expect.objectContaining({ organization: null }), expect.anything());
   });
 
   it("filters by project tab, search, visibility and status", async () => {
@@ -179,6 +243,7 @@ describe(MyTemplates.name, () => {
 
     expect(screen.getByRole("menuitem", { name: "Open" })).toHaveAttribute("href", UrlService.template(readOnly.id));
     expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Share" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Duplicate" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Delete template" })).not.toBeInTheDocument();
   });
@@ -394,9 +459,16 @@ describe(MyTemplates.name, () => {
       NEXT_PUBLIC_CONTACT_SUPPORT_URL: "supportUrl" in input ? input.supportUrl : SUPPORT_URL
     });
 
+    const ShareTemplateDialog = vi.fn<typeof DEPENDENCIES.ShareTemplateDialog>(({ onClose }) => (
+      <button type="button" onClick={onClose}>
+        Close the share dialog
+      </button>
+    ));
+
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       ImportSdlButton,
+      ShareTemplateDialog,
       useProjectsQuery,
       useMyTemplates: () => templatesQuery,
       useActiveOrganization: () => activeOrganization,
@@ -411,6 +483,6 @@ describe(MyTemplates.name, () => {
       </TestContainerProvider>
     );
 
-    return { Layout, ImportSdlButton, useProjectsQuery, confirm, deleteTemplate, enqueueSnackbar, refetch, writeText };
+    return { Layout, ImportSdlButton, ShareTemplateDialog, useProjectsQuery, confirm, deleteTemplate, enqueueSnackbar, refetch, writeText };
   }
 });

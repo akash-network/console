@@ -90,3 +90,29 @@ export function useDeleteMarketplaceTemplateMutation() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: api.v1.listUserTemplates.getKey() })
   });
 }
+
+/** The checks run on the server at request time, so a result is never reused: the dialog always shows a fresh run. */
+export function useTemplatePublishReadiness(id: string, { enabled }: { enabled: boolean }) {
+  const { api } = useServices();
+
+  return api.v1.getUserTemplatePublishReadiness.useQuery(
+    { id },
+    { enabled, staleTime: 0, gcTime: 0, retry: false, refetchOnWindowFocus: false, meta: SKIP_REPORTING_REFUSED_INPUT, select: response => response.data }
+  );
+}
+
+export function usePublishTemplateMutation() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return api.v1.publishUserTemplate.useMutation({
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    onSuccess: (response, { id }) => {
+      queryClient.setQueryData(api.v1.getUserTemplate.getKey({ id }), response);
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: api.v1.listUserTemplateVersions.getKey({ id }) }),
+        queryClient.invalidateQueries({ queryKey: api.v1.listUserTemplates.getKey() })
+      ]);
+    }
+  });
+}

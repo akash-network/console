@@ -1,16 +1,18 @@
 import { useEffect } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { MarketplaceTemplate, TemplateVersionSummary } from "@src/types/marketplace-template";
-import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, TemplatePage } from "./TemplatePage";
 
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildMarketplaceTemplate, buildTemplateVersion, buildTemplateVersionSummary } from "@tests/seeders/userTemplate";
 import { MockComponents } from "@tests/unit/mocks";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 type TemplateQuery = ReturnType<typeof DEPENDENCIES.useMarketplaceTemplate>;
 type VersionsQuery = ReturnType<typeof DEPENDENCIES.useTemplateVersions>;
@@ -462,21 +464,87 @@ describe(TemplatePage.name, () => {
     expect(screen.queryByRole("button", { name: "Favorite" })).not.toBeInTheDocument();
   });
 
-  it("copies the template link", async () => {
-    const { writeText, enqueueSnackbar } = setup({});
+  describe("sharing", () => {
+    it("keeps the share dialog closed until it is asked for", () => {
+      const { ShareTemplateDialog } = setup({});
 
-    await userEvent.click(screen.getByRole("button", { name: "Copy link" }));
+      expect(ShareTemplateDialog).not.toHaveBeenCalled();
+    });
 
-    expect(writeText).toHaveBeenCalledWith(`${getBaseUrl()}${UrlService.template(TEMPLATE_ID)}`);
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "success" });
+    it("opens the share dialog for an editor, under the template's organization", async () => {
+      const { ShareTemplateDialog } = setup({ template: { ...TEMPLATE, canEdit: true } });
+
+      await userEvent.click(screen.getByRole("button", { name: "Share" }));
+
+      expect(screen.getByRole("button", { name: "Share" })).toHaveTextContent("Share");
+      expect(ShareTemplateDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          template: expect.objectContaining({ id: TEMPLATE_ID, title: "Open WebUI + vLLM", canEdit: true }),
+          organization: { name: "Northwind Labs", type: "team" }
+        }),
+        expect.anything()
+      );
+    });
+
+    it("gives a viewer a share button without the label, and a dialog that knows no organization for a template filed in none", async () => {
+      const { ShareTemplateDialog } = setup({ template: { ...TEMPLATE, canEdit: false, publisher: null } });
+
+      const share = screen.getByRole("button", { name: "Share" });
+      expect(share).toHaveTextContent("");
+      await userEvent.click(share);
+
+      expect(ShareTemplateDialog).toHaveBeenLastCalledWith(expect.objectContaining({ organization: null }), expect.anything());
+    });
+
+    it("closes the share dialog", async () => {
+      setup({});
+
+      await userEvent.click(screen.getByRole("button", { name: "Share" }));
+      await userEvent.click(screen.getByRole("button", { name: "Close the share dialog" }));
+
+      expect(screen.queryByRole("button", { name: "Close the share dialog" })).not.toBeInTheDocument();
+    });
   });
 
-  it("reports a link it could not copy", async () => {
-    const { enqueueSnackbar } = setup({ isCopyFailing: true });
+  describe("arriving from the Deploy on Akash badge", () => {
+    it("records the arrival with the template, its version and the source", () => {
+      const { analyticsService } = setup({ arrivalSource: "badge" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Copy link" }));
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        "template_badge_arrival",
+        { category: "deployments", templateId: TEMPLATE_ID, templateVersion: 3, source: "badge" },
+        "Amplitude"
+      );
+    });
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" });
+    it("records an arrival at a template that has no version yet", () => {
+      const { analyticsService } = setup({ arrivalSource: "badge", template: { ...TEMPLATE, currentVersion: null } });
+
+      expect(analyticsService.track).toHaveBeenCalledWith("template_badge_arrival", expect.objectContaining({ templateVersion: null }), "Amplitude");
+    });
+
+    it("records it once, however often the page renders again", () => {
+      const { analyticsService, receiveFromServer } = setup({ arrivalSource: "badge" });
+
+      receiveFromServer({ template: { ...TEMPLATE, title: "Renamed" } });
+
+      expect(analyticsService.track).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for the template before recording", () => {
+      const { analyticsService, receiveFromServer } = setup({ arrivalSource: "badge", isLoading: true });
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      receiveFromServer({ template: TEMPLATE });
+
+      expect(analyticsService.track).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([undefined, "newsletter"])("records nothing for a visit whose source is %j", arrivalSource => {
+      const { analyticsService } = setup({ arrivalSource });
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
   });
 
   it("links back to the templates gallery", () => {
@@ -485,15 +553,6 @@ describe(TemplatePage.name, () => {
     const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
     expect(within(breadcrumb).getByRole("link", { name: "Templates" })).toHaveAttribute("href", UrlService.templates());
   });
-
-  function stubClipboard(clipboard: Pick<Clipboard, "writeText">) {
-    const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-    Object.defineProperty(navigator, "clipboard", { value: clipboard, configurable: true });
-    onTestFinished(() => {
-      if (original) Object.defineProperty(navigator, "clipboard", original);
-      else Reflect.deleteProperty(navigator, "clipboard");
-    });
-  }
 
   function setup(input: {
     template?: MarketplaceTemplate;
@@ -508,13 +567,12 @@ describe(TemplatePage.name, () => {
     isSignedIn?: boolean;
     isFavoriteFailing?: boolean;
     isFavoriteChangeHeld?: boolean;
-    isCopyFailing?: boolean;
+    arrivalSource?: string;
     TemplateReadmeTab?: typeof DEPENDENCIES.TemplateReadmeTab;
   }) {
     const refetch = vi.fn();
     const enqueueSnackbar = vi.fn();
-    const writeText = input.isCopyFailing ? vi.fn().mockRejectedValue(new Error("denied")) : vi.fn().mockResolvedValue(undefined);
-    stubClipboard({ writeText });
+    const analyticsService = mock<AnalyticsService>();
     const favoriteChangeRelease = Promise.withResolvers<void>();
     if (!input.isFavoriteChangeHeld) favoriteChangeRelease.resolve();
     const changeFavorite = async () => {
@@ -547,7 +605,7 @@ describe(TemplatePage.name, () => {
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({
       pathname: "/template/[id]",
-      query: input.tab ? { id: TEMPLATE_ID, tab: input.tab } : { id: TEMPLATE_ID }
+      query: { id: TEMPLATE_ID, ...(input.tab ? { tab: input.tab } : {}), utm_source: input.arrivalSource }
     });
 
     const useMarketplaceTemplate = vi.fn<typeof DEPENDENCIES.useMarketplaceTemplate>(() => templateQuery);
@@ -569,6 +627,11 @@ describe(TemplatePage.name, () => {
     const TemplateSettingsTab = vi.fn<typeof DEPENDENCIES.TemplateSettingsTab>(() => null);
     const TemplateIcon = vi.fn<typeof DEPENDENCIES.TemplateIcon>(() => null);
     const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
+    const ShareTemplateDialog = vi.fn<typeof DEPENDENCIES.ShareTemplateDialog>(({ onClose }) => (
+      <button type="button" onClick={onClose}>
+        Close the share dialog
+      </button>
+    ));
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
@@ -579,6 +642,7 @@ describe(TemplatePage.name, () => {
       TemplateSettingsTab,
       TemplateIcon,
       NextSeo,
+      ShareTemplateDialog,
       useMarketplaceTemplate,
       useTemplateVersions,
       useTemplateVersion,
@@ -589,12 +653,17 @@ describe(TemplatePage.name, () => {
       useRouter: () => router
     });
 
-    const { unmount, rerender } = render(<TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />);
+    const renderPage = () => (
+      <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
+        <TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />
+      </TestContainerProvider>
+    );
+    const { unmount, rerender } = render(renderPage());
 
     const receiveFromServer = (next: { template: MarketplaceTemplate; versions?: TemplateVersionSummary[] }) => {
       templateQuery = mock<TemplateQuery>({ data: structuredClone(next.template), isLoading: false, isError: false, error: null, refetch });
       versionsQuery = mock<VersionsQuery>({ data: structuredClone(next.versions ?? VERSIONS), isError: false });
-      rerender(<TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />);
+      rerender(renderPage());
     };
 
     return {
@@ -604,7 +673,8 @@ describe(TemplatePage.name, () => {
       router,
       refetch,
       enqueueSnackbar,
-      writeText,
+      analyticsService,
+      ShareTemplateDialog,
       addFavorite,
       removeFavorite,
       useMarketplaceTemplate,
