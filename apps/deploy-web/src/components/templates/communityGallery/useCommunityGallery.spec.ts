@@ -191,6 +191,17 @@ describe(useCommunityGallery.name, () => {
     expect(galleryOf(result).trendingEntries).toHaveLength(3);
   });
 
+  it("keeps the trending row to the chosen source and category", () => {
+    const trending = [1, 2, 3].map(rank =>
+      buildCommunityTemplateCard({ title: `Trending ${rank}`, categories: ["AI - GPU"], scores: { popular: null, trending: rank, isTrending: true } })
+    );
+    const community = galleryWith(trending);
+
+    expect(galleryOf(setup({ community, view: { source: "community", category: "AI - GPU" } }).result).trendingEntries).toHaveLength(3);
+    expect(galleryOf(setup({ community, view: { category: "Games" } }).result).trendingEntries).toEqual([]);
+    expect(galleryOf(setup({ community, view: { source: "official" } }).result).trendingEntries).toEqual([]);
+  });
+
   it("hides the trending row while searching, but not for a search of spaces", () => {
     const trending = [1, 2, 3].map(rank =>
       buildCommunityTemplateCard({ title: `Trending ${rank}`, scores: { popular: null, trending: rank, isTrending: true } })

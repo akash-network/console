@@ -50,7 +50,10 @@ export function useCommunityGallery({ isEnabled, categories, view }: CommunityGa
     [sortedEntries, view.source, selectedCategory, view.search]
   );
   const minTrendingTemplates = community?.trendingRowMinTemplates ?? MIN_TRENDING_TEMPLATES;
-  const trendingEntries = useMemo(() => selectTrendingEntries(entries, minTrendingTemplates), [entries, minTrendingTemplates]);
+  const trendingEntries = useMemo(
+    () => selectTrendingEntries(filterGalleryEntries(entries, { source: view.source, category: selectedCategory, search: "" }), minTrendingTemplates),
+    [entries, view.source, selectedCategory, minTrendingTemplates]
+  );
 
   if (!isEnabled) return null;
 
