@@ -78,11 +78,13 @@ const SERVICE_SDL: SDLInput = {
   deployment: { app: { dcloud: { profile: "app", count: 1 } } }
 };
 
+const WORKER_API_TOKEN = randomUUID();
+
 const TWO_SERVICE_DEFINITION: SDLInput = {
   version: "2.0",
   services: {
     web: { image: "nginx:1.27.2", env: ["MODE=production"], expose: [{ port: 80, as: 80, to: [{ global: true }] }] },
-    worker: { image: "busybox:1.36", env: ["QUEUE_URL=redis://queue", "API_TOKEN=plain-token"], command: ["sh", "-c"], args: ["sleep infinity"] }
+    worker: { image: "busybox:1.36", env: ["QUEUE_URL=redis://queue", `API_TOKEN=${WORKER_API_TOKEN}`], command: ["sh", "-c"], args: ["sleep infinity"] }
   },
   profiles: {
     compute: {
@@ -232,7 +234,7 @@ describe("Deployment create without an SDL", () => {
       expect(response.status).toBe(201);
       const setting = await settingOf(user, response);
       expect(yaml.raw<SDLInput>(setting!.sdl!).services.worker.env).toEqual(["QUEUE_URL=redis://queue", "API_TOKEN=ac-secret://s1_e1"]);
-      expect(JSON.stringify(setting)).not.toContain("plain-token");
+      expect(JSON.stringify(setting)).not.toContain(WORKER_API_TOKEN);
     });
 
     it("refuses an invalid definition naming where the problem is, recording nothing and broadcasting nothing", async () => {

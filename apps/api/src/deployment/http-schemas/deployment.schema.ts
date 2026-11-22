@@ -293,7 +293,7 @@ const CreateDeploymentFieldsSchema = z.object({
   }),
   templateId: TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).optional().openapi({
     description:
-      "ID of a gallery template, as listed by GET /v1/templates-list. Sent with `sdl`, it names the template the SDL came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without `sdl`, the console deploys the template's own SDL, with `overrides` applied, and answers 404 for an ID the gallery does not list."
+      "ID of a gallery template, as listed by GET /v1/templates-list. Sent with `sdl` or `definition`, it names the template the document came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without either, the console deploys the template's own SDL, with `overrides` applied, and answers 404 for an ID the gallery does not list."
   }),
   templateVersionId: z.string().uuid().optional().openapi({
     description:
@@ -619,7 +619,8 @@ function sourceRefusalOf(data: CreateDeploymentSource): string | undefined {
 export const CreateDeploymentRequestSchema = z.object({
   data: CreateDeploymentFieldsSchema.extend({
     sdl: SubmittedSdlSchema.optional().openapi({
-      description: "SDL to deploy. Send exactly one of `sdl`, `definition`, `service`, or `templateId` on its own."
+      description:
+        "SDL to deploy. Send exactly one of `sdl`, `definition` or `service`, or send none of them and a `templateId` to deploy that template. A `templateId` sent beside `sdl` or `definition` only names the template the document came from."
     }),
     definition: SdlDefinitionSchema.optional(),
     service: CreateDeploymentServiceSchema.optional().openapi({

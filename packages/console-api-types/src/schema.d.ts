@@ -13172,7 +13172,7 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            /** @description SDL to deploy. Send exactly one of `sdl`, `definition`, `service`, or `templateId` on its own. */
+            /** @description SDL to deploy. Send exactly one of `sdl`, `definition` or `service`, or send none of them and a `templateId` to deploy that template. A `templateId` sent beside `sdl` or `definition` only names the template the document came from. */
             sdl?: string;
             /** @description Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`. */
             name?: string;
@@ -13200,7 +13200,7 @@ export interface operations {
              * @description Project to file the deployment in.
              */
             projectId?: string;
-            /** @description ID of a gallery template, as listed by GET /v1/templates-list. Sent with `sdl`, it names the template the SDL came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without `sdl`, the console deploys the template's own SDL, with `overrides` applied, and answers 404 for an ID the gallery does not list. */
+            /** @description ID of a gallery template, as listed by GET /v1/templates-list. Sent with `sdl` or `definition`, it names the template the document came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without either, the console deploys the template's own SDL, with `overrides` applied, and answers 404 for an ID the gallery does not list. */
             templateId?: string;
             /**
              * Format: uuid

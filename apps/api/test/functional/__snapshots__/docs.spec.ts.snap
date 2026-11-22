@@ -10207,7 +10207,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "integer",
                       },
                       "sdl": {
-                        "description": "SDL to deploy. Send exactly one of \`sdl\`, \`definition\`, \`service\`, or \`templateId\` on its own.",
+                        "description": "SDL to deploy. Send exactly one of \`sdl\`, \`definition\` or \`service\`, or send none of them and a \`templateId\` to deploy that template. A \`templateId\` sent beside \`sdl\` or \`definition\` only names the template the document came from.",
                         "maxLength": 524288,
                         "type": "string",
                       },
@@ -10326,7 +10326,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "object",
                       },
                       "templateId": {
-                        "description": "ID of a gallery template, as listed by GET /v1/templates-list. Sent with \`sdl\`, it names the template the SDL came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without \`sdl\`, the console deploys the template's own SDL, with \`overrides\` applied, and answers 404 for an ID the gallery does not list.",
+                        "description": "ID of a gallery template, as listed by GET /v1/templates-list. Sent with \`sdl\` or \`definition\`, it names the template the document came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without either, the console deploys the template's own SDL, with \`overrides\` applied, and answers 404 for an ID the gallery does not list.",
                         "maxLength": 255,
                         "pattern": "^[^/\\\\]+$",
                         "type": "string",
