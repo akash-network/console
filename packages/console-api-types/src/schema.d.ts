@@ -2361,6 +2361,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/deployments/validate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Check a definition before creating a deployment from it
+     * @description Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every error at once, each at its path in the document. Creates, records, seals and sends nothing. Every error in the document and its secrets answers 200 with `valid` false and the errors listed; an error status means the check itself could not run.
+     */
+    post: operations["validateDeployment"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/deployments/{dseq}/definition/validate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Check a definition before replacing a deployment's with it
+     * @description Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every error at once. `keptSecrets` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. Every error in the document and its secrets answers 200 with `valid` false and the errors listed; an error status means the check itself could not run.
+     */
+    post: operations["validateDeploymentDefinition"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/addresses/{address}/deployments/{skip}/{limit}": {
     parameters: {
       query?: never;
@@ -14285,6 +14325,403 @@ export interface operations {
         };
       };
       /** @description The key management service, or the version the deployment runs, could not be read. Transient and worth retrying */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+    };
+  };
+  validateDeployment: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The SDL to check. Send it or `definition`, not both. */
+            sdl?: string;
+            /**
+             * @description The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.
+             * @example {
+             *       "version": "2.0",
+             *       "services": {
+             *         "web": {
+             *           "image": "nginx:1.27.2",
+             *           "env": [
+             *             "MODE=production",
+             *             "API_KEY=ac-secret://API_KEY"
+             *           ],
+             *           "expose": [
+             *             {
+             *               "port": 80,
+             *               "as": 80,
+             *               "to": [
+             *                 {
+             *                   "global": true
+             *                 }
+             *               ]
+             *             }
+             *           ]
+             *         }
+             *       },
+             *       "profiles": {
+             *         "compute": {
+             *           "web": {
+             *             "resources": {
+             *               "cpu": {
+             *                 "units": 0.5
+             *               },
+             *               "memory": {
+             *                 "size": "512Mi"
+             *               },
+             *               "storage": [
+             *                 {
+             *                   "size": "1Gi"
+             *                 }
+             *               ]
+             *             }
+             *           }
+             *         },
+             *         "placement": {
+             *           "dcloud": {
+             *             "pricing": {
+             *               "web": {
+             *                 "denom": "uact",
+             *                 "amount": 1000
+             *               }
+             *             }
+             *           }
+             *         }
+             *       },
+             *       "deployment": {
+             *         "web": {
+             *           "dcloud": {
+             *             "profile": "web",
+             *             "count": 1
+             *           }
+             *         }
+             *       }
+             *     }
+             */
+            definition?: {
+              [key: string]: unknown;
+            };
+            /** @description A seal the deploying request would carry, checked as that request would check it. Opened to see which names it supplies, and never stored. */
+            sealedSecrets?: string;
+            /** @description The `secretEnv` the deploying request would carry. */
+            secretEnv?: string[];
+            /** @description The `inheritSecretsFrom` the create would carry, whose stored values answer the references they name. */
+            inheritSecretsFrom?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The check ran */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description True when the check found no error, so the same request would not be refused for its document or its secrets. */
+              valid: boolean;
+              /** @description Every error found, not only the first. Each one would make the same request fail. */
+              errors: {
+                /** @description JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole. */
+                path: string;
+                /** @description What kind of check failed, such as `required`, `sdl-reference` or `deployment_resources_changed`. */
+                keyword: string;
+                message: string;
+              }[];
+              /** @description Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of `inheritSecretsFrom`) rather than from this request. */
+              keptSecrets: string[];
+            };
+          };
+        };
+      };
+      /** @description Neither or both of `sdl` and `definition` were sent, or the `sealedSecrets` value is malformed, tampered with or expired */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description No deployment you can change matches `inheritSecretsFrom` */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description Either the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again, or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The key management service is temporarily unreachable. Transient and worth retrying */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+    };
+  };
+  validateDeploymentDefinition: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The SDL to check. Send it or `definition`, not both. */
+            sdl?: string;
+            /**
+             * @description The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.
+             * @example {
+             *       "version": "2.0",
+             *       "services": {
+             *         "web": {
+             *           "image": "nginx:1.27.2",
+             *           "env": [
+             *             "MODE=production",
+             *             "API_KEY=ac-secret://API_KEY"
+             *           ],
+             *           "expose": [
+             *             {
+             *               "port": 80,
+             *               "as": 80,
+             *               "to": [
+             *                 {
+             *                   "global": true
+             *                 }
+             *               ]
+             *             }
+             *           ]
+             *         }
+             *       },
+             *       "profiles": {
+             *         "compute": {
+             *           "web": {
+             *             "resources": {
+             *               "cpu": {
+             *                 "units": 0.5
+             *               },
+             *               "memory": {
+             *                 "size": "512Mi"
+             *               },
+             *               "storage": [
+             *                 {
+             *                   "size": "1Gi"
+             *                 }
+             *               ]
+             *             }
+             *           }
+             *         },
+             *         "placement": {
+             *           "dcloud": {
+             *             "pricing": {
+             *               "web": {
+             *                 "denom": "uact",
+             *                 "amount": 1000
+             *               }
+             *             }
+             *           }
+             *         }
+             *       },
+             *       "deployment": {
+             *         "web": {
+             *           "dcloud": {
+             *             "profile": "web",
+             *             "count": 1
+             *           }
+             *         }
+             *       }
+             *     }
+             */
+            definition?: {
+              [key: string]: unknown;
+            };
+            /** @description A seal the deploying request would carry, checked as that request would check it. Opened to see which names it supplies, and never stored. */
+            sealedSecrets?: string;
+            /** @description The `secretEnv` the deploying request would carry. */
+            secretEnv?: string[];
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The check ran */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description True when the check found no error, so the same request would not be refused for its document or its secrets. */
+              valid: boolean;
+              /** @description Every error found, not only the first. Each one would make the same request fail. */
+              errors: {
+                /** @description JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole. */
+                path: string;
+                /** @description What kind of check failed, such as `required`, `sdl-reference` or `deployment_resources_changed`. */
+                keyword: string;
+                message: string;
+              }[];
+              /** @description Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of `inheritSecretsFrom`) rather than from this request. */
+              keptSecrets: string[];
+            };
+          };
+        };
+      };
+      /** @description Neither or both of `sdl` and `definition` were sent, or the `sealedSecrets` value is malformed, tampered with or expired */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description No SDL is recorded for this deployment, so there is nothing to check a replacement against */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The `sealedSecrets` value was sealed to a key the console no longer holds, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The deployment's stored SDL or secrets could not be read. Permanent rather than transient */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The key management service is temporarily unreachable. Transient and worth retrying */
       503: {
         headers: {
           [name: string]: unknown;

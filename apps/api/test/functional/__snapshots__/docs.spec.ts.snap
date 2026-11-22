@@ -10601,6 +10601,354 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/deployments/validate": {
+      "post": {
+        "description": "Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every error at once, each at its path in the document. Creates, records, seals and sends nothing. Every error in the document and its secrets answers 200 with \`valid\` false and the errors listed; an error status means the check itself could not run.",
+        "operationId": "validateDeployment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "definition": {
+                        "additionalProperties": {
+                          "nullable": true,
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (\`version\`, \`services\`, \`profiles\`, \`deployment\` and, where used, \`endpoints\`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry. A \`sealedSecrets\` sent beside it is bound to the definition's compact JSON, \`JSON.stringify(definition)\` with its keys in the order sent.",
+                        "example": {
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "count": 1,
+                                "profile": "web",
+                              },
+                            },
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5,
+                                  },
+                                  "memory": {
+                                    "size": "512Mi",
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi",
+                                    },
+                                  ],
+                                },
+                              },
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "amount": 1000,
+                                    "denom": "uact",
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          "services": {
+                            "web": {
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY",
+                              ],
+                              "expose": [
+                                {
+                                  "as": 80,
+                                  "port": 80,
+                                  "to": [
+                                    {
+                                      "global": true,
+                                    },
+                                  ],
+                                },
+                              ],
+                              "image": "nginx:1.27.2",
+                            },
+                          },
+                          "version": "2.0",
+                        },
+                        "type": "object",
+                      },
+                      "inheritSecretsFrom": {
+                        "description": "The \`inheritSecretsFrom\` the create would carry, whose stored values answer the references they name.",
+                        "pattern": "^0*[1-9]\\d*$",
+                        "type": "string",
+                      },
+                      "sdl": {
+                        "description": "The SDL to check. Send it or \`definition\`, not both.",
+                        "maxLength": 524288,
+                        "type": "string",
+                      },
+                      "sealedSecrets": {
+                        "description": "A seal the deploying request would carry, checked as that request would check it. Opened to see which names it supplies, and never stored.",
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "secretEnv": {
+                        "description": "The \`secretEnv\` the deploying request would carry.",
+                        "items": {
+                          "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$",
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "errors": {
+                          "description": "Every error found, not only the first. Each one would make the same request fail.",
+                          "items": {
+                            "properties": {
+                              "keyword": {
+                                "description": "What kind of check failed, such as \`required\`, \`sdl-reference\` or \`deployment_resources_changed\`.",
+                                "type": "string",
+                              },
+                              "message": {
+                                "type": "string",
+                              },
+                              "path": {
+                                "description": "JSON pointer into the document, such as \`/services/web/env/1\`. Empty when the error concerns the document as a whole.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "path",
+                              "keyword",
+                              "message",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "keptSecrets": {
+                          "description": "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of \`inheritSecretsFrom\`) rather than from this request.",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "valid": {
+                          "description": "True when the check found no error, so the same request would not be refused for its document or its secrets.",
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "valid",
+                        "errors",
+                        "keptSecrets",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The check ran",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Neither or both of \`sdl\` and \`definition\` were sent, or the \`sealedSecrets\` value is malformed, tampered with or expired",
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "No deployment you can change matches \`inheritSecretsFrom\`",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Either the \`sealedSecrets\` value was sealed to a key the console no longer holds, so refetch \`GET /v1/sdl-secrets-context\` and seal again, or, with \`code\` \`inherited_secrets_unreadable\`, the secrets recorded for the deployment named by \`inheritSecretsFrom\` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in \`sealedSecrets\` instead",
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Check a definition before creating a deployment from it",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
     "/v1/deployments/{dseq}": {
       "delete": {
         "operationId": "closeDeployment",
@@ -14431,6 +14779,390 @@ services:
           },
         ],
         "summary": "Replace a deployment's whole definition",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
+    "/v1/deployments/{dseq}/definition/validate": {
+      "post": {
+        "description": "Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every error at once. \`keptSecrets\` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. Every error in the document and its secrets answers 200 with \`valid\` false and the errors listed; an error status means the check itself could not run.",
+        "operationId": "validateDeploymentDefinition",
+        "parameters": [
+          {
+            "description": "Deployment sequence number",
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^0*[1-9]\\d*$",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "definition": {
+                        "additionalProperties": {
+                          "nullable": true,
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (\`version\`, \`services\`, \`profiles\`, \`deployment\` and, where used, \`endpoints\`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry. A \`sealedSecrets\` sent beside it is bound to the definition's compact JSON, \`JSON.stringify(definition)\` with its keys in the order sent.",
+                        "example": {
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "count": 1,
+                                "profile": "web",
+                              },
+                            },
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5,
+                                  },
+                                  "memory": {
+                                    "size": "512Mi",
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi",
+                                    },
+                                  ],
+                                },
+                              },
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "amount": 1000,
+                                    "denom": "uact",
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          "services": {
+                            "web": {
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY",
+                              ],
+                              "expose": [
+                                {
+                                  "as": 80,
+                                  "port": 80,
+                                  "to": [
+                                    {
+                                      "global": true,
+                                    },
+                                  ],
+                                },
+                              ],
+                              "image": "nginx:1.27.2",
+                            },
+                          },
+                          "version": "2.0",
+                        },
+                        "type": "object",
+                      },
+                      "sdl": {
+                        "description": "The SDL to check. Send it or \`definition\`, not both.",
+                        "maxLength": 524288,
+                        "type": "string",
+                      },
+                      "sealedSecrets": {
+                        "description": "A seal the deploying request would carry, checked as that request would check it. Opened to see which names it supplies, and never stored.",
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "secretEnv": {
+                        "description": "The \`secretEnv\` the deploying request would carry.",
+                        "items": {
+                          "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$",
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "errors": {
+                          "description": "Every error found, not only the first. Each one would make the same request fail.",
+                          "items": {
+                            "properties": {
+                              "keyword": {
+                                "description": "What kind of check failed, such as \`required\`, \`sdl-reference\` or \`deployment_resources_changed\`.",
+                                "type": "string",
+                              },
+                              "message": {
+                                "type": "string",
+                              },
+                              "path": {
+                                "description": "JSON pointer into the document, such as \`/services/web/env/1\`. Empty when the error concerns the document as a whole.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "path",
+                              "keyword",
+                              "message",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "keptSecrets": {
+                          "description": "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of \`inheritSecretsFrom\`) rather than from this request.",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "valid": {
+                          "description": "True when the check found no error, so the same request would not be refused for its document or its secrets.",
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "valid",
+                        "errors",
+                        "keptSecrets",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The check ran",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Neither or both of \`sdl\` and \`definition\` were sent, or the \`sealedSecrets\` value is malformed, tampered with or expired",
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "No SDL is recorded for this deployment, so there is nothing to check a replacement against",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The \`sealedSecrets\` value was sealed to a key the console no longer holds, which a fresh seal cures. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The deployment's stored SDL or secrets could not be read. Permanent rather than transient",
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Check a definition before replacing a deployment's with it",
         "tags": [
           "Deployments",
         ],

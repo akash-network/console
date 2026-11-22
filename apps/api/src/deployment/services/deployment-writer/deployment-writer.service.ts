@@ -78,9 +78,9 @@ import {
 } from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.job";
 import { type ResolvedSdl, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
-import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService, type SdlReferenceSlot } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService, unreferencedNameError } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
-import { SdlSecretsDerivationService, type SealedEnv } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
+import { SdlSecretsDerivationService, type SealedEnv, sealedEnvOf } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
@@ -100,6 +100,7 @@ import {
   EXPANDED_SDL_TOO_LARGE_MESSAGE,
   parseSdlForStorage,
   sdlForStorage,
+  STORED_SDL_TOO_LARGE_MESSAGE,
   STORED_SDL_UNREADABLE_ERROR_CODE
 } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
@@ -183,13 +184,6 @@ function teamIdOf(wallet: WalletInitialized): string | null {
   return wallet.userId === null ? wallet.organizationId : null;
 }
 
-/** A request that says nothing has every env value sealed, because nothing told the console which are secret; a seal says so by implication, and `secretEnv` outranks it by naming them. */
-function sealedEnvOf(input: { sealedSecrets?: string; secretEnv?: string[] }): SealedEnv {
-  if (input.secretEnv) return new Set(input.secretEnv);
-
-  return input.sealedSecrets ? new Set() : "every-value";
-}
-
 /**
  * A 400 by default, so every caller that submitted the document keeps answering exactly as it did, while a
  * caller that submitted none can catch this and answer for the console instead. `name` must stay unset:
@@ -248,11 +242,6 @@ type PatchWrite = {
   organizationId?: string;
   prepared: PreparedPatch;
 };
-
-/** A variable is matched by name rather than position, because a patch re-appends what it writes and so moves it. */
-function slotIdentityOf(slot: SdlReferenceSlot): string {
-  return JSON.stringify(slot.envVariable === undefined ? [slot.instancePath] : [slot.serviceName, slot.envVariable]);
-}
 
 function serviceNamesOf(...documents: SDLInput[]): string[] {
   return [...new Set(documents.flatMap(document => Object.keys(document.services ?? {})))];
@@ -761,7 +750,7 @@ export class DeploymentWriterService {
 
     this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", ...loggable, maxLength: SDL_MAX_LENGTH });
 
-    return new UnstorableSdlError(refusal, `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`);
+    return new UnstorableSdlError(refusal, STORED_SDL_TOO_LARGE_MESSAGE);
   }
 
   /**
@@ -1207,12 +1196,17 @@ export class DeploymentWriterService {
       name: { from: stored.name, to: input.name },
       services: { before: storedDocument.services, after: document.services, patched: serviceNamesOf(storedDocument, document) }
     });
-    const onlyAt = this.#positionsToDerive({ document, storedDocument, secretEnv: input.secretEnv });
+    const onlyAt = this.sdlSecretsDerivationService.positionsToDeriveOnReplace({ document, storedDocument, secretEnv: input.secretEnv });
     const derived = this.#takeValuesOutOf(document, { sealedEnv: sealedEnvOf(input), onlyAt });
     const sdl = this.#serializeSubmitted(submitted, dseq);
 
     const held = stored.sealedSecrets
-      ? await this.sdlSecretsService.openStored({ userId: filedUserId, organizationId: stored.organizationId ?? null, dseq, sealedSecrets: stored.sealedSecrets })
+      ? await this.sdlSecretsService.openStored({
+          userId: filedUserId,
+          organizationId: stored.organizationId ?? null,
+          dseq,
+          sealedSecrets: stored.sealedSecrets
+        })
       : {};
     const supplied = await this.#receiveSecrets(input, held);
     const merged = this.#storedSecretsOf({ inherited: held, supplied, derived }, document);
@@ -1247,17 +1241,6 @@ export class DeploymentWriterService {
       organizationId: stored.organizationId,
       prepared: { actingUserId: userId, wallet, dseq, resolved: { manifestVersion, manifest }, deployment }
     };
-  }
-
-  /** A value left as the deployment stores it keeps what it holds, so resubmitting a document unchanged never seals away a variable its owner could read. */
-  #positionsToDerive(input: { document: SDLInput; storedDocument: SDLInput; secretEnv?: string[] }): ReadonlySet<string> {
-    const storedValues = new Map(this.sdlReferenceService.slotsOf(input.storedDocument).map(slot => [slotIdentityOf(slot), slot.value]));
-    const namedSecret = new Set(input.secretEnv ?? []);
-    const positions = this.sdlReferenceService
-      .slotsOf(input.document)
-      .filter(slot => storedValues.get(slotIdentityOf(slot)) !== slot.value || (slot.envVariable !== undefined && namedSecret.has(slot.envVariable)));
-
-    return new Set(positions.map(slot => slot.instancePath));
   }
 
   async #savePatch({ definition, savedEvent, counts, saved }: PatchWrite, ability: AnyAbility): Promise<{ name: string | null }> {

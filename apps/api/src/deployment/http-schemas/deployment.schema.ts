@@ -782,6 +782,48 @@ export const ReplaceDeploymentDefinitionAcceptedResponseSchema = z.object({
   })
 });
 
+const DefinitionCheckDocumentSchema = z.object({
+  sdl: SubmittedSdlSchema.optional().openapi({ description: "The SDL to check. Send it or `definition`, not both." }),
+  definition: SdlDefinitionSchema.optional(),
+  sealedSecrets: SealedSecretsSchema.optional().openapi({
+    description: "A seal the deploying request would carry, checked as that request would check it. Opened to see which names it supplies, and never stored."
+  }),
+  secretEnv: SecretEnvSchema.optional().openapi({ description: "The `secretEnv` the deploying request would carry." })
+});
+
+export const ValidateDeploymentRequestSchema = z.object({
+  data: DefinitionCheckDocumentSchema.extend({
+    inheritSecretsFrom: DseqSchema.optional().openapi({ description: "The `inheritSecretsFrom` the create would carry, whose stored values answer the references they name." })
+  }).refine(namesOneDocument, ONE_DOCUMENT)
+});
+
+export const ValidateDeploymentDefinitionParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number")
+});
+
+export const ValidateDeploymentDefinitionRequestSchema = z.object({
+  data: DefinitionCheckDocumentSchema.refine(namesOneDocument, ONE_DOCUMENT)
+});
+
+export const ValidateDeploymentResponseSchema = z.object({
+  data: z.object({
+    valid: z.boolean().openapi({ description: "True when the check found no error, so the same request would not be refused for its document or its secrets." }),
+    errors: z
+      .array(
+        z.object({
+          path: z.string().openapi({ description: "JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole." }),
+          keyword: z.string().openapi({ description: "What kind of check failed, such as `required`, `sdl-reference` or `deployment_resources_changed`." }),
+          message: z.string()
+        })
+      )
+      .openapi({ description: "Every error found, not only the first. Each one would make the same request fail." }),
+    keptSecrets: z.array(z.string()).openapi({
+      description:
+        "Names of the secret references whose value would come from what the console already stores (the deployment's own secrets, or those of `inheritSecretsFrom`) rather than from this request."
+    })
+  })
+});
+
 export const CreateDeploymentDefinitionParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
@@ -1049,6 +1091,9 @@ export type ReplaceDeploymentDefinitionInput = Omit<ReplaceDeploymentDefinitionR
 export type ReplaceDeploymentDefinitionQuery = z.infer<typeof ReplaceDeploymentDefinitionQuerySchema>;
 export type ReplaceDeploymentDefinitionResponse = z.infer<typeof ReplaceDeploymentDefinitionResponseSchema>;
 export type ReplaceDeploymentDefinitionAcceptedResponse = z.infer<typeof ReplaceDeploymentDefinitionAcceptedResponseSchema>;
+export type ValidateDeploymentRequest = z.infer<typeof ValidateDeploymentRequestSchema>;
+export type ValidateDeploymentDefinitionRequest = z.infer<typeof ValidateDeploymentDefinitionRequestSchema>;
+export type ValidateDeploymentResponse = z.infer<typeof ValidateDeploymentResponseSchema>;
 export type CreateDeploymentDefinitionRequest = z.infer<typeof CreateDeploymentDefinitionRequestSchema>;
 export type CreateDeploymentDefinitionInput = Omit<CreateDeploymentDefinitionRequest["data"], "sdl" | "definition"> & { sdl: string };
 export type CreateDeploymentDefinitionResponse = z.infer<typeof CreateDeploymentDefinitionResponseSchema>;
