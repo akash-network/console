@@ -393,6 +393,22 @@ describe(TemplatePage.name, () => {
       expect(useTemplateVersions).toHaveBeenLastCalledWith(TEMPLATE_ID, { enabled: false });
     });
 
+    it("says so when the template is removed while its versions load", () => {
+      const { RemovedTemplateNotice } = setup({ versionsError: removedError("Open WebUI + vLLM") });
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: true }, expect.anything());
+      expect(screen.queryByRole("link", { name: "Deploy" })).not.toBeInTheDocument();
+    });
+
+    it("says so when the template is removed while another version loads", async () => {
+      const { RemovedTemplateNotice } = setup({ template: { ...TEMPLATE, canEdit: true }, previousVersionError: removedError("Open WebUI + vLLM") });
+
+      await userEvent.click(screen.getByRole("combobox", { name: "Version" }));
+      await userEvent.click(screen.getByRole("option", { name: "v2" }));
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: true }, expect.anything());
+    });
+
     it("tells the notice when the visitor is signed out", () => {
       const { RemovedTemplateNotice } = setup({ error: removedError("Open WebUI + vLLM"), isSignedIn: false });
 
@@ -676,7 +692,9 @@ describe(TemplatePage.name, () => {
     isLoading?: boolean;
     isPreviousVersionLoading?: boolean;
     isPreviousVersionFailing?: boolean;
+    previousVersionError?: ApiError;
     isLoadingVersions?: boolean;
+    versionsError?: ApiError;
     isFailingVersions?: boolean;
     isSignedIn?: boolean;
     organizations?: { type: "personal" | "team"; slug: string }[];
@@ -705,15 +723,19 @@ describe(TemplatePage.name, () => {
         : mock<TemplateQuery>({ data: structuredClone(input.template ?? TEMPLATE), isLoading: false, isError: false, error: null, refetch });
     let versionsQuery = input.isLoadingVersions
       ? mock<VersionsQuery>({ data: undefined, isError: false })
-      : input.isFailingVersions
-        ? mock<VersionsQuery>({ data: undefined, isError: true })
-        : mock<VersionsQuery>({ data: structuredClone(input.versions ?? VERSIONS), isError: false });
+      : input.versionsError
+        ? mock<VersionsQuery>({ data: undefined, isError: true, error: input.versionsError })
+        : input.isFailingVersions
+          ? mock<VersionsQuery>({ data: undefined, isError: true })
+          : mock<VersionsQuery>({ data: structuredClone(input.versions ?? VERSIONS), isError: false });
     const idleVersionQuery = mock<VersionQuery>({ data: undefined, isLoading: false });
     const previousVersionQuery = input.isPreviousVersionLoading
       ? mock<VersionQuery>({ data: undefined, isLoading: true })
-      : input.isPreviousVersionFailing
-        ? mock<VersionQuery>({ data: undefined, isLoading: false })
-        : mock<VersionQuery>({ data: structuredClone(PREVIOUS_VERSION), isLoading: false });
+      : input.previousVersionError
+        ? mock<VersionQuery>({ data: undefined, isLoading: false, isError: true, error: input.previousVersionError })
+        : input.isPreviousVersionFailing
+          ? mock<VersionQuery>({ data: undefined, isLoading: false })
+          : mock<VersionQuery>({ data: structuredClone(PREVIOUS_VERSION), isLoading: false });
     const addFavoriteMutation = mock<FavoriteMutation>({ mutateAsync: addFavorite });
     const removeFavoriteMutation = mock<FavoriteMutation>({ mutateAsync: removeFavorite });
     const customUser = mock<ReturnType<typeof DEPENDENCIES.useCustomUser>>({ user: input.isSignedIn === false ? undefined : { username: "sam.rivera" } });

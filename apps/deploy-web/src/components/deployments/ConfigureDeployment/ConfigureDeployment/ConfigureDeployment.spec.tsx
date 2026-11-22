@@ -924,6 +924,19 @@ describe(ConfigureDeployment.name, () => {
       expect(AutoDeployFlow).not.toHaveBeenCalled();
     });
 
+    it("sends a link naming a deployment of a removed template through the resume guard", () => {
+      const { ResumeDeploymentGuard, RemovedTemplateNotice } = setup({
+        userTemplateId: "tpl-9",
+        dseq: "123",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true },
+        marketplaceTemplateError: REMOVED_ERROR
+      });
+
+      expect(ResumeDeploymentGuard).toHaveBeenCalledWith(expect.objectContaining({ intent: expect.objectContaining({ dseq: "123" }) }), expect.anything());
+      expect(RemovedTemplateNotice).not.toHaveBeenCalled();
+    });
+
     it("shows the removed state for a deep link to a version of a removed template", () => {
       const { ConfigureDeploymentForm, enqueueSnackbar } = setup({
         userTemplateId: "tpl-9",

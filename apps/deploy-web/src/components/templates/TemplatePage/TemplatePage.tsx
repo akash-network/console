@@ -131,7 +131,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
   if (templateQuery.error instanceof ApiError && templateQuery.error.status === 404) return <d.NotFoundPage />;
 
-  const removedTemplate = readRemovedTemplate(templateQuery.error);
+  const removedTemplate = readRemovedTemplate(templateQuery.error) ?? readRemovedTemplate(versionsQuery.error) ?? readRemovedTemplate(otherVersionQuery.error);
   if (removedTemplate) {
     return (
       <d.Layout background="dots">

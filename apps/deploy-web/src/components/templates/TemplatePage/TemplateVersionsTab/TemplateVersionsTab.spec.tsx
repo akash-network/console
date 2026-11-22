@@ -75,7 +75,7 @@ describe(TemplateVersionsTab.name, () => {
     expect(screen.getByText("Published versions never change. Deployments and forks stay on the version they started from.")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass, and a risky change to a popular or Official template waits for staff review first."
+        "New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass. Every new version of an Official template waits for staff review first, and so does a risky change to a popular one."
       )
     ).toBeInTheDocument();
   });

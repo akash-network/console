@@ -322,10 +322,11 @@ function usePinTemplateVersionInUrl({
   );
 }
 
-/** Mounted only with the template marketplace on, so the legacy user template path never reads the marketplace. */
+/** Mounted only with the template marketplace on, so the legacy user template path never reads the marketplace; a link naming a deployment still goes through the resume guard, since that deployment outlives its template. */
 const TemplateVersionDeploymentScreen: FC<ScreenProps & { userTemplateId: string }> = ({ userTemplateId, ...screenProps }) => {
   const versionedTemplate = useTemplateVersionSource(screenProps.dependencies, userTemplateId, screenProps.intent.templateVersion);
-  if (versionedTemplate.removed) return <RemovedTemplateScreen removedTemplate={versionedTemplate.removed} dependencies={screenProps.dependencies} />;
+  if (versionedTemplate.removed && !screenProps.intent.dseq)
+    return <RemovedTemplateScreen removedTemplate={versionedTemplate.removed} dependencies={screenProps.dependencies} />;
 
   return <ConfigureDeploymentScreen {...screenProps} versionedTemplate={versionedTemplate} />;
 };
