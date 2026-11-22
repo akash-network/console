@@ -41,7 +41,7 @@ describe(buildGalleryFirstPage.name, () => {
     expect(firstPage.shownEntries).toHaveLength(3);
   });
 
-  it("answers the trending row once enough templates trend, and hides it under a search", () => {
+  it("answers the trending row once enough templates trend, and hides it under a search but not a search of spaces", () => {
     const trending = setup({ view: DEFAULT_VIEW, communityCount: 5, trendingCount: 3, trendingRowMinTemplates: 3 });
     const tooFew = setup({ view: DEFAULT_VIEW, communityCount: 5, trendingCount: 3, trendingRowMinTemplates: 4 });
     const searching = setup({ view: { ...DEFAULT_VIEW, search: " community " }, communityCount: 5, trendingCount: 3, trendingRowMinTemplates: 3 });
@@ -49,6 +49,17 @@ describe(buildGalleryFirstPage.name, () => {
     expect(trending.trendingEntries.map(entry => entry.title)).toEqual(["Community 04", "Community 03", "Community 02"]);
     expect(tooFew.trendingEntries).toEqual([]);
     expect(searching.trendingEntries).toEqual([]);
+    expect(setup({ view: { ...DEFAULT_VIEW, search: "   " }, communityCount: 5, trendingCount: 3 }).trendingEntries).toHaveLength(3);
+  });
+
+  it("keeps the trending row to the source and category the link asks for, like the browser does", () => {
+    const inCategory = setup({ view: { ...DEFAULT_VIEW, category: "Tools", source: "community" }, communityCount: 5, trendingCount: 3 });
+    const otherCategory = setup({ view: { ...DEFAULT_VIEW, category: "AI - GPU" }, communityCount: 5, trendingCount: 3 });
+    const official = setup({ view: { ...DEFAULT_VIEW, source: "official" }, communityCount: 5, trendingCount: 3 });
+
+    expect(inCategory.trendingEntries).toHaveLength(3);
+    expect(otherCategory.trendingEntries).toEqual([]);
+    expect(official.trendingEntries).toEqual([]);
   });
 
   function setup(input: { view: GalleryView; communityCount: number; trendingCount?: number; trendingRowMinTemplates?: number }) {

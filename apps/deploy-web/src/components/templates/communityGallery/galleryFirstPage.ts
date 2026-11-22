@@ -44,6 +44,8 @@ export function buildGalleryFirstPage(input: {
     filters: listGalleryUseCaseFilters({ entries, categories: galleryCategories, source: view.source }),
     sourceCounts: countGallerySources(entries, selectedCategory),
     shownEntries: shownEntries.slice(0, GALLERY_PAGE_SIZE),
-    trendingEntries: view.search.trim() ? [] : selectTrendingEntries(entries, community.trendingRowMinTemplates)
+    trendingEntries: view.search.trim()
+      ? []
+      : selectTrendingEntries(filterGalleryEntries(entries, { source: view.source, category: selectedCategory, search: "" }), community.trendingRowMinTemplates)
   };
 }
