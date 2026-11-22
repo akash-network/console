@@ -73,11 +73,28 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     expect(fulfilmentService.fulfilForOffers).not.toHaveBeenCalled();
   });
 
-  function setup(input: { offers?: (typeof OFFER)[] }) {
+  it("fails a lease-created job so it retries while a live lease's bid is not visible on chain yet", async () => {
+    const { handler, fulfilmentService, deploymentSettingRepository } = setup({ leasesWithoutBid: 1 });
+
+    await expect(handler.handle(PAYLOAD)).rejects.toThrow("1 live lease(s) of deployment 100 have no leased bid visible on chain yet");
+
+    expect(deploymentSettingRepository.mergeGpuOffers).not.toHaveBeenCalled();
+    expect(fulfilmentService.fulfilForOffers).not.toHaveBeenCalled();
+  });
+
+  it("records the offers it could resolve when a sweep job meets a lease without a visible bid", async () => {
+    const { handler, deploymentSettingRepository } = setup({ leasesWithoutBid: 1 });
+
+    await expect(handler.handle({ walletId: 1, dseq: "100", version: 1 })).resolves.toBeUndefined();
+
+    expect(deploymentSettingRepository.mergeGpuOffers).toHaveBeenCalledWith(expect.objectContaining({ dseq: "100", offers: [OFFER] }));
+  });
+
+  function setup(input: { offers?: (typeof OFFER)[]; leasesWithoutBid?: number }) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneBy.mockResolvedValue(mock<UserWalletOutput>({ id: 1, address: "akash1owner", userId: "user-1", organizationId: "org-1" }));
     const offerService = mock<LeaseGpuOfferService>();
-    offerService.findOffers.mockResolvedValue({ liveLeases: 1, offers: input.offers ?? [OFFER] });
+    offerService.findOffers.mockResolvedValue({ liveLeases: 1, offers: input.offers ?? [OFFER], leasesWithoutBid: input.leasesWithoutBid ?? 0 });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.mergeGpuOffers.mockResolvedValue(true);
     const fulfilmentService = mock<GpuWaitlistFulfilmentService>();

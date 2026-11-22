@@ -12,6 +12,7 @@ export type LeaseGpuOfferRead = {
   liveLeases: number;
   /** Only the leases whose bid offered a gpu, so a cpu deployment records nothing. */
   offers: LeaseGpuOffer[];
+  leasesWithoutBid: number;
 };
 
 /** Reads which gpus the provider of each live lease offered, from the bid the lease was created from. */
@@ -35,12 +36,14 @@ export class LeaseGpuOfferService {
     const leases = leaseResponses.flatMap(response => response.leases);
     const recordedAt = new Date();
     const offers: LeaseGpuOffer[] = [];
+    let leasesWithoutBid = 0;
 
     for (const { lease } of leases) {
       const bid = bids.find(candidate => isBidOf(candidate, lease.id));
 
       if (!bid) {
         this.logger.warn({ event: "LEASE_GPU_OFFER_BID_NOT_FOUND", dseq, provider: lease.id.provider, gseq: lease.id.gseq, oseq: lease.id.oseq });
+        leasesWithoutBid++;
         continue;
       }
 
@@ -48,6 +51,6 @@ export class LeaseGpuOfferService {
       if (offer.resources.length) offers.push(offer);
     }
 
-    return { liveLeases: leases.length, offers };
+    return { liveLeases: leases.length, offers, leasesWithoutBid };
   }
 }

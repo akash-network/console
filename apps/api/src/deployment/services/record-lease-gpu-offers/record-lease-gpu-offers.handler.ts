@@ -45,9 +45,13 @@ export class RecordLeaseGpuOffersHandler implements JobHandler<RecordLeaseGpuOff
       return;
     }
 
-    const { liveLeases, offers } = await this.offerService.findOffers({ owner: wallet.address, dseq });
+    const { liveLeases, offers, leasesWithoutBid } = await this.offerService.findOffers({ owner: wallet.address, dseq });
 
     if (!liveLeases) throw new Error(`No live lease of deployment ${dseq} is visible on chain yet`);
+
+    if (leaseCreatedAt && leasesWithoutBid) {
+      throw new Error(`${leasesWithoutBid} live lease(s) of deployment ${dseq} have no leased bid visible on chain yet`);
+    }
 
     if (offers.length && !(await this.deploymentSettingRepository.mergeGpuOffers({ wallet, dseq, offers }))) {
       throw new Error(`Deployment ${dseq} has no settings row to hold its gpu offers yet`);
