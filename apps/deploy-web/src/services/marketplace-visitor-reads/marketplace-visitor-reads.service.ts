@@ -98,7 +98,7 @@ export class MarketplaceVisitorReadsService {
 
   awesomeAkashCategories(): Promise<VisitorRead<TemplateCategory[]>> {
     return this.#settle("awesome_akash", () =>
-      this.#readThrough(this.#awesomeAkashCategories, ONLY_ENTRY, async () => (await this.#templateService.findGroupedByCategory()).data)
+      this.#readThrough(this.#awesomeAkashCategories, ONLY_ENTRY, async signal => (await this.#templateService.findGroupedByCategory({ signal })).data)
     );
   }
 
@@ -106,7 +106,7 @@ export class MarketplaceVisitorReadsService {
     if (!AWESOME_AKASH_TEMPLATE_ID.test(id)) return { status: "missing" };
 
     const read = await this.#settle("awesome_akash_template", () =>
-      this.#readThrough(this.#awesomeAkashTemplates, id, () => this.#templateService.findById(id))
+      this.#readThrough(this.#awesomeAkashTemplates, id, signal => this.#templateService.findById(id, { signal }))
     );
     if (read.status !== "found") return read;
     return read.data ? { status: "found", data: read.data } : { status: "missing" };

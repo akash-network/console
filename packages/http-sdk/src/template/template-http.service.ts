@@ -40,6 +40,10 @@ export interface TemplateCategory {
   templates: TemplateOutputSummary[];
 }
 
+export interface TemplateReadOptions {
+  signal?: AbortSignal;
+}
+
 export class TemplateHttpService {
   readonly #httpClient: HttpClient;
 
@@ -47,12 +51,12 @@ export class TemplateHttpService {
     this.#httpClient = httpClient;
   }
 
-  async findById(id: string): Promise<TemplateOutput> {
-    const response = extractData(await this.#httpClient.get<{ data: TemplateOutput }>(`/v1/templates/${id}.json`));
+  async findById(id: string, options: TemplateReadOptions = {}): Promise<TemplateOutput> {
+    const response = extractData(await this.#httpClient.get<{ data: TemplateOutput }>(`/v1/templates/${id}.json`, { signal: options.signal }));
     return response.data;
   }
 
-  async findGroupedByCategory(): Promise<ApiOutput<TemplateCategory[]>> {
-    return extractData(await this.#httpClient.get<{ data: TemplateCategory[] }>("/v1/templates-list.json"));
+  async findGroupedByCategory(options: TemplateReadOptions = {}): Promise<ApiOutput<TemplateCategory[]>> {
+    return extractData(await this.#httpClient.get<{ data: TemplateCategory[] }>("/v1/templates-list.json", { signal: options.signal }));
   }
 }

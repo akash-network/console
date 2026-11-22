@@ -358,6 +358,17 @@ describe(PublisherPage.name, () => {
     expect(refetch).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ["a first load", false, "Couldn't load this publisher."],
+    ["a reload", true, "Couldn't load all of this publisher's templates."]
+  ])("offers a retry rather than calling the publisher missing when %s is turned away for asking too often", (_, hasLoadedBefore, notice) => {
+    setup({ error: new ApiError(429, { message: "Too many requests" }, "429"), hasLoadedBefore });
+
+    expect(screen.queryByText("Publisher not found")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(notice);
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
   it("shows no retry once the publisher has loaded", () => {
     setup({});
 

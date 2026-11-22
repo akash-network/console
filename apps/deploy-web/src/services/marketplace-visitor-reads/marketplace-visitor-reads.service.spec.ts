@@ -212,6 +212,7 @@ describe(MarketplaceVisitorReadsService.name, () => {
       const { service, templateService, clock } = setup();
 
       expect(await service.awesomeAkashCategories()).toEqual({ status: "found", data: [{ title: "Tools", templates: [] }] });
+      expect(templateService.findGroupedByCategory).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
       clock.now = 5 * 60_000 - 1;
       await service.awesomeAkashCategories();
       expect(templateService.findGroupedByCategory).toHaveBeenCalledTimes(1);
@@ -239,7 +240,7 @@ describe(MarketplaceVisitorReadsService.name, () => {
       clock.now = 5 * 60_000 - 1;
       await service.awesomeAkashTemplate(AWESOME_AKASH_ID);
       expect(templateService.findById).toHaveBeenCalledTimes(1);
-      expect(templateService.findById).toHaveBeenCalledWith(AWESOME_AKASH_ID);
+      expect(templateService.findById).toHaveBeenCalledWith(AWESOME_AKASH_ID, { signal: expect.any(AbortSignal) });
 
       clock.now = 5 * 60_000;
       await service.awesomeAkashTemplate(AWESOME_AKASH_ID);
@@ -272,7 +273,7 @@ describe(MarketplaceVisitorReadsService.name, () => {
       await service.awesomeAkashTemplate(longestId);
 
       expect(longestId).toHaveLength(255);
-      expect(templateService.findById).toHaveBeenCalledWith(longestId);
+      expect(templateService.findById).toHaveBeenCalledWith(longestId, { signal: expect.any(AbortSignal) });
     });
 
     it.each([400, 404])("answers missing when the list answers %i", async status => {
@@ -305,6 +306,28 @@ describe(MarketplaceVisitorReadsService.name, () => {
       templateService.findById.mockRejectedValue(new AxiosError("socket hang up"));
 
       expect(await service.awesomeAkashTemplate(AWESOME_AKASH_ID)).toEqual({ status: "unavailable" });
+    });
+
+    it("aborts an awesome-akash read that never answers once it has run its longest lifetime, and asks again for the next visitor", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, templateService, llama } = setup();
+        templateService.findById.mockReturnValueOnce(new Promise(() => undefined));
+
+        const stalledRead = service.awesomeAkashTemplate(AWESOME_AKASH_ID);
+        await vi.advanceTimersByTimeAsync(MAX_VISITOR_READ_LIFETIME_MS);
+
+        expect(await stalledRead).toEqual({ status: "unavailable" });
+        expect(templateService.findById.mock.calls[0][1]?.signal?.aborted).toBe(true);
+
+        const nextRead = service.awesomeAkashTemplate(AWESOME_AKASH_ID);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(await nextRead).toEqual({ status: "found", data: llama });
+        expect(templateService.findById).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("gives up on a slow list after the timeout", async () => {

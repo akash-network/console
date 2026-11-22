@@ -20,7 +20,7 @@ import type { GalleryUrlState } from "@src/components/templates/useTemplateGalle
 import { useTemplateGalleryUrlState } from "@src/components/templates/useTemplateGalleryUrlState/useTemplateGalleryUrlState";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useCurrentTemplatePublisher, useTemplatePublisher } from "@src/queries/useUserTemplateQueries";
-import { isClientError } from "@src/services/query-error-policy/query-error-policy";
+import { isClientError, isRateLimited } from "@src/services/query-error-policy/query-error-policy";
 import type { CurrentTemplatePublisher, TemplatePublisherPage } from "@src/types/marketplace-template";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -73,7 +73,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
   );
   const hasCommunityTemplates = useMemo(() => entries.some(entry => !entry.isOfficial), [entries]);
 
-  if (isClientError(publisherQuery.error)) return <PublisherNotFound dependencies={d} />;
+  if (isClientError(publisherQuery.error) && !isRateLimited(publisherQuery.error)) return <PublisherNotFound dependencies={d} />;
 
   if (!publisher) {
     return (
