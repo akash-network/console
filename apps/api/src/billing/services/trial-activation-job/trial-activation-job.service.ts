@@ -2,6 +2,7 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { ActivateTrial } from "@src/billing/events/activate-trial";
+import { TrialEligibilityService } from "@src/billing/services/trial-eligibility/trial-eligibility.service";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import type { UserOutput } from "@src/user/repositories";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
@@ -13,6 +14,7 @@ export class TrialActivationJobService {
   constructor(
     private readonly jobQueueService: JobQueueService,
     private readonly accountStatusGuard: AccountStatusGuard,
+    private readonly trialEligibilityService: TrialEligibilityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TrialActivationJobService.name });
@@ -35,12 +37,14 @@ export class TrialActivationJobService {
    * place. When the wallet isn't activated yet it (best-effort) re-requests activation and throws a retriable
    * `wallet_provisioning` 409, so the client waits for provisioning to land instead of hitting a bare chain/funding
    * error. A failed re-enqueue is logged but still yields the 409 — the next client retry re-requests it.
-   * A suspended or terminated account is refused with its own 403 instead, since its trial is never activated.
+   * A suspended or terminated account is refused with its own 403 instead, and a user whose trial is refused gets
+   * that refusal, since neither wallet is ever activated and a 409 would have the client retry forever.
    */
   async assertActivated(wallet: { userId: UserOutput["id"]; activatedAt?: Date | null }): Promise<void> {
     if (wallet.activatedAt) return;
 
     await this.accountStatusGuard.assertUserMaySpend(wallet.userId);
+    await this.trialEligibilityService.assertEligible(wallet.userId);
 
     try {
       await this.schedule(wallet.userId);

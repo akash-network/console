@@ -15,7 +15,7 @@ import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { TRIAL_BLOCKED_DOMAIN_MESSAGE } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
+import { TRIAL_BLOCKED_DOMAIN_MESSAGE } from "@src/billing/services/trial-eligibility/trial-eligibility.service";
 import type { MetricsService } from "@src/core";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { TrialActivationInstrumentationService } from "./trial-activation-instrumentation.service";

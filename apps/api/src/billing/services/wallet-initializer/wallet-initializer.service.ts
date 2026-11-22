@@ -12,28 +12,19 @@ import {
 } from "@src/billing/repositories";
 import { TrialActivationInstrumentationService } from "@src/billing/services/activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { TrialEligibilityService } from "@src/billing/services/trial-eligibility/trial-eligibility.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
-import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { DeletedTrialAccountService } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
-import { TrialSignupHoldService } from "@src/workload-abuse/services/trial-signup-hold/trial-signup-hold.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
 const MICRO_DENOM_PER_UNIT = 1_000_000;
-
-/** Names the domain, unlike the registration refusal: only a verified account holder sees it, and support needs to be able to act on it. */
-export const TRIAL_BLOCKED_DOMAIN_MESSAGE = "Trial is not available for this email domain. Please contact support for assistance.";
-
-export const TRIAL_UNAVAILABLE_MESSAGE = "Unable to start trial. Please contact support for assistance.";
 
 @singleton()
 export class WalletInitializerService {
@@ -42,52 +33,30 @@ export class WalletInitializerService {
     private readonly managedSignerService: ManagedSignerService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly domainEvents: DomainEventsService,
-    private readonly featureFlagsService: FeatureFlagsService,
-    private readonly stripeService: StripeService,
     private readonly userRepository: UserRepository,
     private readonly trialActivationInstrumentation: TrialActivationInstrumentationService,
     private readonly trialValidationService: TrialValidationService,
-    private readonly blockedEmailDomainService: BlockedEmailDomainService,
     private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
     private readonly deletedTrialAccountService: DeletedTrialAccountService,
     private readonly txService: TxService,
     private readonly accountStatusGuard: AccountStatusGuard,
     private readonly referralService: ReferralService,
-    private readonly trialSignupHoldService: TrialSignupHoldService
+    private readonly trialEligibilityService: TrialEligibilityService
   ) {}
-
-  async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
-    if (!this.stripeService.isProduction) return;
-    if (!this.featureFlagsService.isEnabledForSubject(FeatureFlags.TRIAL_FINGERPRINT_CHECK, user.id)) return;
-    if (!user.lastFingerprint) return;
-
-    const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(user.lastFingerprint, user.id);
-    assert(usersWithSameFingerprint.length === 0, 400, TRIAL_UNAVAILABLE_MESSAGE);
-  }
-
-  async #assertTrialNotHeld(user: UserOutput): Promise<void> {
-    const held = await this.trialSignupHoldService.isHeld(user);
-    assert(!held, 400, TRIAL_UNAVAILABLE_MESSAGE);
-  }
-
-  async #assertEmailDomainNotBlocked(user: UserOutput): Promise<void> {
-    const blocked = await this.blockedEmailDomainService.isBlockedEmail(user.email);
-    assert(!blocked, 400, TRIAL_BLOCKED_DOMAIN_MESSAGE);
-  }
 
   /** Grants the trial to the user's own wallet whatever organization is active, and sets `activatedAt` only once the grants land since the spend gate reads it as ready. */
   async initializeAndGrantTrialLimits(userId: string): Promise<UserWalletPublicOutput> {
     const user = await this.userRepository.findById(userId);
     assert(user, 404, "User Not Found");
     assert(user.emailVerified, 400, "Email not verified");
-    await this.#assertNoDuplicateFingerprint(user);
+    await this.trialEligibilityService.assertNoDuplicateFingerprint(user);
 
     const userWallet = await this.ensureWallet(userId);
     if (userWallet.activatedAt) return this.#toPublic({ ...userWallet, userId });
 
-    await this.#assertEmailDomainNotBlocked(user);
+    await this.trialEligibilityService.assertEmailDomainNotBlocked(user);
     await this.accountStatusGuard.assertMaySpend(user);
-    await this.#assertTrialNotHeld(user);
+    await this.trialEligibilityService.assertNotHeld(user);
 
     const activation = await this.txService.transaction(async () => await this.#grantTrialLimitsOnce(userWallet, user));
     const activatedWallet = this.#toPublic({ ...activation.wallet, userId, address: userWallet.address });

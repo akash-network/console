@@ -9,6 +9,7 @@ import { ReferralService } from "@src/affiliate/services/referral/referral.servi
 import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { TRIAL_BLOCKED_DOMAIN_MESSAGE, TRIAL_UNAVAILABLE_MESSAGE } from "@src/billing/services/trial-eligibility/trial-eligibility.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -28,7 +29,7 @@ import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { StripeService } from "../stripe/stripe.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
-import { TRIAL_BLOCKED_DOMAIN_MESSAGE, TRIAL_UNAVAILABLE_MESSAGE, WalletInitializerService } from "./wallet-initializer.service";
+import { WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
