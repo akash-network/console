@@ -61,7 +61,12 @@ describe("GPU waitlist waves", () => {
     await tickWatcher();
     await waitForNotices(WAVE_SIZE);
     const firstWave = await findJobRows<{ entryId: string }>(GpuAvailableNoticeJob[JOB_NAME]);
-    expect(firstWave.map(job => job.data.entryId)).toEqual(users.slice(0, WAVE_SIZE).map(({ entry }) => entry.id));
+    expect(firstWave.map(job => job.data.entryId).sort()).toEqual(
+      users
+        .slice(0, WAVE_SIZE)
+        .map(({ entry }) => entry.id)
+        .sort()
+    );
     expect(notifications.map(({ recipient }) => recipient).sort()).toEqual(
       users
         .slice(0, WAVE_SIZE)
@@ -141,6 +146,7 @@ describe("GPU waitlist waves", () => {
       await seedDeploymentSetting({ userId: user.id, organizationId: wallet.organizationId!, dseq });
       vi.spyOn(container.resolve(LeaseGpuOfferService), "findOffers").mockResolvedValue({
         liveLeases: 1,
+        leasesWithoutBid: 0,
         offers: [
           {
             gseq: 1,
