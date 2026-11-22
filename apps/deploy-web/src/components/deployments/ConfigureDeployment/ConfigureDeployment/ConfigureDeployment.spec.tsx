@@ -937,6 +937,21 @@ describe(ConfigureDeployment.name, () => {
       expect(RemovedTemplateNotice).not.toHaveBeenCalled();
     });
 
+    it("restores a saved draft of a removed template instead of the removed state", () => {
+      const { ConfigureDeploymentForm, RemovedTemplateNotice, enqueueSnackbar } = setup({
+        userTemplateId: "tpl-9",
+        draftId: "saved-draft",
+        persistedSdl: "restored: sdl",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true },
+        marketplaceTemplateError: REMOVED_ERROR
+      });
+
+      expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
+      expect(RemovedTemplateNotice).not.toHaveBeenCalled();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
     it("shows the removed state for a deep link to a version of a removed template", () => {
       const { ConfigureDeploymentForm, enqueueSnackbar } = setup({
         userTemplateId: "tpl-9",

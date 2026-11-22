@@ -178,7 +178,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   const carriedInSdl = intent.vm || intent.exampleImage ? undefined : deploySdl?.content;
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
-  const isStartingFromDefault = hasTemplateFailed && !initialSdl;
+  const removedTemplate = versionedTemplate?.removed && !intent.dseq && !isDraftRestored ? versionedTemplate.removed : undefined;
+  const isStartingFromDefault = hasTemplateFailed && !initialSdl && !removedTemplate;
   if (isStartingFromDefault && !draft.isLoading && !hasFallenBackToForm) setHasFallenBackToForm(true);
 
   useEffect(
@@ -245,6 +246,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   );
 
   if (draft.isLoading) return loadingScreen;
+  if (removedTemplate) return <RemovedTemplateScreen removedTemplate={removedTemplate} dependencies={d} />;
 
   return (
     <d.DeployTargetGate filedDseq={intent.dseq} fallback={loadingScreen}>
@@ -282,6 +284,7 @@ type VersionedTemplate = {
   source: TemplateSource | undefined;
   isLoading: boolean;
   hasFailed: boolean;
+  /** A saved draft or a link naming a deployment outlives its template, so only a fresh start shows the removal. */
   removed: RemovedTemplate | undefined;
   pinnedVersion: number | undefined;
   pinVersion: (version: TemplateVersionDetail) => void;
@@ -322,11 +325,9 @@ function usePinTemplateVersionInUrl({
   );
 }
 
-/** Mounted only with the template marketplace on, so the legacy user template path never reads the marketplace; a link naming a deployment still goes through the resume guard, since that deployment outlives its template. */
+/** Mounted only with the template marketplace on, so the legacy user template path never reads the marketplace. */
 const TemplateVersionDeploymentScreen: FC<ScreenProps & { userTemplateId: string }> = ({ userTemplateId, ...screenProps }) => {
   const versionedTemplate = useTemplateVersionSource(screenProps.dependencies, userTemplateId, screenProps.intent.templateVersion);
-  if (versionedTemplate.removed && !screenProps.intent.dseq)
-    return <RemovedTemplateScreen removedTemplate={versionedTemplate.removed} dependencies={screenProps.dependencies} />;
 
   return <ConfigureDeploymentScreen {...screenProps} versionedTemplate={versionedTemplate} />;
 };
