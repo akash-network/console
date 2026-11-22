@@ -272,6 +272,15 @@ describe(useCommunityGallery.name, () => {
       expect((result.current as CommunityGallery).shownEntries).toEqual(FIRST_PAGE.shownEntries);
     });
 
+    it("moves to the community list once it has loaded for a community view, without waiting for the awesome-akash list", () => {
+      const communityView = { category: null, search: "", source: "community" as const, sort: "popular" as const };
+      const { result } = setup({ firstPage: { ...FIRST_PAGE, view: communityView }, categories: [], view: communityView });
+
+      const gallery = result.current as CommunityGallery;
+      expect(gallery.isShowingFirstPage).toBe(false);
+      expect(gallery.shownEntries.map(entry => entry.title)).not.toContain("Server rendered");
+    });
+
     it("moves to the lists once both have loaded", () => {
       const { result, rerenderWith } = setup({ firstPage: FIRST_PAGE, categories: [] });
 

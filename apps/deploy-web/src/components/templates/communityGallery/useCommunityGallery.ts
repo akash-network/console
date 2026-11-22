@@ -62,7 +62,8 @@ export function useCommunityGallery({ isEnabled, categories, view, firstPage }: 
   if (!isEnabled) return null;
 
   const retryCommunity = () => void refetchCommunity();
-  const isAwaitingLists = communityQuery.isLoading || categories.length === 0;
+  const isAwaitingOfficialTemplates = view.source !== "community" && categories.length === 0;
+  const isAwaitingLists = communityQuery.isLoading || isAwaitingOfficialTemplates;
 
   if (firstPage && isAwaitingLists && isSameGalleryView(firstPage.view, view)) {
     return {
