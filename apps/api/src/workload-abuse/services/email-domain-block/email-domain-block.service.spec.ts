@@ -9,6 +9,7 @@ import type { UserRepository } from "@src/user/repositories";
 import type { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import type { EmailDomainMailProfileService } from "@src/workload-abuse/services/email-domain-mail-profile/email-domain-mail-profile.service";
 import { LockBlockedDomainWallet } from "@src/workload-abuse/services/lock-blocked-domain-wallet/lock-blocked-domain-wallet.handler";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
@@ -40,6 +41,28 @@ describe(EmailDomainBlockService.name, () => {
       await service.blockDomainOf(wallet);
 
       expect(blockedEmailDomainService.rememberBlocked).toHaveBeenCalledWith("attacker.com");
+    });
+
+    it("records the mail servers of the domain it blocks, so siblings on the same server match it", async () => {
+      const { service, wallet, emailDomainMailProfileService } = setup({ email: "miner@eu.attacker.com" });
+
+      await service.blockDomainOf(wallet);
+
+      expect(emailDomainMailProfileService.recordProfile).toHaveBeenCalledWith("attacker.com");
+    });
+
+    it("records no mail servers for a domain it leaves unblocked", async () => {
+      const dryRun = setup({ email: "miner@attacker.com", mode: "detect" });
+      const raced = setup({ email: "miner@attacker.com", raceWinner: "allowed" });
+      const paid = setup({ email: "miner@attacker.com", hasPaidUser: true });
+
+      await dryRun.service.blockDomainOf(dryRun.wallet);
+      await raced.service.blockDomainOf(raced.wallet);
+      await paid.service.blockDomainOf(paid.wallet);
+
+      expect(dryRun.emailDomainMailProfileService.recordProfile).not.toHaveBeenCalled();
+      expect(raced.emailDomainMailProfileService.recordProfile).not.toHaveBeenCalled();
+      expect(paid.emailDomainMailProfileService.recordProfile).not.toHaveBeenCalled();
     });
 
     it("blocks the normalized domain of a mixed-case address", async () => {
@@ -545,6 +568,7 @@ describe(EmailDomainBlockService.name, () => {
       blockIfAbsent: vi.fn().mockResolvedValue(input?.raceWinner ? undefined : createBlockedEmailDomain())
     });
     const blockedEmailDomainService = mock<BlockedEmailDomainService>();
+    const emailDomainMailProfileService = mock<EmailDomainMailProfileService>();
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>({
       hasEnforcedSignatureMatchByAnotherMailbox: vi.fn().mockResolvedValue(input?.anotherAccountCaught ?? true)
     });
@@ -567,6 +591,7 @@ describe(EmailDomainBlockService.name, () => {
       stripeTransactionRepository,
       blockedEmailDomainRepository,
       blockedEmailDomainService,
+      emailDomainMailProfileService,
       detectionRepository,
       jobQueueService,
       config,
@@ -583,6 +608,7 @@ describe(EmailDomainBlockService.name, () => {
       stripeTransactionRepository,
       blockedEmailDomainRepository,
       blockedEmailDomainService,
+      emailDomainMailProfileService,
       detectionRepository,
       jobQueueService,
       config,

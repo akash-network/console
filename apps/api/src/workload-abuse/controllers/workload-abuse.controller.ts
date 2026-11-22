@@ -6,6 +6,7 @@ import {
   type BehaviouralReplaySummary,
   BehaviouralSignalReplayService
 } from "@src/workload-abuse/services/behavioural-signal-replay/behavioural-signal-replay.service";
+import { EmailDomainMailProfileService } from "@src/workload-abuse/services/email-domain-mail-profile/email-domain-mail-profile.service";
 import { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import { TrialAbuseEnforcementJobService } from "@src/workload-abuse/services/trial-abuse-enforcement-job/trial-abuse-enforcement-job.service";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -16,7 +17,8 @@ export class WorkloadAbuseController {
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly enforcementJobService: TrialAbuseEnforcementJobService,
     private readonly probeEvidenceService: ProbeEvidenceService,
-    private readonly behaviouralSignalReplayService: BehaviouralSignalReplayService
+    private readonly behaviouralSignalReplayService: BehaviouralSignalReplayService,
+    private readonly emailDomainMailProfileService: EmailDomainMailProfileService
   ) {}
 
   /** Each sweep runs whether or not the other fails, and retention runs whether or not the sweeps do, so nothing waits another run. */
@@ -33,5 +35,9 @@ export class WorkloadAbuseController {
 
   async replayBehaviouralSignals(options: BehaviouralReplayOptions): Promise<BehaviouralReplaySummary> {
     return await this.behaviouralSignalReplayService.replay(options);
+  }
+
+  async recordBlockedDomainMailServers(): Promise<{ found: number; recorded: number }> {
+    return await this.emailDomainMailProfileService.recordMissingBlockedDomainProfiles();
   }
 }

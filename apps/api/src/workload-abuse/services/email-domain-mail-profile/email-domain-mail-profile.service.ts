@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { LRUCache } from "lru-cache";
 import type { MxRecord } from "node:dns";
 import { inject, singleton } from "tsyringe";
@@ -19,6 +20,10 @@ const PROFILE_TTL_MS = 60 * 60 * 1000;
 /** The domain owner decides how many records it publishes, so these bound the lookups and the row a hostile domain can cost us. */
 const MAX_MX_HOSTS = 10;
 const MAX_SELF_HOSTED_MX_IPS = 16;
+
+/** Bounds one sweep run so a mass block is worked off over several runs instead of outliving the CronJob's deadline. */
+const MAX_BLOCKED_DOMAINS_PER_SWEEP = 500;
+const BLOCKED_DOMAIN_SWEEP_CONCURRENCY = 8;
 
 const ABSENT_RECORD_CODES: ReadonlySet<string> = new Set(["ENODATA", "ENOTFOUND"]);
 
@@ -50,6 +55,23 @@ export class EmailDomainMailProfileService {
     await this.#saveProfile(profile);
 
     return profile;
+  }
+
+  async recordProfile(domain: string): Promise<void> {
+    await this.findProfile(domain);
+  }
+
+  /** The admin console writes blocks straight into the table, and a blocked domain's own sign-ups are refused before the hold looks it up, so nothing else records its mail servers. */
+  async recordMissingBlockedDomainProfiles(): Promise<{ found: number; recorded: number }> {
+    const domains = await this.emailDomainMailHostRepository.findBlockedDomainsWithoutProfile(MAX_BLOCKED_DOMAINS_PER_SWEEP);
+    const { results } = await PromisePool.withConcurrency(BLOCKED_DOMAIN_SWEEP_CONCURRENCY)
+      .for(domains)
+      .process(async domain => await this.findProfile(domain));
+    const summary = { found: domains.length, recorded: results.filter(Boolean).length };
+
+    this.logger.info({ event: "BLOCKED_EMAIL_DOMAIN_PROFILES_RECORDED", ...summary });
+
+    return summary;
   }
 
   async #resolveProfile(domain: string): Promise<EmailDomainMailProfile | null> {

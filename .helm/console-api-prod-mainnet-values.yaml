@@ -90,6 +90,16 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - detect-lease-gpus
+  - name: record-blocked-domain-mail-servers
+    schedule: "29 * * * *" # hourly
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 1500
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - record-blocked-domain-mail-servers
   - name: mint-act
     schedule: "*/10 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

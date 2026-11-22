@@ -1,4 +1,4 @@
-import { and, arrayOverlaps, ne, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, ne, notExists, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -30,6 +30,20 @@ export class EmailDomainMailHostRepository extends BaseRepository<Table, EmailDo
       .insert(this.table)
       .values({ domain, mxHosts, selfHostedMxIps, hasWebsite })
       .onConflictDoUpdate({ target: this.table.domain, set: { mxHosts, selfHostedMxIps, hasWebsite, updatedAt: sql`now()` } });
+  }
+
+  /** Newest blocks first, since a fresh block is the one whose farm is still signing up siblings. */
+  async findBlockedDomainsWithoutProfile(limit: number): Promise<string[]> {
+    const profile = this.cursor.select({ domain: this.table.domain }).from(this.table).where(eq(this.table.domain, BlockedEmailDomains.domain));
+
+    const rows = await this.cursor
+      .select({ domain: BlockedEmailDomains.domain })
+      .from(BlockedEmailDomains)
+      .where(and(eq(BlockedEmailDomains.status, "blocked"), notExists(profile)))
+      .orderBy(desc(BlockedEmailDomains.createdAt))
+      .limit(limit);
+
+    return rows.map(row => row.domain);
   }
 
   /** Reads the same nearest-rule order as the blocklist itself, so an operator's allow on a subdomain keeps it from linking anything. */
