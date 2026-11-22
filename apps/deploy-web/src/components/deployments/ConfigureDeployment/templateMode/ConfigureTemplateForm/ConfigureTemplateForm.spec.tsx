@@ -118,6 +118,18 @@ const MODEL_ASKED: TemplateAskedValue = {
   bindings: [{ service: "web", env: "MODEL" }]
 };
 
+const HELD_VERSION: Partial<TemplateVersionDetail> = {
+  status: "held",
+  holdReasons: [
+    {
+      kind: "image_repository_changed",
+      message: "web now runs ghcr.io/acme/web:2.0, an image from a repository this template did not use before.",
+      service: "web",
+      image: "ghcr.io/acme/web:2.0"
+    }
+  ]
+};
+
 const FAILED_VERSION: Partial<TemplateVersionDetail> = {
   status: "failed_checks",
   checkResults: {
@@ -433,6 +445,62 @@ describe(ConfigureTemplateForm.name, () => {
     fireEvent.click(screen.getByRole("button", { name: "View versions" }));
 
     expect(router.push).toHaveBeenCalledWith("/template/tpl-9?tab=versions");
+    expect(draft.clear).toHaveBeenCalled();
+    expect(allowLeaving).toHaveBeenCalled();
+  });
+
+  it("tells the editor a held version is saved and waits for staff, with the reasons, and stays on the page", async () => {
+    const { router, draft, allowLeaving } = setup({ template: { version: 4 }, savedVersion: HELD_VERSION });
+
+    await saveAChangedVersion();
+
+    const dialog = within(screen.getByRole("dialog", { name: "v5 is saved and waiting for review" }));
+    expect(dialog.getByText(/Until then v4 stays the current version, the one people deploy./)).toBeInTheDocument();
+    expect(dialog.getByText("web now runs ghcr.io/acme/web:2.0, an image from a repository this template did not use before.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /isn't live/ })).not.toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(draft.clear).not.toHaveBeenCalled();
+    expect(allowLeaving).not.toHaveBeenCalled();
+  });
+
+  it("closes the held notice on Keep editing and keeps the draft", async () => {
+    const { draft, router } = setup({ template: { version: 4 }, savedVersion: HELD_VERSION });
+
+    await saveAChangedVersion();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(draft.clear).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("opens the versions of the template from a held version", async () => {
+    const { router, draft, allowLeaving } = setup({ template: { version: 4 }, savedVersion: HELD_VERSION });
+
+    await saveAChangedVersion();
+    fireEvent.click(screen.getByRole("button", { name: "View versions" }));
+
+    expect(router.push).toHaveBeenCalledWith("/template/tpl-9?tab=versions");
+    expect(draft.clear).toHaveBeenCalled();
+    expect(allowLeaving).toHaveBeenCalled();
+  });
+
+  it("leaves for the place a failed check is fixed, with the draft cleared like any other way out", async () => {
+    const { router, draft, allowLeaving } = setup({
+      template: { version: 4 },
+      savedVersion: {
+        status: "failed_checks",
+        checkResults: {
+          ranAt: "2026-11-18T18:00:00.000Z",
+          checks: [{ key: "text_within_limits", status: "failed", issues: [{ message: "The README is too long.", field: "readme" }] }]
+        }
+      }
+    });
+
+    await saveAChangedVersion();
+    fireEvent.click(screen.getByRole("button", { name: "Edit README" }));
+
+    expect(router.push).toHaveBeenCalledWith("/template/tpl-9?tab=readme");
     expect(draft.clear).toHaveBeenCalled();
     expect(allowLeaving).toHaveBeenCalled();
   });
@@ -935,6 +1003,7 @@ describe(ConfigureTemplateForm.name, () => {
       ConfigureTemplateHeader: DEPENDENCIES.ConfigureTemplateHeader,
       SaveTemplateDialog: DEPENDENCIES.SaveTemplateDialog,
       FailedChecksDialog: DEPENDENCIES.FailedChecksDialog,
+      HeldVersionDialog: DEPENDENCIES.HeldVersionDialog,
       Snackbar: DEPENDENCIES.Snackbar,
       ConfigureEditor,
       SdlImportExport,

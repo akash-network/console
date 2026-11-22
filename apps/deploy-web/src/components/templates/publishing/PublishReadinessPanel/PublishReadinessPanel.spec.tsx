@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { TemplatePublishCheck, TemplatePublishReadiness } from "@src/types/marketplace-template";
 import type { PublishOrganization } from "../publishReadiness";
-import type { DEPENDENCIES, PublishFixLinks } from "./PublishReadinessPanel";
+import type { PublishFixLinks } from "../publishReadiness";
+import type { DEPENDENCIES } from "./PublishReadinessPanel";
 import { PublishReadinessPanel } from "./PublishReadinessPanel";
 
 import { render, screen, within } from "@testing-library/react";
@@ -15,7 +16,8 @@ const FIX_LINKS: PublishFixLinks = {
   rename: "/template/tpl-1?tab=settings",
   "rename-organization": "/organization",
   "edit-configuration": "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-1",
-  "edit-readme": "/template/tpl-1?tab=readme"
+  "edit-readme": "/template/tpl-1?tab=readme",
+  "edit-summary": "/template/tpl-1?tab=settings"
 };
 const READY: TemplatePublishReadiness = {
   termsVersion: "2026-11",
@@ -162,6 +164,27 @@ describe(PublishReadinessPanel.name, () => {
 
     expect(screen.getByRole("link", { name: "Edit README" })).toHaveAttribute("href", "/template/tpl-1?tab=readme");
     expect(screen.queryByRole("link", { name: "Edit configuration" })).not.toBeInTheDocument();
+  });
+
+  it("links each text over its limit to the place it is edited", () => {
+    setup({
+      checks: [
+        {
+          key: "text_within_limits",
+          status: "failed",
+          issues: [
+            { message: "The title is too long.", field: "title" },
+            { message: "The summary is too long.", field: "summary" },
+            { message: "The README is too long.", field: "readme" }
+          ]
+        }
+      ]
+    });
+
+    expect(screen.getByText("Title, summary and README within their length limits")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rename" })).toHaveAttribute("href", "/template/tpl-1?tab=settings");
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/template/tpl-1?tab=settings");
+    expect(screen.getByRole("link", { name: "Edit README" })).toHaveAttribute("href", "/template/tpl-1?tab=readme");
   });
 
   it("offers no link for a fix that has nowhere to go", () => {

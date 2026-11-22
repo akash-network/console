@@ -39,6 +39,8 @@ const ASKED_MODEL: TemplateAskedValue = {
 
 const NO_QUERY = { isLoading: false, isError: false, isSuccess: false, data: undefined };
 
+const REMOVED_ERROR = new ApiError(410, { code: "template_removed", message: "This template was removed", data: { title: "Open WebUI + vLLM" } }, "410");
+
 const SECRET_REFERENCE_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "API_KEY=ac-secret://API_KEY"\n';
 
 describe(ConfigureDeployment.name, () => {
@@ -907,6 +909,63 @@ describe(ConfigureDeployment.name, () => {
       expect(router.replace).not.toHaveBeenCalled();
     });
 
+    it("shows the removed state for a deploy link to a removed template, without a toast", () => {
+      const { ConfigureDeploymentForm, AutoDeployFlow, RemovedTemplateNotice, enqueueSnackbar } = setup({
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true },
+        marketplaceTemplateError: REMOVED_ERROR
+      });
+
+      expect(screen.getByText("Removed: Open WebUI + vLLM")).toBeInTheDocument();
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: true }, expect.anything());
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
+      expect(AutoDeployFlow).not.toHaveBeenCalled();
+    });
+
+    it("sends a link naming a deployment of a removed template through the resume guard", () => {
+      const { ResumeDeploymentGuard, RemovedTemplateNotice } = setup({
+        userTemplateId: "tpl-9",
+        dseq: "123",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true },
+        marketplaceTemplateError: REMOVED_ERROR
+      });
+
+      expect(ResumeDeploymentGuard).toHaveBeenCalledWith(expect.objectContaining({ intent: expect.objectContaining({ dseq: "123" }) }), expect.anything());
+      expect(RemovedTemplateNotice).not.toHaveBeenCalled();
+    });
+
+    it("restores a saved draft of a removed template instead of the removed state", () => {
+      const { ConfigureDeploymentForm, RemovedTemplateNotice, enqueueSnackbar } = setup({
+        userTemplateId: "tpl-9",
+        draftId: "saved-draft",
+        persistedSdl: "restored: sdl",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true },
+        marketplaceTemplateError: REMOVED_ERROR
+      });
+
+      expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
+      expect(RemovedTemplateNotice).not.toHaveBeenCalled();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("shows the removed state for a deep link to a version of a removed template", () => {
+      const { ConfigureDeploymentForm, enqueueSnackbar } = setup({
+        userTemplateId: "tpl-9",
+        urlTemplateVersion: "2",
+        isTemplateMarketplaceEnabled: true,
+        templateVersion: { isError: true },
+        templateVersionError: REMOVED_ERROR
+      });
+
+      expect(screen.getByText("Removed: Open WebUI + vLLM")).toBeInTheDocument();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
+    });
+
     function templateAtVersion(version: number) {
       return deployableTemplate({
         currentVersion: buildTemplateVersion({ id: `ver-${version}`, templateId: "tpl-9", version, sdl: ASSISTANT_SDL })
@@ -1438,6 +1497,49 @@ describe(ConfigureDeployment.name, () => {
       expect(ConfigureTemplateForm).not.toHaveBeenCalled();
     });
 
+    it("shows the removed state for an edit link to a removed template, without a toast or a redirect", () => {
+      const { ConfigureTemplateForm, RemovedTemplateNotice, router, enqueueSnackbar } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true },
+        marketplaceTemplateError: REMOVED_ERROR
+      });
+
+      expect(screen.getByText("Removed: Open WebUI + vLLM")).toBeInTheDocument();
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: true }, expect.anything());
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+    });
+
+    it("shows the removed state for a copy of a removed template, without a toast", () => {
+      const { ConfigureTemplateForm, enqueueSnackbar } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        isTemplateMarketplaceEnabled: true,
+        templateVersion: { isError: true },
+        templateVersionError: REMOVED_ERROR
+      });
+
+      expect(screen.getByText("Removed: Open WebUI + vLLM")).toBeInTheDocument();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+    });
+
+    it("leaves a new template alone when a removed answer belongs to no copy", () => {
+      const { ConfigureTemplateForm } = setup({
+        templateMode: "new",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplateError: REMOVED_ERROR,
+        templateVersionError: REMOVED_ERROR
+      });
+
+      expect(screen.queryByText(/^Removed:/)).not.toBeInTheDocument();
+      expect(ConfigureTemplateForm).toHaveBeenCalled();
+    });
+
     it("starts a new template without the copy when the copied version cannot be read", () => {
       const { ConfigureTemplateForm, enqueueSnackbar } = setup({
         templateMode: "new",
@@ -1574,6 +1676,8 @@ describe(ConfigureDeployment.name, () => {
     isTemplateMarketplaceEnabled?: boolean;
     marketplaceTemplate?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: MarketplaceTemplate };
     templateVersion?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: TemplateVersionDetail };
+    marketplaceTemplateError?: unknown;
+    templateVersionError?: unknown;
     baseVersion?: number;
     sourceDseq?: string;
     urlTemplateVersion?: string;
@@ -1605,9 +1709,10 @@ describe(ConfigureDeployment.name, () => {
       }, []);
       return <div data-testid="template-form-mock" />;
     });
-    let marketplaceTemplateResult = { ...NO_QUERY, ...structuredClone(input.marketplaceTemplate) };
+    let marketplaceTemplateResult = { ...NO_QUERY, ...structuredClone(input.marketplaceTemplate), error: input.marketplaceTemplateError ?? null };
     const useMarketplaceTemplate = vi.fn(() => marketplaceTemplateResult as never);
-    const templateVersionResult = { ...NO_QUERY, ...structuredClone(input.templateVersion) };
+    const templateVersionResult = { ...NO_QUERY, ...structuredClone(input.templateVersion), error: input.templateVersionError ?? null };
+    const RemovedTemplateNotice = vi.fn<typeof DEPENDENCIES.RemovedTemplateNotice>(({ title }) => <p>Removed: {title}</p>);
     const useTemplateVersion = vi.fn(() => templateVersionResult as never);
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const DeploymentFlowProvider = vi.fn(function FlowProviderMock({ children }) {
@@ -1687,6 +1792,7 @@ describe(ConfigureDeployment.name, () => {
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
+      RemovedTemplateNotice,
       AutoDeployFlow: AutoDeployFlow as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       ConfigureTemplateForm: ConfigureTemplateForm as never,
@@ -1735,7 +1841,7 @@ describe(ConfigureDeployment.name, () => {
       rerender(renderScreen());
     };
     const rerenderWithMarketplaceTemplate = (next: NonNullable<typeof input.marketplaceTemplate>) => {
-      marketplaceTemplateResult = { ...NO_QUERY, ...structuredClone(next) };
+      marketplaceTemplateResult = { ...NO_QUERY, ...structuredClone(next), error: null };
       rerender(renderScreen());
     };
     const navigate = (next: { templateId: string; sdlStrategy?: string; bidStrategy?: string; dseq?: string }) => {
@@ -1783,6 +1889,7 @@ describe(ConfigureDeployment.name, () => {
     return {
       ConfigureDeploymentForm,
       ConfigureTemplateForm,
+      RemovedTemplateNotice,
       useMarketplaceTemplate,
       useTemplateVersion,
       router,

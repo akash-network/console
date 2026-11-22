@@ -14,6 +14,7 @@ import Layout from "@src/components/layout/Layout";
 import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
+import { publishFixLinksOf } from "@src/components/templates/publishing/publishReadiness";
 import { readTemplateRateLimit } from "@src/components/templates/publishing/readPublishRefusal";
 import { useCreateTemplateMutation, useCreateTemplateVersionMutation } from "@src/queries/useUserTemplateQueries";
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -38,6 +39,7 @@ import type { AskedValueSetting } from "../buildAskedValues";
 import { buildAskedValues, sealSharedSecretKeys, summarizeAskedValues } from "../buildAskedValues";
 import { ConfigureTemplateHeader } from "../ConfigureTemplateHeader/ConfigureTemplateHeader";
 import { FailedChecksDialog } from "../FailedChecksDialog/FailedChecksDialog";
+import { HeldVersionDialog } from "../HeldVersionDialog/HeldVersionDialog";
 import type { TemplateDetails } from "../SaveTemplateDialog/SaveTemplateDialog";
 import { SaveTemplateDialog } from "../SaveTemplateDialog/SaveTemplateDialog";
 import type { TemplateModeState } from "../TemplateModeProvider/TemplateModeProvider";
@@ -57,6 +59,7 @@ export const DEPENDENCIES = {
   SdlImportChangesBanner,
   SaveTemplateDialog,
   FailedChecksDialog,
+  HeldVersionDialog,
   Snackbar,
   useConfigureDraft,
   useConfigureDeployTarget,
@@ -76,6 +79,8 @@ const REFUSAL_TOAST_DURATION_MS = 10000;
 const CONFLICT_STATUS = 409;
 
 const FAILED_CHECKS_STATUS: TemplateVersionDetail["status"] = "failed_checks";
+
+const HELD_STATUS: TemplateVersionDetail["status"] = "held";
 
 const LEAVE_MESSAGE = "Leave without saving? Your changes to this template will be lost.";
 
@@ -134,7 +139,9 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [failedVersion, setFailedVersion] = useState<TemplateVersionDetail>();
+  const [heldVersion, setHeldVersion] = useState<TemplateVersionDetail>();
   const lastSelectedServiceId = useRef(selectedServiceId);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
   /** A draft save still pending when the template is saved would otherwise write the cleared draft back. */
   const isSavedRef = useRef(false);
   const form = useForm<SdlBuilderFormValuesType>({
@@ -260,6 +267,10 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
         setFailedVersion(response.data);
         return;
       }
+      if (response.data.status === HELD_STATUS) {
+        setHeldVersion(response.data);
+        return;
+      }
       leaveFor(versionsUrlOf(editedTemplate.id));
     } catch (error) {
       if (error instanceof ApiError && error.status === CONFLICT_STATUS) {
@@ -328,6 +339,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
               isSaving={isSaving}
               canSave={!hasServiceNameClash && (!isEditing || (canSaveVersion && !isBaseVersionUnchanged))}
               onSave={save}
+              saveButtonRef={saveButtonRef}
             />
             {isEditing && <UnaskableSecretsAlert unaskableSecrets={askedSummary.unaskableSecrets} className="mx-6 mt-4 w-auto" />}
             {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
@@ -388,7 +400,19 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
             <d.FailedChecksDialog
               version={failedVersion}
               liveVersion={template.currentVersion?.version}
+              fixLinks={publishFixLinksOf(template, template.publisher)}
+              onFollowFix={leaveFor}
               onKeepEditing={() => setFailedVersion(undefined)}
+              returnFocusTo={saveButtonRef}
+              onViewVersions={() => leaveFor(versionsUrlOf(template.id))}
+            />
+          )}
+          {heldVersion && template && (
+            <d.HeldVersionDialog
+              version={heldVersion}
+              currentVersion={template.currentVersion?.version}
+              onKeepEditing={() => setHeldVersion(undefined)}
+              returnFocusTo={saveButtonRef}
               onViewVersions={() => leaveFor(versionsUrlOf(template.id))}
             />
           )}

@@ -1,9 +1,11 @@
+import { createRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { PublishFixLinks } from "@src/components/templates/publishing/publishReadiness";
 import type { TemplateCheckResults } from "@src/types/marketplace-template";
 import { FailedChecksDialog } from "./FailedChecksDialog";
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const CHECK_RESULTS: TemplateCheckResults = {
@@ -13,6 +15,14 @@ const CHECK_RESULTS: TemplateCheckResults = {
     { key: "fixed_tags", status: "failed", issues: [{ message: "webui uses open-webui:latest. Pick a version tag." }] },
     { key: "no_secrets", status: "failed", issues: [{ message: "web: HF_TOKEN looks like a key." }] }
   ]
+};
+
+const FIX_LINKS: PublishFixLinks = {
+  rename: "/template/tpl-9?tab=settings",
+  "rename-organization": "/organization",
+  "edit-configuration": "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-9",
+  "edit-readme": "/template/tpl-9?tab=readme",
+  "edit-summary": "/template/tpl-9?tab=settings"
 };
 
 describe(FailedChecksDialog.name, () => {
@@ -40,6 +50,59 @@ describe(FailedChecksDialog.name, () => {
       "FailedNo secrets in valuesweb: HF_TOKEN looks like a key."
     ]);
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit configuration" })).not.toBeInTheDocument();
+  });
+
+  it("offers the fixes made outside Configure next to the check they answer", async () => {
+    const { onFollowFix } = setup({
+      checkResults: {
+        ranAt: CHECK_RESULTS.ranAt,
+        checks: [
+          {
+            key: "text_within_limits",
+            status: "failed",
+            issues: [
+              { message: "The title is 81 characters long, and a public template allows 80.", field: "title" },
+              { message: "The summary is 230 characters long, and a public template allows 200.", field: "summary" },
+              { message: "The README is 50,400 characters long, and a public template allows 50,000.", field: "readme" }
+            ]
+          },
+          { key: "name_not_reserved", status: "failed", issues: [{ message: "The organization name uses a reserved word.", field: "publisher_name" }] }
+        ]
+      }
+    });
+
+    const [textLimits, reservedName] = within(screen.getByRole("list", { name: "Publish checks" })).getAllByRole("listitem");
+    expect(textLimits).toHaveTextContent("Title, summary and README within their length limits");
+    expect(
+      within(textLimits)
+        .getAllByRole("button")
+        .map(button => button.textContent)
+    ).toEqual(["Rename", "Settings", "Edit README"]);
+
+    await userEvent.click(within(textLimits).getByRole("button", { name: "Rename" }));
+    await userEvent.click(within(textLimits).getByRole("button", { name: "Settings" }));
+    await userEvent.click(within(textLimits).getByRole("button", { name: "Edit README" }));
+    await userEvent.click(within(reservedName).getByRole("button", { name: "Organization settings" }));
+
+    expect(onFollowFix.mock.calls).toEqual([
+      ["/template/tpl-9?tab=settings"],
+      ["/template/tpl-9?tab=settings"],
+      ["/template/tpl-9?tab=readme"],
+      ["/organization"]
+    ]);
+  });
+
+  it("offers no fix whose place it was not given", () => {
+    setup({
+      fixLinks: {},
+      checkResults: {
+        ranAt: CHECK_RESULTS.ranAt,
+        checks: [{ key: "name_not_reserved", status: "failed", issues: [{ message: "The organization name uses a reserved word.", field: "publisher_name" }] }]
+      }
+    });
+
+    expect(screen.queryByRole("button", { name: "Organization settings" })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -72,19 +135,51 @@ describe(FailedChecksDialog.name, () => {
     expect(onKeepEditing).not.toHaveBeenCalled();
   });
 
-  function setup(input: { liveVersion?: number; checkResults?: TemplateCheckResults | null }) {
+  it.each([
+    ["Keep editing", async () => userEvent.click(screen.getByRole("button", { name: "Keep editing" }))],
+    ["Escape", async () => userEvent.keyboard("{Escape}")]
+  ])("hands focus back to the save button after %s", async (_, close) => {
+    setup({ closesOnKeepEditing: true });
+
+    await close();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save new version" })).toHaveFocus());
+  });
+
+  function setup(input: { closesOnKeepEditing?: boolean; liveVersion?: number; checkResults?: TemplateCheckResults | null; fixLinks?: PublishFixLinks }) {
+    const onFollowFix = vi.fn();
     const onKeepEditing = vi.fn();
     const onViewVersions = vi.fn();
 
-    render(
-      <FailedChecksDialog
-        version={{ version: 5, checkResults: input.checkResults === undefined ? CHECK_RESULTS : input.checkResults }}
-        liveVersion={"liveVersion" in input ? input.liveVersion : 4}
-        onKeepEditing={onKeepEditing}
-        onViewVersions={onViewVersions}
-      />
-    );
+    const returnFocusTo = createRef<HTMLButtonElement>();
+    const DialogOpenedBySave = () => {
+      const [isOpen, setIsOpen] = useState(true);
 
-    return { onKeepEditing, onViewVersions };
+      return (
+        <>
+          <button ref={returnFocusTo} type="button">
+            Save new version
+          </button>
+          {isOpen && (
+            <FailedChecksDialog
+              version={{ version: 5, checkResults: input.checkResults === undefined ? CHECK_RESULTS : input.checkResults }}
+              liveVersion={"liveVersion" in input ? input.liveVersion : 4}
+              fixLinks={input.fixLinks ?? FIX_LINKS}
+              onFollowFix={onFollowFix}
+              onKeepEditing={() => {
+                onKeepEditing();
+                if (input.closesOnKeepEditing) setIsOpen(false);
+              }}
+              onViewVersions={onViewVersions}
+              returnFocusTo={returnFocusTo}
+            />
+          )}
+        </>
+      );
+    };
+
+    render(<DialogOpenedBySave />);
+
+    return { onFollowFix, onKeepEditing, onViewVersions };
   }
 });
