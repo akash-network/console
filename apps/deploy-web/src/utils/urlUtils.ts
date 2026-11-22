@@ -74,6 +74,8 @@ export const UrlService = {
     getSafeReturnableUrl(`/login${appendSearchParams({ tab: "signup" })}`, returnTo, extraReturnToParams),
   logout: () => "/api/auth/logout",
   template: (id: string) => `/template/${id}`,
+  templatePreviewImage: (id: string) => `/api/og/template/${id}`,
+  templatePublisherPreviewImage: (handle: string) => `/api/og/template-publisher/${encodeURIComponent(handle)}`,
 
   // Deploy
   onboardingPicker: ({ redeemCoupon, intent }: { redeemCoupon?: boolean; intent?: string } = {}) =>

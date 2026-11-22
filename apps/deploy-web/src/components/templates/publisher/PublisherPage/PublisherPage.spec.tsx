@@ -72,7 +72,39 @@ describe(PublisherPage.name, () => {
     expect(screen.getByText("Templates", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
     expect(screen.getByText("Total deploys").nextElementSibling).toHaveTextContent("18.4K");
     expect(screen.getByRole("link", { name: "Templates" })).toHaveAttribute("href", "/templates");
-    expect(NextSeo).toHaveBeenCalledWith({ title: "Lambda Garage · Templates" }, expect.anything());
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Lambda Garage · Templates",
+        description: "We build GPU inference stacks for small teams.",
+        canonical: `https://console.akash.network/template-publishers/${PUBLISHER.handle}`,
+        noindex: false,
+        openGraph: expect.objectContaining({
+          images: [expect.objectContaining({ url: `https://console.akash.network/api/og/template-publisher/${PUBLISHER.handle}` })]
+        })
+      }),
+      expect.anything()
+    );
+  });
+
+  it("names the same address whatever sort and search are applied", () => {
+    const { NextSeo } = setup({ sort: "newest", search: "llama" });
+
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({ canonical: `https://console.akash.network/template-publishers/${PUBLISHER.handle}` }),
+      expect.anything()
+    );
+  });
+
+  it("keeps a publisher that lists no template out of search engines", () => {
+    const { NextSeo } = setup({ publisher: { templates: [], counts: { templates: 0, deploys: 0 } } });
+
+    expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
+  });
+
+  it("keeps the publisher's own view of the page out of search engines", () => {
+    const { NextSeo } = setup({ ownProfile: OWN_PROFILE });
+
+    expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
   });
 
   it("names a personal publisher as one", () => {
@@ -315,11 +347,32 @@ describe(PublisherPage.name, () => {
     expect(GalleryEntryList).not.toHaveBeenCalled();
   });
 
-  it("keeps a loaded publisher on screen when a reload fails for another reason", () => {
-    setup({ error: new ApiError(500, null, "500"), hasLoadedBefore: true });
+  it("keeps a loaded publisher on screen when a reload fails for another reason, and offers to read the rest again", async () => {
+    const { user, refetch } = setup({ error: new ApiError(500, null, "500"), hasLoadedBefore: true });
 
     expect(screen.getByRole("heading", { level: 1, name: "Lambda Garage" })).toBeInTheDocument();
     expect(screen.queryByText("Publisher not found")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load all of this publisher's templates.");
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["a first load", false, "Couldn't load this publisher."],
+    ["a reload", true, "Couldn't load all of this publisher's templates."]
+  ])("offers a retry rather than calling the publisher missing when %s is turned away for asking too often", (_, hasLoadedBefore, notice) => {
+    setup({ error: new ApiError(429, { message: "Too many requests" }, "429"), hasLoadedBefore });
+
+    expect(screen.queryByText("Publisher not found")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(notice);
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("shows no retry once the publisher has loaded", () => {
+    setup({});
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("shows a spinner while the publisher loads", () => {

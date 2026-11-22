@@ -230,6 +230,19 @@ describe("middleware", () => {
     expect(response.cookies.get(REFERRAL_COOKIE_NAME)).toBeUndefined();
   });
 
+  it("lets a preview image through without a cookie, so shared caches can keep it", () => {
+    const { response } = setup({ path: "/api/og/template/5f0c7f0e-6a51-4a53-9a50-0c1f3f1d2b11?ref=partner-one" });
+
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("still gives a session id for flags to a page whose address only resembles the preview image route", () => {
+    const { response } = setup({ path: "/api/ogle" });
+
+    expect(response.cookies.get("unleash-session-id")?.value).toEqual(expect.any(String));
+  });
+
   function setup(input: { path: string; sentryDsn?: string; violationReportDraw?: number; existingReferralCookie?: string }) {
     vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", input.sentryDsn ?? "");
     vi.spyOn(Math, "random").mockReturnValue(input.violationReportDraw ?? 1);

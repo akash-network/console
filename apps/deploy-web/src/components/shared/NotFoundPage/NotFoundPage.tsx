@@ -5,11 +5,15 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
+import type { NextSeoProps } from "next-seo/lib/types";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { useUser } from "@src/hooks/useUser";
 import { UrlService } from "@src/utils/urlUtils";
+
+/** Also handed to the 404 page as a server prop, because the page body is not part of the HTML a crawler gets. */
+export const NOT_FOUND_SEO: NextSeoProps = { title: "Page not found", noindex: true };
 
 export const CONSOLE_AIR_REPO_URL = "https://github.com/akash-network/console-air";
 
@@ -35,7 +39,7 @@ export const NotFoundPage: React.FunctionComponent<Props> = ({ dependencies: d =
 
   return (
     <d.Layout>
-      <NextSeo title="Page not found" />
+      <NextSeo {...NOT_FOUND_SEO} />
 
       <div className="mt-10 text-center">
         <Title className="mb-2">404</Title>

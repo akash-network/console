@@ -2,7 +2,6 @@
 import type { ChangeEvent, FC } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { Button, buttonVariants, Input, Spinner } from "@akashnetwork/ui/components";
-import { format } from "date-fns";
 import { ArrowLeft, CalendarDays, Pencil, RefreshCw, Search, User, Users, X } from "lucide-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
@@ -13,13 +12,15 @@ import { buildGalleryEntries, filterGalleryEntries, sortGalleryEntries } from "@
 import { GalleryEntryList } from "@src/components/templates/communityGallery/GalleryEntryList/GalleryEntryList";
 import { PublisherInitials, VerifiedPublisherMark } from "@src/components/templates/communityGallery/PublisherName/PublisherName";
 import { formatCount, pluralize } from "@src/components/templates/communityGallery/usageNumbers";
+import { formatCalendarMonth } from "@src/components/templates/marketplaceDates/marketplaceDates";
+import { buildPublisherSeo } from "@src/components/templates/marketplaceSeo/marketplaceSeo";
 import { EditPublisherProfileDialog } from "@src/components/templates/publisher/EditPublisherProfileDialog/EditPublisherProfileDialog";
 import { PublisherLinkList } from "@src/components/templates/publisher/PublisherLinkList/PublisherLinkList";
 import type { GalleryUrlState } from "@src/components/templates/useTemplateGalleryUrlState/useTemplateGalleryUrlState";
 import { useTemplateGalleryUrlState } from "@src/components/templates/useTemplateGalleryUrlState/useTemplateGalleryUrlState";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useCurrentTemplatePublisher, useTemplatePublisher } from "@src/queries/useUserTemplateQueries";
-import { isClientError } from "@src/services/query-error-policy/query-error-policy";
+import { isClientError, isRateLimited } from "@src/services/query-error-policy/query-error-policy";
 import type { CurrentTemplatePublisher, TemplatePublisherPage } from "@src/types/marketplace-template";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -72,7 +73,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
   );
   const hasCommunityTemplates = useMemo(() => entries.some(entry => !entry.isOfficial), [entries]);
 
-  if (isClientError(publisherQuery.error)) return <PublisherNotFound dependencies={d} />;
+  if (isClientError(publisherQuery.error) && !isRateLimited(publisherQuery.error)) return <PublisherNotFound dependencies={d} />;
 
   if (!publisher) {
     return (
@@ -82,15 +83,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
             <Spinner size="large" />
           </div>
         )}
-        {publisherQuery.isError && (
-          <div role="alert" className="flex flex-col items-center gap-2 py-14 text-center">
-            <p className="text-muted-foreground">Couldn&apos;t load this publisher.</p>
-            <Button variant="outline" size="sm" onClick={() => publisherQuery.refetch()}>
-              <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-              Retry
-            </Button>
-          </div>
-        )}
+        {publisherQuery.isError && <PublisherReadFailed message="Couldn't load this publisher." className="py-14" onRetry={() => publisherQuery.refetch()} />}
       </d.Layout>
     );
   }
@@ -103,7 +96,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
 
   return (
     <d.Layout background="dots" disableContainer>
-      <d.NextSeo title={`${publisher.name} · Templates`} />
+      <d.NextSeo {...buildPublisherSeo(publisher, { isOwnProfile: !!ownProfile })} />
 
       <div className="container flex flex-col gap-6 px-4 pb-16 pt-6 sm:px-6">
         <Link
@@ -132,7 +125,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
                 <d.PublisherLinkList links={profile.links} />
                 <p className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
                   <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  Member since {format(new Date(publisher.memberSince), "MMM yyyy")}
+                  Member since {formatCalendarMonth(publisher.memberSince)}
                 </p>
               </div>
             </div>
@@ -181,6 +174,10 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
           </div>
         </div>
 
+        {publisherQuery.isError && (
+          <PublisherReadFailed message="Couldn't load all of this publisher's templates." className="pb-6" onRetry={() => publisherQuery.refetch()} />
+        )}
+
         <d.GalleryEntryList
           key={`${urlState.sort}|${urlState.search}`}
           title={`${pluralize(entries.length, "template")} · ${GALLERY_SORT_LABELS[urlState.sort]}`}
@@ -196,6 +193,16 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
     </d.Layout>
   );
 };
+
+const PublisherReadFailed: FC<{ message: string; className: string; onRetry: () => void }> = ({ message, className, onRetry }) => (
+  <div role="alert" className={`flex flex-col items-center gap-2 text-center ${className}`}>
+    <p className="text-muted-foreground">{message}</p>
+    <Button variant="outline" size="sm" onClick={onRetry}>
+      <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+      Retry
+    </Button>
+  </div>
+);
 
 const PublisherNotFound: FC<{ dependencies: typeof DEPENDENCIES }> = ({ dependencies: d }) => (
   <d.Layout background="dots">

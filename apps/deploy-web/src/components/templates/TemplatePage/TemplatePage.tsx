@@ -18,7 +18,6 @@ import {
   TabsTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { formatDistanceToNowStrict } from "date-fns";
 import { ArrowRight, ChevronRight, Flag, GitFork, RefreshCw, Share2, SlidersHorizontal, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -28,12 +27,16 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { OfficialBadge } from "@src/components/templates/communityGallery/GalleryEntryCard/GalleryEntryCard";
+import { formatTimeSince } from "@src/components/templates/marketplaceDates/marketplaceDates";
+import { buildTemplateSeo } from "@src/components/templates/marketplaceSeo/marketplaceSeo";
 import { DEPLOY_BADGE_SOURCE, isDeployBadgeArrival, TEMPLATE_ARRIVAL_SOURCE_PARAM } from "@src/components/templates/publishing/deployBadge";
 import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
 import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
 import { RemovedTemplateNotice } from "@src/components/templates/removed/RemovedTemplateNotice/RemovedTemplateNotice";
 import { canReportTemplate } from "@src/components/templates/reporting/reportEligibility";
 import { ReportTemplateDialog } from "@src/components/templates/reporting/ReportTemplateDialog/ReportTemplateDialog";
+import { describeConsoleTemplate } from "@src/components/templates/templateEvents/templateEvents";
+import { useTrackTemplateEvent } from "@src/components/templates/templateEvents/useTrackTemplateEvent";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { TemplateVisibilityBadge } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
@@ -72,7 +75,8 @@ export const DEPENDENCIES = {
   useCustomUser,
   useActiveOrganization,
   useSnackbar,
-  useRouter
+  useRouter,
+  useTrackTemplateEvent
 };
 
 const TABS = ["readme", "configuration", "versions", "settings"] as const;
@@ -87,11 +91,13 @@ const TAB_TRIGGER_CLASSES =
 
 export interface TemplatePageProps {
   id: string;
+  /** Set when a server render already learned the template was removed, so the page says so without asking the API again. */
+  removedTemplate?: { title: string | null };
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPENDENCIES }) => {
-  const templateQuery = d.useMarketplaceTemplate(id);
+export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: removedOnServer, dependencies: d = DEPENDENCIES }) => {
+  const templateQuery = d.useMarketplaceTemplate(removedOnServer ? undefined : id);
   const template = templateQuery.data;
   const versionsQuery = d.useTemplateVersions(id, { enabled: !!template });
   const [selectedVersion, setSelectedVersion] = useState<number>();
@@ -113,6 +119,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   const { analyticsService } = useServices();
   const arrivalSource = router.query[TEMPLATE_ARRIVAL_SOURCE_PARAM];
   const hasRecordedArrival = useRef(false);
+  d.useTrackTemplateEvent("template_page_viewed", template && describeConsoleTemplate(template, template.currentVersion?.version));
 
   useEffect(
     function followFavoriteFromServer() {
@@ -136,7 +143,9 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
   if (templateQuery.error instanceof ApiError && templateQuery.error.status === 404) return <d.NotFoundPage />;
 
-  const removedTemplate = readRemovedTemplate(templateQuery.error) ?? readRemovedTemplate(versionsQuery.error) ?? readRemovedTemplate(otherVersionQuery.error);
+  const removedTemplate = removedOnServer
+    ? { title: removedOnServer.title ?? undefined }
+    : readRemovedTemplate(templateQuery.error) ?? readRemovedTemplate(versionsQuery.error) ?? readRemovedTemplate(otherVersionQuery.error);
   if (removedTemplate) {
     return (
       <d.Layout background="dots">
@@ -166,7 +175,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   const requestedTab = router.query.tab;
   const activeTab = tabs.find(tab => tab === requestedTab) ?? "readme";
   const isFavorite = favoriteOverride ?? template.isFavorite;
-  const usageParts = describeUsage(template.usage);
+  const usageParts = describeUsage(template.usage, templateQuery.dataUpdatedAt);
   const canReport = canReportTemplate(template, { username: user?.username, organizations });
   const isPublic = template.visibility === "public";
   const forkUrl =
@@ -174,7 +183,9 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
       ? UrlService.configureTemplate({ mode: "new", copyFromTemplateId: id, copyFromVersion: shownVersionNumber })
       : undefined;
 
-  const signInToReport = () => {
+  const deployUrl = UrlService.configureDeployment({ userTemplateId: id, templateVersion: shownVersionNumber });
+
+  const signInAndReturnToTemplate = () => {
     router.push(UrlService.newLogin({ returnTo: UrlService.template(id) }));
   };
 
@@ -212,7 +223,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
   return (
     <d.Layout background="dots" disableContainer>
-      <d.NextSeo title={template.title} description={template.summary ?? undefined} />
+      <d.NextSeo {...buildTemplateSeo(template)} />
 
       <div className="container px-4 pb-16 pt-6 sm:px-6">
         <nav aria-label="Breadcrumb" className="mb-4">
@@ -261,9 +272,13 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
             {template.canEdit && versionsQuery.data && shownVersionNumber !== undefined && (
               <VersionPicker versions={versionsQuery.data} selected={shownVersionNumber} currentVersion={currentVersion?.version} onSelect={selectVersion} />
             )}
-            {user && (
+            {user ? (
               <Button variant="outline" size="icon" aria-label="Favorite" aria-pressed={isFavorite} aria-busy={isChangingFavorite} onClick={toggleFavorite}>
                 <Star className={cn("h-4 w-4", isFavorite && "fill-current text-primary")} aria-hidden="true" />
+              </Button>
+            ) : (
+              <Button variant="outline" size="icon" aria-label="Favorite" aria-pressed={false} onClick={signInAndReturnToTemplate}>
+                <Star className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
             <Button variant="outline" size={template.canEdit ? "sm" : "icon"} aria-label="Share" className="gap-1.5" onClick={() => setIsShareOpen(true)}>
@@ -288,10 +303,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
                 Fork
               </Link>
             )}
-            <Link
-              href={UrlService.configureDeployment({ userTemplateId: id, templateVersion: shownVersionNumber })}
-              className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}
-            >
+            <Link href={user ? deployUrl : UrlService.newLogin({ returnTo: deployUrl })} className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
               Deploy
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
@@ -374,7 +386,12 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
         {canReport && (
           <div className="mt-8 flex justify-end">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => (user ? setIsReportOpen(true) : signInToReport())}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground"
+              onClick={() => (user ? setIsReportOpen(true) : signInAndReturnToTemplate())}
+            >
               <Flag className="h-4 w-4" aria-hidden="true" />
               Report this template
             </Button>
@@ -394,7 +411,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
         <d.ReportTemplateDialog
           template={template}
           onClose={() => setIsReportOpen(false)}
-          onSignedOut={signInToReport}
+          onSignedOut={signInAndReturnToTemplate}
           onTemplateRemoved={() => void templateQuery.refetch()}
         />
       )}
@@ -434,11 +451,11 @@ const TabNotice: FC<{ children: ReactNode }> = ({ children }) => (
   <p className="rounded-[14px] border border-dashed border-border bg-card px-6 py-14 text-center text-sm text-muted-foreground">{children}</p>
 );
 
-function describeUsage(usage: MarketplaceTemplate["usage"]): string[] {
+function describeUsage(usage: MarketplaceTemplate["usage"], readAt: number): string[] {
   const parts: string[] = [];
   if (usage.deploys > 0) parts.push(`${NUMBER_FORMAT.format(usage.deploys)} ${usage.deploys === 1 ? "deploy" : "deploys"}`);
   if (usage.stillUpAfter24h !== null) parts.push(`${Math.round(usage.stillUpAfter24h * 100)}% still up after 24 h`);
-  if (usage.lastDeployedAt) parts.push(`Last deployed ${formatDistanceToNowStrict(new Date(usage.lastDeployedAt), { addSuffix: true })}`);
+  if (usage.lastDeployedAt) parts.push(`Last deployed ${formatTimeSince(usage.lastDeployedAt, readAt)}`);
   if (usage.forks > 0) parts.push(`${NUMBER_FORMAT.format(usage.forks)} ${usage.forks === 1 ? "fork" : "forks"}`);
   if (usage.favorites > 0) parts.push(`${NUMBER_FORMAT.format(usage.favorites)} ${usage.favorites === 1 ? "favorite" : "favorites"}`);
   return parts;

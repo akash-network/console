@@ -1,4 +1,5 @@
 import type * as unleashModule from "@unleash/nextjs";
+import type { IToggle } from "@unleash/nextjs";
 import type { GetServerSidePropsContext } from "next";
 import { describe, expect, it, type Mock, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
@@ -62,6 +63,53 @@ describe(FeatureFlagService.name, () => {
       expect(service.extractSessionId).toHaveBeenCalledWith(ctx);
       expect(getFlagSpy).toHaveBeenCalledWith("my-flag", { sessionId: "abc123" });
       expect(result).toBe(true);
+    });
+  });
+
+  describe("isEnabledIn", () => {
+    it("reads a flag from toggles already worked out for the request", () => {
+      const { service } = setup();
+      const toggles: IToggle[] = [
+        { name: "template_marketplace", enabled: true, variant: { name: "disabled", enabled: false }, impressionData: false },
+        { name: "onboarding_intent_first", enabled: false, variant: { name: "disabled", enabled: false }, impressionData: false }
+      ];
+
+      expect(service.isEnabledIn("template_marketplace", toggles)).toBe(true);
+      expect(service.isEnabledIn("onboarding_intent_first", toggles)).toBe(false);
+      expect(service.isEnabledIn("unknown_flag", toggles)).toBe(false);
+    });
+
+    it("answers on for every flag when the config enables all", () => {
+      const { service } = setup({ enableAll: true });
+
+      expect(service.isEnabledIn("template_marketplace", [])).toBe(true);
+    });
+  });
+
+  describe("evaluateTogglesForCtx", () => {
+    it("answers no flags when the config enables all, without asking Unleash", async () => {
+      const { service, unleash } = setup({ enableAll: true });
+
+      expect(await service.evaluateTogglesForCtx(createCtx("unleash-session-id=abc123"))).toEqual([]);
+      expect(unleash.getDefinitions).not.toHaveBeenCalled();
+    });
+
+    it("answers every flag as the request's visitor gets it", async () => {
+      const { service, unleash } = setup();
+      const toggles = [{ name: "template_marketplace", enabled: true, variant: { name: "disabled", enabled: false }, impressionData: false }];
+      vi.mocked(unleash.evaluateFlags).mockReturnValue({ toggles });
+
+      expect(await service.evaluateTogglesForCtx(createCtx("unleash-session-id=abc123"), { userId: "user-1" })).toEqual(toggles);
+      expect(unleash.getDefinitions).toHaveBeenCalledWith({ fetchOptions: { next: { revalidate: 15 } } });
+      expect(unleash.evaluateFlags).toHaveBeenCalledWith({ features: [], version: 1 }, { sessionId: "abc123", userId: "user-1" });
+    });
+
+    it("evaluates for a visitor who has no flag session yet", async () => {
+      const { service, unleash } = setup();
+
+      await service.evaluateTogglesForCtx(createCtx(""));
+
+      expect(unleash.evaluateFlags).toHaveBeenCalledWith({ features: [], version: 1 }, { sessionId: undefined });
     });
   });
 

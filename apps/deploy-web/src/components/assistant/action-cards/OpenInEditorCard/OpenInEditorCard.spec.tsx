@@ -154,6 +154,53 @@ describe("OpenInEditorCard", () => {
     );
   });
 
+  describe("when the action describes its template", () => {
+    it("shows the template's own card for a community template instead of the editor card", () => {
+      const template = { source: "console", reviewedByAkash: false } as const;
+      const { TemplateSuggestionCard, ActionCardChrome, useDeploymentDefinition, decision } = setup({ action: { templateId: "tpl-9", template } });
+
+      expect(TemplateSuggestionCard).toHaveBeenCalledWith({ templateId: "tpl-9", template, decision }, expect.anything());
+      expect(ActionCardChrome).not.toHaveBeenCalled();
+      expect(useDeploymentDefinition).not.toHaveBeenCalled();
+    });
+
+    it("shows the template's own card for an awesome-akash template", () => {
+      const template = { source: "awesome_akash", reviewedByAkash: true } as const;
+      const { TemplateSuggestionCard, decision } = setup({ action: { templateId: "akash-network-awesome-akash-ollama", template } });
+
+      expect(TemplateSuggestionCard).toHaveBeenCalledWith({ templateId: "akash-network-awesome-akash-ollama", template, decision }, expect.anything());
+    });
+
+    it.each([{ sdl: 'version: "2.0"' }, { dseq: "42" }])("keeps the editor card for a described template that comes with %j", change => {
+      const template = { source: "awesome_akash", reviewedByAkash: true } as const;
+      const { TemplateSuggestionCard, ActionCardChrome } = setup({ action: { templateId: "akash-network-awesome-akash-ollama", template, ...change } });
+
+      expect(TemplateSuggestionCard).not.toHaveBeenCalled();
+      expect(ActionCardChrome).toHaveBeenCalled();
+    });
+
+    it("keeps the editor card for a described template that names no id", () => {
+      const { TemplateSuggestionCard, chromeProps } = setup({ action: { templateId: null, template: { source: "console", reviewedByAkash: false } } });
+
+      expect(TemplateSuggestionCard).not.toHaveBeenCalled();
+      expect(chromeProps().title).toBe("Open in the editor");
+    });
+  });
+
+  it("renders the editor card exactly as before for an action that describes no template", () => {
+    const { TemplateSuggestionCard, chromeProps } = setup({ action: { templateId: "hello-world" } });
+
+    expect(TemplateSuggestionCard).not.toHaveBeenCalled();
+    expect(chromeProps()).toMatchObject({
+      title: "Open in the editor",
+      tier: "deep_link",
+      rows: [{ label: "Template", value: "hello-world" }],
+      costNote: "Nothing is deployed until you review it and click Deploy in the editor.",
+      confirmLabel: "Open in editor",
+      successMessage: "Opened in the editor."
+    });
+  });
+
   function setup(input: { action?: Partial<Action>; definition?: Partial<DeploymentDefinition> } = {}) {
     const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const action: Action = { type: "open_in_editor", tier: "deep_link", dseq: null, templateId: null, sdl: null, ...input.action };
@@ -163,6 +210,7 @@ describe("OpenInEditorCard", () => {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
     const decision = mock<ActionCardDecision>({ status: "pending" });
+    const TemplateSuggestionCard = vi.fn<typeof DEPENDENCIES.TemplateSuggestionCard>(() => <p>template suggestion</p>);
 
     render(
       <OpenInEditorCard
@@ -173,11 +221,21 @@ describe("OpenInEditorCard", () => {
           useDeploymentDefinition,
           useRedeploy: () => redeploy,
           useRouter: () => router,
-          ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome
+          ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome,
+          TemplateSuggestionCard
         }}
       />
     );
 
-    return { useDeploymentName, chromeProps: () => ActionCardChrome.mock.lastCall![0], redeploy, router, useDeploymentDefinition };
+    return {
+      useDeploymentName,
+      chromeProps: () => ActionCardChrome.mock.lastCall![0],
+      redeploy,
+      router,
+      useDeploymentDefinition,
+      ActionCardChrome,
+      TemplateSuggestionCard,
+      decision
+    };
   }
 });

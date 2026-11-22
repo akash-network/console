@@ -1,7 +1,8 @@
+/** The class carries the theme, which only the browser knows, so it differs from a server render by design. */
 export const AkashConsoleLogo = ({ className = "", size = { width: 170, height: 20 } }: { className?: string; size?: { width: number; height: number } }) => {
   const foregroundFill = { fill: "hsl(var(--foreground))" } as const;
   return (
-    <div style={{ width: size.width, height: size.height }} className={className}>
+    <div style={{ width: size.width, height: size.height }} className={className} suppressHydrationWarning>
       <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 1497 164" fill="none">
         <path d="M115.175 107.912L139.598 136.586L153.656 161.428H92.1936L61.4452 107.912H115.175Z" style={foregroundFill} />
         <path d="M153.64 161.437L184.338 107.921L122.892 0.861938H61.4452L153.64 161.437Z" style={foregroundFill} />

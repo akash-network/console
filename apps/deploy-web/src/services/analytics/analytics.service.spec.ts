@@ -599,6 +599,75 @@ describe(AnalyticsService.name, () => {
     }
   });
 
+  describe("template events", () => {
+    const TEMPLATE_TITLE = 'Secret <b>title</b> "quoted"';
+
+    it.each(["template_page_viewed", "template_configure_opened"] as const)(
+      "sends %s to Amplitude with the four template properties and nothing a template's author wrote, the page title Amplitude adds included",
+      async eventName => {
+        const { service, track, dataLayer, runPlugins } = setupTemplateEvents({ documentTitle: `${TEMPLATE_TITLE} · Template | Akash Console` });
+
+        service.track(eventName, { source: "community", template_id: "tpl-1", template_version: 3, network: "sandbox" }, "Amplitude");
+
+        expect(track.mock.calls).toEqual([[eventName, { source: "community", template_id: "tpl-1", template_version: 3, network: "sandbox" }]]);
+        expect(dataLayer).toEqual([]);
+        const sentEvent = await runPlugins({ event_type: eventName, event_properties: track.mock.calls[0][1] });
+        expect(sentEvent.event_properties).toEqual({
+          source: "community",
+          template_id: "tpl-1",
+          template_version: 3,
+          network: "sandbox",
+          "[Amplitude] Page Title": "Template | Akash Console"
+        });
+        expect(JSON.stringify(sentEvent)).not.toContain("Secret");
+      }
+    );
+
+    it("keeps the publisher's name out of the page view Amplitude records for a publisher page", async () => {
+      const { service, runPlugins } = setupTemplateEvents({ documentTitle: "Deployments | Akash Console" });
+      service.identify({ id: faker.string.uuid() });
+
+      const sentEvent = await runPlugins({
+        event_type: "[Amplitude] Page Viewed",
+        event_properties: { "[Amplitude] Page Title": "Northwind Labs · Templates | Akash Console", "[Amplitude] Page Path": "/template-publishers/northwind" }
+      });
+
+      expect(sentEvent.event_properties).toEqual({
+        "[Amplitude] Page Title": "Template publisher | Akash Console",
+        "[Amplitude] Page Path": "/template-publishers/northwind"
+      });
+    });
+
+    function setupTemplateEvents(input: { documentTitle: string }) {
+      const add = vi.fn();
+      const track = vi.fn();
+      const dataLayer: Record<string, unknown>[] = [];
+      const previousTitle = document.title;
+      document.title = input.documentTitle;
+      const service = setup({
+        amplitude: { add, track },
+        dataLayer,
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
+      const runPlugins = async (event: { event_type: string; event_properties?: Record<string, unknown> }) => {
+        try {
+          let sentEvent = event;
+          for (const [plugin] of add.mock.calls) {
+            if (plugin.type === "enrichment") sentEvent = await plugin.execute(sentEvent);
+          }
+          return sentEvent;
+        } finally {
+          document.title = previousTitle;
+        }
+      };
+
+      return { service, track, dataLayer, runPlugins };
+    }
+  });
+
   describe("flush", () => {
     it("sends queued events immediately when Amplitude is enabled", () => {
       const flush = vi.fn();

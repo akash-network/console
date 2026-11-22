@@ -5,6 +5,8 @@ import { readAccountStatusRefusal } from "@src/services/account-status-refusal/a
 
 const MAX_SERVER_ERROR_RETRIES = 3;
 
+const TOO_MANY_REQUESTS = 429;
+
 /** The provider proxy answers 502 when it cannot reach the provider host and 503 when the provider itself failed. */
 const PROVIDER_UNAVAILABLE_STATUSES = [502, 503];
 
@@ -43,6 +45,12 @@ export function isClientError(error: unknown): boolean {
   if (error instanceof ApiError) return isClientErrorStatus(error.status);
 
   return isHttpError(error) && !!error.response && isClientErrorStatus(error.response.status);
+}
+
+export function isRateLimited(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status === TOO_MANY_REQUESTS;
+
+  return isHttpError(error) && error.response?.status === TOO_MANY_REQUESTS;
 }
 
 function isClientErrorStatus(status: number): boolean {

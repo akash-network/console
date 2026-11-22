@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   isProviderTokenRejection,
   isProviderUnavailableError,
+  isRateLimited,
   retryOnServerError,
   shouldReportError,
   SKIP_REPORTING_BELOW_SERVER_ERROR,
@@ -212,6 +213,23 @@ describe("query-error-policy", () => {
     it("suppresses cache-level reporting whatever the error", () => {
       expect(shouldReportError(httpError(500), SKIP_REPORTING_HANDLED_BY_CALLER)).toBe(false);
       expect(shouldReportError(new Error("boom"), SKIP_REPORTING_HANDLED_BY_CALLER)).toBe(false);
+    });
+  });
+
+  describe("isRateLimited", () => {
+    it("is true for a 429 from the typed api client or an axios client", () => {
+      expect(isRateLimited(apiError(429))).toBe(true);
+      expect(isRateLimited(httpError(429))).toBe(true);
+    });
+
+    it.each([400, 404, 503])("is false for a %s", status => {
+      expect(isRateLimited(apiError(status))).toBe(false);
+      expect(isRateLimited(httpError(status))).toBe(false);
+    });
+
+    it("is false for an error that carries no response", () => {
+      expect(isRateLimited(new AxiosError("Network Error", "ERR_NETWORK"))).toBe(false);
+      expect(isRateLimited(new Error("boom"))).toBe(false);
     });
   });
 

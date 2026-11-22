@@ -62,6 +62,15 @@ describe(TemplateDetail.name, () => {
     );
   });
 
+  it("sends a visitor who deploys to sign in and on to Configure with the template", () => {
+    setup({ isSignedIn: false });
+
+    expect(screen.getByRole("link", { name: "Deploy template" })).toHaveAttribute(
+      "href",
+      "/login?tab=login&returnTo=%2Fnew-deployment%2Fconfigure%3FtemplateId%3Dakash-network-awesome-akash-comfyui"
+    );
+  });
+
   it("goes back to the previous page when the user arrived from within Console", () => {
     const { router, clickAndReportPrevented } = setup({ hasInAppHistory: true });
 
@@ -126,7 +135,30 @@ describe(TemplateDetail.name, () => {
     expect(useFlag).toHaveBeenCalledWith("onboarding_intent_first");
   });
 
-  function setup(input: { template?: Partial<ApiTemplate>; hasInAppHistory?: boolean; isTrialing?: boolean; isIntentFirst?: boolean }) {
+  it("names the template as an Official one without a version for the page view event, with the marketplace on", () => {
+    const { useTrackTemplateEvent } = setup({ isMarketplaceEnabled: true });
+
+    expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", {
+      source: "official",
+      templateId: "akash-network-awesome-akash-comfyui",
+      templateVersion: null
+    });
+  });
+
+  it("names nothing for the page view event while the marketplace is off", () => {
+    const { useTrackTemplateEvent } = setup({ isMarketplaceEnabled: false, isIntentFirst: true });
+
+    expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", undefined);
+  });
+
+  function setup(input: {
+    template?: Partial<ApiTemplate>;
+    hasInAppHistory?: boolean;
+    isTrialing?: boolean;
+    isIntentFirst?: boolean;
+    isSignedIn?: boolean;
+    isMarketplaceEnabled?: boolean;
+  }) {
     const template: ApiTemplate = {
       id: "akash-network-awesome-akash-comfyui",
       name: "ComfyUI",
@@ -142,7 +174,8 @@ describe(TemplateDetail.name, () => {
     const TemplateDocuments = vi.fn(() => null);
     const TemplateDeploysAs = vi.fn(() => null);
     const BlockedGpuAlternatives = vi.fn(ComponentMock);
-    const useFlag = vi.fn(() => input.isIntentFirst ?? false);
+    const useFlag = vi.fn((flag: string) => (flag === "template_marketplace" ? !!input.isMarketplaceEnabled : !!input.isIntentFirst));
+    const useTrackTemplateEvent = vi.fn<typeof DEPENDENCIES.useTrackTemplateEvent>();
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
@@ -152,9 +185,12 @@ describe(TemplateDetail.name, () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useRouter: () => router,
       useHasInAppHistory: () => input.hasInAppHistory ?? false,
+      useUser: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : { userId: "auth0|ada" }, isLoading: false }),
       useWallet,
       useFlag,
       useServices,
+      useTrackTemplateEvent,
       TemplateDocuments,
       TemplateDeploysAs,
       BlockedGpuAlternatives
@@ -174,6 +210,6 @@ describe(TemplateDetail.name, () => {
       return wasPrevented;
     };
 
-    return { container, router, TemplateDocuments, TemplateDeploysAs, BlockedGpuAlternatives, useFlag, clickAndReportPrevented };
+    return { container, router, TemplateDocuments, TemplateDeploysAs, BlockedGpuAlternatives, useFlag, useTrackTemplateEvent, clickAndReportPrevented };
   }
 });

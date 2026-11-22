@@ -150,6 +150,22 @@ describe(UrlService.templatePublisher.name, () => {
   });
 });
 
+describe(UrlService.templatePreviewImage.name, () => {
+  it("builds the address of a template's link preview image", () => {
+    expect(UrlService.templatePreviewImage("5f0c7f0e-6a51-4a53-9a50-0c1f3f1d2b11")).toBe("/api/og/template/5f0c7f0e-6a51-4a53-9a50-0c1f3f1d2b11");
+  });
+});
+
+describe(UrlService.templatePublisherPreviewImage.name, () => {
+  it("builds the address of a publisher's link preview image", () => {
+    expect(UrlService.templatePublisherPreviewImage("lambda-garage")).toBe("/api/og/template-publisher/lambda-garage");
+  });
+
+  it("keeps a handle inside its path segment", () => {
+    expect(UrlService.templatePublisherPreviewImage("a/b?c#d")).toBe("/api/og/template-publisher/a%2Fb%3Fc%23d");
+  });
+});
+
 describe(UrlService.myTemplates.name, () => {
   it("returns the My templates page", () => {
     expect(UrlService.myTemplates()).toBe("/templates/mine");
