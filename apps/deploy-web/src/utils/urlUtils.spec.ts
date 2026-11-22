@@ -129,6 +129,27 @@ describe(UrlService.templates.name, () => {
   });
 });
 
+describe(UrlService.templatePublisher.name, () => {
+  it("builds the publisher page link", () => {
+    expect(UrlService.templatePublisher("lambda-garage")).toBe("/template-publishers/lambda-garage");
+  });
+
+  it("carries the search and a sort other than the default", () => {
+    expect(UrlService.templatePublisher("lambda-garage", { search: "web ui", sort: "newest" })).toBe(
+      "/template-publishers/lambda-garage?search=web+ui&sort=newest"
+    );
+    expect(UrlService.templatePublisher("lambda-garage", { sort: "trending" })).toBe("/template-publishers/lambda-garage?sort=trending");
+  });
+
+  it("leaves the default sort and an empty search out of the link", () => {
+    expect(UrlService.templatePublisher("lambda-garage", { search: "", sort: "popular" })).toBe("/template-publishers/lambda-garage");
+  });
+
+  it("keeps a handle inside its path segment", () => {
+    expect(UrlService.templatePublisher("a/b?c#d")).toBe("/template-publishers/a%2Fb%3Fc%23d");
+  });
+});
+
 describe(UrlService.myTemplates.name, () => {
   it("returns the My templates page", () => {
     expect(UrlService.myTemplates()).toBe("/templates/mine");

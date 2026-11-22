@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { isClientError, SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
-import type { CommunityTemplateGallery, MarketplaceTemplate } from "@src/types/marketplace-template";
+import type { CommunityTemplateGallery, CurrentTemplatePublisher, MarketplaceTemplate, TemplatePublisherPage } from "@src/types/marketplace-template";
 
 /** A template link outlives its template, and the page answers a deleted, removed or private one itself. */
 const SKIP_REPORTING_UNREADABLE_TEMPLATE = { skipErrorReporting: isClientError };
@@ -46,6 +46,45 @@ export function useCommunityTemplates({ enabled }: { enabled: boolean }) {
     staleTime: COMMUNITY_GALLERY_STALE_MS,
     meta: SKIP_REPORTING_REFUSED_INPUT,
     select: (response): CommunityTemplateGallery => response.data
+  });
+}
+
+/** Anyone may read a publisher page, so the query carries nothing of the session and a server render can prefetch it under the same key. */
+export function useTemplatePublisher(handle: string) {
+  const { api } = useServices();
+
+  return api.v1.getTemplatePublisher.useQuery(
+    { handle },
+    { staleTime: COMMUNITY_GALLERY_STALE_MS, meta: SKIP_REPORTING_REFUSED_INPUT, select: (response): TemplatePublisherPage => response.data }
+  );
+}
+
+/** Keyed by the active organization, whose profile it reads; a 404 says the organization has not published yet. */
+export function useCurrentTemplatePublisher({ enabled }: { enabled: boolean }) {
+  const { api } = useServices();
+  const { activeOrganization } = useActiveOrganization();
+
+  return api.v1.getCurrentTemplatePublisher.useQuery(undefined, {
+    enabled: enabled && !!activeOrganization,
+    queryKey: [activeOrganization?.id],
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    select: (response): CurrentTemplatePublisher => response.data
+  });
+}
+
+export function useUpdateTemplatePublisherMutation() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+  const { activeOrganization } = useActiveOrganization();
+
+  return api.v1.updateCurrentTemplatePublisher.useMutation({
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    onSuccess: async response => {
+      const ownProfileKey = [...api.v1.getCurrentTemplatePublisher.getKey(), activeOrganization?.id];
+      await queryClient.cancelQueries({ queryKey: ownProfileKey });
+      queryClient.setQueryData(ownProfileKey, response);
+      return queryClient.invalidateQueries({ queryKey: api.v1.getTemplatePublisher.getKey({ handle: response.data.handle }) });
+    }
   });
 }
 

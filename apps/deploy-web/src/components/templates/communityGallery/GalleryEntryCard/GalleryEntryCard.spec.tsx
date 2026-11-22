@@ -34,6 +34,29 @@ describe(GalleryEntryCard.name, () => {
     expect(screen.getByText("LG")).toBeInTheDocument();
   });
 
+  it("links the publisher to its page, beside the template link and not inside it", () => {
+    const { container } = setup({ entry: { title: "Open WebUI", publisher: { name: "Lambda Garage", handle: "lambda-garage", verified: false } } });
+
+    expect(screen.getByRole("link", { name: "Lambda Garage" })).toHaveAttribute("href", "/template-publishers/lambda-garage");
+    expect(screen.getByRole("link", { name: "Open WebUI" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    expect(container.querySelector("a a")).toBeNull();
+  });
+
+  it("names the publisher without a link on its own page", () => {
+    setup({ entry: { title: "Open WebUI", publisher: { name: "Lambda Garage", handle: "lambda-garage", verified: false } }, linksPublisher: false });
+
+    expect(screen.getByText("Lambda Garage")).toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("names Akash without a link on an awesome-akash template, which has no publisher page", () => {
+    setup({ entry: { origin: "awesome-akash", isOfficial: true, publisher: null, title: "Llama" } });
+
+    expect(screen.getByText("Akash Network")).toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
   it("marks a verified publisher and leaves an unverified one unmarked", () => {
     const { unmount } = setup({ entry: { publisher: { name: "Lambda Garage", handle: "lambda-garage", verified: true } } });
     expect(screen.getByRole("img", { name: "Verified by Akash" })).toBeInTheDocument();
@@ -155,7 +178,7 @@ describe(GalleryEntryCard.name, () => {
     });
   });
 
-  function setup(input: { entry: Partial<GalleryEntry> }) {
-    return render(<GalleryEntryCard entry={buildGalleryEntry(input.entry)} />);
+  function setup(input: { entry: Partial<GalleryEntry>; linksPublisher?: boolean }) {
+    return render(<GalleryEntryCard entry={buildGalleryEntry(input.entry)} linksPublisher={input.linksPublisher} />);
   }
 });

@@ -3,7 +3,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
-import type { UserTemplateListItem } from "@src/types/marketplace-template";
+import type { CurrentTemplatePublisher, UserTemplateListItem } from "@src/types/marketplace-template";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { Project } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
@@ -96,6 +96,19 @@ describe(MyTemplates.name, () => {
       screen.getByText("Private and Organization templates are only visible to members. Public templates are published under Northwind Labs.")
     ).toBeInTheDocument();
     expect(screen.queryByText("No templates match these filters.")).not.toBeInTheDocument();
+  });
+
+  it("links to the organization's publisher page once it is a publisher", () => {
+    const { useCurrentTemplatePublisher } = setup({ publisherHandle: "lambda-garage" });
+
+    expect(screen.getByRole("link", { name: "Publisher page" })).toHaveAttribute("href", "/template-publishers/lambda-garage");
+    expect(useCurrentTemplatePublisher).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it("offers no publisher page while the organization has not published", () => {
+    setup({});
+
+    expect(screen.queryByRole("link", { name: "Publisher page" })).not.toBeInTheDocument();
   });
 
   it("explains a public template that is not in the gallery", () => {
@@ -496,6 +509,7 @@ describe(MyTemplates.name, () => {
     deleteError?: unknown;
     isCopySuccessful?: boolean;
     supportUrl?: string;
+    publisherHandle?: string;
   }) {
     const confirm = vi.fn(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
@@ -532,12 +546,18 @@ describe(MyTemplates.name, () => {
       </button>
     ));
 
+    const currentPublisherQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useCurrentTemplatePublisher>>(), {
+      data: input.publisherHandle ? mock<CurrentTemplatePublisher>({ handle: input.publisherHandle }) : undefined
+    });
+    const useCurrentTemplatePublisher = vi.fn<typeof DEPENDENCIES.useCurrentTemplatePublisher>(() => currentPublisherQuery);
+
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       ImportSdlButton,
       ShareTemplateDialog,
       useProjectsQuery,
       useMyTemplates: () => templatesQuery,
+      useCurrentTemplatePublisher,
       useActiveOrganization: () => activeOrganization,
       useDeleteMarketplaceTemplateMutation: () => deleteMutation,
       usePopup: () => popup,
@@ -550,6 +570,17 @@ describe(MyTemplates.name, () => {
       </TestContainerProvider>
     );
 
-    return { Layout, ImportSdlButton, ShareTemplateDialog, useProjectsQuery, confirm, deleteTemplate, enqueueSnackbar, refetch, writeText };
+    return {
+      Layout,
+      ImportSdlButton,
+      ShareTemplateDialog,
+      useProjectsQuery,
+      useCurrentTemplatePublisher,
+      confirm,
+      deleteTemplate,
+      enqueueSnackbar,
+      refetch,
+      writeText
+    };
   }
 });

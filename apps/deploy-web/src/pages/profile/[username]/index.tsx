@@ -1,16 +1,11 @@
-import type { GetServerSidePropsResult } from "next";
 import { z } from "zod";
 
+import type { UserProfileRouteProps } from "@src/components/user/loadUserProfileRouteProps";
+import { loadUserProfileRouteProps } from "@src/components/user/loadUserProfileRouteProps";
 import { UserProfile } from "@src/components/user/UserProfile";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
-import type { IUserSetting } from "@src/types/user";
 
-type Props = {
-  username: string;
-  user: IUserSetting;
-};
-
-const UserProfilePage: React.FunctionComponent<Props> = ({ username, user }) => {
+const UserProfilePage: React.FunctionComponent<UserProfileRouteProps> = ({ username, user }) => {
   return <UserProfile username={username} user={user} />;
 };
 
@@ -23,16 +18,5 @@ export const getServerSideProps = defineServerSideProps({
       username: z.string()
     })
   }),
-  async handler({ params, services }): Promise<GetServerSidePropsResult<Props>> {
-    const { data: user } = await services.consoleApiHttpClient.get(
-      `${services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/user/byUsername/${params.username}`
-    );
-
-    return {
-      props: {
-        username: params.username,
-        user
-      }
-    };
-  }
+  handler: context => loadUserProfileRouteProps(context.params.username, context)
 });
