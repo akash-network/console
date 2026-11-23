@@ -909,26 +909,6 @@ export class DeploymentWriterService {
     return true;
   }
 
-  public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<DeploymentResponse> {
-    this.logger.warn({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: options.userId, dseq: options.dseq });
-
-    const wallet = await this.walletReaderService.getWalletByUserId(options.userId);
-    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, options.dseq);
-    const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
-
-    const message = this.rpcMessageService.getDepositDeploymentMsg({
-      owner: wallet.address,
-      dseq: deployment.deployment.id.dseq,
-      amount: denomToUdenom(options.amount),
-      denom: deploymentGrantDenom,
-      signer: wallet.address
-    });
-
-    await this.signerService.executeDerivedDecodedTxByUserId(options.userId, [message]);
-
-    return await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
-  }
-
   /**
    * An update resubmits the whole SDL, so what it stores replaces the definition wholesale — the token
    * included, rather than left to survive from the create the way it did before this could write one.

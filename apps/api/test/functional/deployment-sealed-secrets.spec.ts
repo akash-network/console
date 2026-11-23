@@ -555,7 +555,6 @@ describe("Deployment sealed secrets", () => {
       "sealedSecrets",
       "secretEnv",
       "inheritSecretsFrom",
-      "deposit",
       "runtimeLimitHours",
       "projectId",
       "templateId",

@@ -174,13 +174,10 @@ const ConsoleSettingsSchema = z.object({
   manifestVersion: z.string().openapi({
     description: "Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above."
   }),
-  definition: z
-    .record(z.string(), z.unknown())
-    .nullable()
-    .openapi({
-      description:
-        "The same stored SDL as a JSON object, in the shape `definition` takes on PUT /v1/deployments/{dseq}/definition, so it can be edited and sent back as it is. Secrets appear only as their `ac-secret://NAME` references. Null only if the stored SDL cannot be read as a document."
-    }),
+  definition: z.record(z.string(), z.unknown()).nullable().openapi({
+    description:
+      "The same stored SDL as a JSON object, in the shape `definition` takes on PUT /v1/deployments/{dseq}/definition, so it can be edited and sent back as it is. Secrets appear only as their `ac-secret://NAME` references. Null only if the stored SDL cannot be read as a document."
+  }),
   templateId: z.string().nullable().openapi({
     description: "ID of the gallery template the deployment was created from, or null when it was not created from one."
   })
@@ -282,10 +279,6 @@ const CreateDeploymentFieldsSchema = z.object({
     description:
       "Dseq of a deployment you can change, under the same owner as this one, whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
   }),
-  deposit: z.number().optional().openapi({
-    deprecated: true,
-    description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
-  }),
   runtimeLimitHours: z
     .number()
     .int()
@@ -373,23 +366,6 @@ export const CloseDeploymentAcceptedResponseSchema = z.object({
   data: z.object({
     activityId: z.string().uuid().openapi({ description: "The activity that reports how the close ends." })
   })
-});
-
-/** One micro unit, the smallest amount the chain denominates. */
-const MIN_DEPOSIT = 0.000001;
-
-export const DepositDeploymentRequestSchema = z.object({
-  data: z.object({
-    dseq: DseqSchema.describe("Deployment sequence number"),
-    deposit: z
-      .number()
-      .min(MIN_DEPOSIT)
-      .describe("Amount to deposit in dollars (e.g. 5.5). Accepted for backwards compatibility; automatic funding makes it unnecessary.")
-  })
-});
-
-export const DepositDeploymentResponseSchema = z.object({
-  data: DeploymentResponseSchema
 });
 
 export const UpdateDeploymentRequestSchema = z.object({
@@ -793,7 +769,9 @@ const DefinitionCheckDocumentSchema = z.object({
 
 export const ValidateDeploymentRequestSchema = z.object({
   data: DefinitionCheckDocumentSchema.extend({
-    inheritSecretsFrom: DseqSchema.optional().openapi({ description: "The `inheritSecretsFrom` the create would carry, whose stored values answer the references they name." })
+    inheritSecretsFrom: DseqSchema.optional().openapi({
+      description: "The `inheritSecretsFrom` the create would carry, whose stored values answer the references they name."
+    })
   }).refine(namesOneDocument, ONE_DOCUMENT)
 });
 
@@ -807,11 +785,15 @@ export const ValidateDeploymentDefinitionRequestSchema = z.object({
 
 export const ValidateDeploymentResponseSchema = z.object({
   data: z.object({
-    valid: z.boolean().openapi({ description: "True when the check found no error, so the same request would not be refused for its document or its secrets." }),
+    valid: z
+      .boolean()
+      .openapi({ description: "True when the check found no error, so the same request would not be refused for its document or its secrets." }),
     errors: z
       .array(
         z.object({
-          path: z.string().openapi({ description: "JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole." }),
+          path: z
+            .string()
+            .openapi({ description: "JSON pointer into the document, such as `/services/web/env/1`. Empty when the error concerns the document as a whole." }),
           keyword: z.string().openapi({ description: "What kind of check failed, such as `required`, `sdl-reference` or `deployment_resources_changed`." }),
           message: z.string()
         })
@@ -1077,8 +1059,6 @@ export type CreateDeploymentAcceptedResponse = z.infer<typeof CreateDeploymentAc
 export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSchema>;
 export type CloseDeploymentAcceptedResponse = z.infer<typeof CloseDeploymentAcceptedResponseSchema>;
 export type CloseDeploymentQuery = z.infer<typeof CloseDeploymentQuerySchema>;
-export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
-export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
 export type PatchService = z.infer<typeof PatchServiceSchema>;
 export type PatchDeploymentRequest = z.infer<typeof PatchDeploymentRequestSchema>;

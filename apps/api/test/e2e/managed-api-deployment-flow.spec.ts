@@ -78,28 +78,7 @@ describe("Managed Wallet API Deployment Flow", () => {
         })
       });
 
-      // Step 5: Deposit additional funds into deployment escrow account
-      const depositResponse = await api.v1.depositDeployment({
-        data: {
-          dseq: deploymentResponse.data.dseq,
-          deposit: 0.5
-        }
-      });
-      expect(depositResponse.data).toMatchObject({
-        escrow_account: expect.objectContaining({
-          id: expect.any(Object),
-          state: expect.objectContaining({
-            funds: expect.arrayContaining([
-              expect.objectContaining({
-                denom: "uact",
-                amount: expect.any(String)
-              })
-            ])
-          })
-        })
-      });
-
-      // Step 6: Update deployment with new SDL configuration using appropriate authentication
+      // Step 5: Update deployment with new SDL configuration using appropriate authentication
       const updatedDeployment = await api.v1.updateDeployment({
         dseq: deploymentResponse.data.dseq,
         data: {
@@ -114,7 +93,7 @@ describe("Managed Wallet API Deployment Flow", () => {
         })
       });
 
-      // Step 7: Retrieve complete deployment details including leases and escrow
+      // Step 6: Retrieve complete deployment details including leases and escrow
       const deploymentDetails = await api.v1.getDeployment({ dseq: deploymentResponse.data.dseq });
       expect(deploymentDetails.data).toMatchObject({
         deployment: expect.objectContaining({
@@ -132,7 +111,7 @@ describe("Managed Wallet API Deployment Flow", () => {
         ])
       });
 
-      // Step 8: Close deployment and terminate all associated leases
+      // Step 7: Close deployment and terminate all associated leases
       const closedDeploymentResponse = await api.v1.closeDeployment({
         dseq: deploymentResponse.data.dseq
       });

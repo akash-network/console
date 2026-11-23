@@ -809,7 +809,7 @@ describe(DeploymentWriterService.name, () => {
     const writer = container.resolve(DeploymentWriterService);
 
     async function createDeployment() {
-      return await runAsUser(user, () => writer.create({ userId: user.id, sdl: SDL, deposit: 5 }));
+      return await runAsUser(user, () => writer.create({ userId: user.id, sdl: SDL }));
     }
 
     async function acceptDeployment() {
