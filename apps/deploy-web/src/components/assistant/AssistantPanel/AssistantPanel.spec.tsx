@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AssistantConsentCard } from "../AssistantConsentCard/AssistantConsentCard";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
+import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
 import { ASSISTANT_PANEL_WIDTH_VAR, assistantContextLabelOf, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
@@ -306,6 +307,17 @@ describe("AssistantPanel", () => {
     expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
   });
 
+  it("follows the latest content, snapping back to it on every question the user asks", () => {
+    const { dependencies } = setup({
+      consent: CURRENT_CONSENT,
+      messages: [createTranscriptMessage("1", "user", "Hi"), createTranscriptMessage("2", "assistant", "Hello"), createTranscriptMessage("3", "user", "Deploy")]
+    });
+    const { scrollAreaRef, contentRef } = vi.mocked(dependencies.useFollowLatestContent).mock.results.at(-1)!.value;
+
+    expect(dependencies.useFollowLatestContent).toHaveBeenLastCalledWith(2);
+    expect(scrollAreaRef.mock.lastCall[0]).toContainElement(contentRef.mock.lastCall[0]);
+  });
+
   it.each([
     { case: "the user has not agreed yet", consent: null, problem: undefined },
     { case: "the conversation hit a problem", consent: CURRENT_CONSENT, problem: "unavailable" as const }
@@ -417,6 +429,7 @@ describe("AssistantPanel", () => {
     sendsQuestion?: boolean;
     isAnswering?: boolean;
     hasMessages?: boolean;
+    messages?: AssistantTranscriptMessage[];
     page?: string;
     deploymentDseq?: string;
     deploymentName?: string;
@@ -431,13 +444,14 @@ describe("AssistantPanel", () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useAssistantPrivacyQuery: vi.fn(() => privacy),
       useDeploymentName: vi.fn(() => input.deploymentName ?? null),
+      useFollowLatestContent: vi.fn(() => ({ scrollAreaRef: vi.fn(), contentRef: vi.fn() })),
       SendFeedbackDialog: vi.fn(() => <div role="dialog" />),
       useUpdateAssistantConsentMutation: vi.fn(() =>
         mock<ReturnType<typeof DEPENDENCIES.useUpdateAssistantConsentMutation>>({ mutateAsync: updateConsent as never, isPending: false })
       )
     });
     const conversation = Object.assign(mock<AssistantConversation>(), {
-      messages: input.hasMessages ? [createTranscriptMessage("1", "user", "Hi")] : [],
+      messages: input.messages ?? (input.hasMessages ? [createTranscriptMessage("1", "user", "Hi")] : []),
       problem: input.problem ?? null,
       endedAs: null,
       isAnswering: !!input.isAnswering,
