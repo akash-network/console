@@ -49,16 +49,16 @@ export class EmailDomainMailProfileService {
     if (cached) return cached;
 
     const profile = await this.#resolveProfile(domain);
-    if (!profile) return null;
-
-    this.#profiles.set(domain, profile);
-    await this.#saveProfile(profile);
+    if (profile) await this.#storeProfile(profile);
 
     return profile;
   }
 
-  async recordProfile(domain: string): Promise<void> {
-    await this.findProfile(domain);
+  /** Skips the cache, so a profile whose earlier save failed is written again. */
+  async recordProfile(domain: string): Promise<boolean> {
+    const profile = await this.#resolveProfile(domain);
+
+    return !!profile && (await this.#storeProfile(profile));
   }
 
   /** The admin console writes blocks straight into the table, and a blocked domain's own sign-ups are refused before the hold looks it up, so nothing else records its mail servers. */
@@ -66,7 +66,7 @@ export class EmailDomainMailProfileService {
     const domains = await this.emailDomainMailHostRepository.findBlockedDomainsWithoutProfile(MAX_BLOCKED_DOMAINS_PER_SWEEP);
     const { results } = await PromisePool.withConcurrency(BLOCKED_DOMAIN_SWEEP_CONCURRENCY)
       .for(domains)
-      .process(async domain => await this.findProfile(domain));
+      .process(async domain => await this.recordProfile(domain));
     const summary = { found: domains.length, recorded: results.filter(Boolean).length };
 
     this.logger.info({ event: "BLOCKED_EMAIL_DOMAIN_PROFILES_RECORDED", ...summary });
@@ -112,11 +112,15 @@ export class EmailDomainMailProfileService {
   }
 
   /** Written outside the activation's transaction, which a hold rolls back by throwing. */
-  async #saveProfile(profile: EmailDomainMailProfile): Promise<void> {
+  async #storeProfile(profile: EmailDomainMailProfile): Promise<boolean> {
+    this.#profiles.set(profile.domain, profile);
+
     try {
       await this.txService.outsideTransaction(async () => await this.emailDomainMailHostRepository.upsertProfile(profile));
+      return true;
     } catch (error) {
       this.logger.error({ event: "EMAIL_DOMAIN_MAIL_PROFILE_SAVE_FAILED", domain: profile.domain, error });
+      return false;
     }
   }
 }
