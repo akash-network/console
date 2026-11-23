@@ -7,13 +7,13 @@ import { type DEPENDENCIES, useCanManageBilling } from "./useCanManageBilling";
 import { renderHook } from "@testing-library/react";
 
 describe(useCanManageBilling.name, () => {
-  it.each<OrganizationRole>(["owner", "billing"])("lets the %s of the active organization manage billing", role => {
+  it.each<OrganizationRole>(["owner", "admin", "billing"])("lets the %s of the active organization manage billing", role => {
     const { result } = setup({ role });
 
     expect(result.current).toBe(true);
   });
 
-  it.each<OrganizationRole>(["admin", "member", "viewer"])("keeps the %s of the active organization from managing billing", role => {
+  it.each<OrganizationRole>(["member", "viewer"])("keeps the %s of the active organization from managing billing", role => {
     const { result } = setup({ role });
 
     expect(result.current).toBe(false);

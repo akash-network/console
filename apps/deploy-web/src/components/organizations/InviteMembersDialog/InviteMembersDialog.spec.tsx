@@ -32,7 +32,7 @@ describe("InviteMembersDialog", () => {
     expect(screen.getByRole("radio", { name: /^Billing/ })).toHaveAccessibleName(
       /Adds credits, manages payment methods and sees usage, but not deployments\.$/
     );
-    expect(screen.getByRole("radio", { name: /^Admin/ })).toHaveAccessibleName(/Creates projects, manages members and sees billing and usage\.$/);
+    expect(screen.getByRole("radio", { name: /^Admin/ })).toHaveAccessibleName(/Creates projects, manages members and billing, and sees usage\.$/);
   });
 
   it("sends the invitations with the chosen role and confirms them", async () => {

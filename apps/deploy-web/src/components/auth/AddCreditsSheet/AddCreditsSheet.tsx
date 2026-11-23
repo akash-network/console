@@ -193,7 +193,7 @@ function BillingManagersOnlyNotice() {
   return (
     <div role="status" className="space-y-3 rounded-lg border p-6 text-center">
       <Lock className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
-      <p className="font-medium">Only owners and billing members can add credits</p>
+      <p className="font-medium">Only owners, admins and billing members can add credits</p>
       <p className="text-sm text-muted-foreground">Ask one of them to top up your team&apos;s balance or add a payment method.</p>
     </div>
   );

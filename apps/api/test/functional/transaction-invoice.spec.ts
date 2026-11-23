@@ -26,8 +26,9 @@ describe("Card payment invoices", () => {
   });
 
   describe("POST /v1/stripe/transactions/{id}/invoice", () => {
-    it("issues the invoice of a team's card payment for its owner and returns its PDF", async () => {
-      const { team, headersOf } = await setup();
+    it.each(["owner", "admin"] as const)("issues the invoice of a team's card payment for its %s and returns its PDF", async role => {
+      const { team, headersOf, memberWith } = await setup();
+      const caller = role === "owner" ? team.owner : await memberWith(role);
       const customerId = `cus_${faker.string.alphanumeric(14)}`;
       const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id });
       const invoiceId = `in_${faker.string.alphanumeric(14)}`;
@@ -44,7 +45,7 @@ describe("Card payment invoices", () => {
         .reply(200, { id: invoiceId, object: "invoice", status: "paid", customer: customerId, invoice_pdf: `${STRIPE_FILES}/invoice/${invoiceId}/pdf` });
       nock(STRIPE_FILES).get(`/invoice/${invoiceId}/pdf`).reply(200, "%PDF-issued", { "Content-Type": "application/pdf" });
 
-      const response = await requestInvoice(payment.id, headersOf(team.owner));
+      const response = await requestInvoice(payment.id, headersOf(caller));
 
       await expectPdf(response, { content: "%PDF-issued", filename: `Invoice-${invoiceId}.pdf` });
       expect(await findTransaction(payment.id)).toMatchObject({ stripeInvoiceId: invoiceId });
@@ -75,32 +76,6 @@ describe("Card payment invoices", () => {
       const response = await requestInvoice(payment.id, headersOf(team.owner));
 
       await expectPdf(response, { content: "%PDF-refunded", filename: "Invoice-in_refunded.pdf" });
-    });
-
-    it("refuses an admin who asks for an invoice the payment does not have yet, without calling Stripe", async () => {
-      const { team, headersOf, memberWith } = await setup();
-      const admin = await memberWith("admin");
-      const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id });
-      const stripeCalls = nock(STRIPE_API).get(/.*/).reply(200, {});
-
-      const response = await requestInvoice(payment.id, headersOf(admin));
-
-      expect(response.status).toBe(403);
-      expect(stripeCalls.isDone()).toBe(false);
-      expect(await findTransaction(payment.id)).toMatchObject({ stripeInvoiceId: null });
-    });
-
-    it("refuses an admin who would have to finish an invoice that is not paid yet", async () => {
-      const { team, headersOf, memberWith } = await setup();
-      const admin = await memberWith("admin");
-      const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id, stripeInvoiceId: "in_draft" });
-      nock(STRIPE_API).get("/v1/invoices/in_draft").reply(200, { id: "in_draft", object: "invoice", status: "draft", customer: "cus_1" });
-      const finalize = nock(STRIPE_API).post("/v1/invoices/in_draft/finalize").reply(200, {});
-
-      const response = await requestInvoice(payment.id, headersOf(admin));
-
-      expect(response.status).toBe(403);
-      expect(finalize.isDone()).toBe(false);
     });
 
     it("answers 400 for a transaction that is not a successful card payment", async () => {

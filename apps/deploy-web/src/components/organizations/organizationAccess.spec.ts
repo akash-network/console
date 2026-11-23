@@ -37,7 +37,7 @@ describe("organizationAccess", () => {
 
   it.each([
     ["owner", true],
-    ["admin", false],
+    ["admin", true],
     ["member", false],
     ["billing", true],
     ["viewer", false]

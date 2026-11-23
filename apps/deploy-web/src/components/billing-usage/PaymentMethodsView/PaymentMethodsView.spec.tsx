@@ -62,7 +62,7 @@ describe(PaymentMethodsView.name, () => {
     setup({ data: createMockPaymentMethods(), canManageBilling: false });
 
     expect(screen.getByTestId("payment-method-row-pm_123")).toHaveTextContent("4242");
-    expect(screen.getByText("Only owners and billing members can change payment methods.")).toBeInTheDocument();
+    expect(screen.getByText("Only owners, admins and billing members can change payment methods.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add Payment Method" })).not.toBeInTheDocument();
     expect(screen.queryByText("Set as Default")).not.toBeInTheDocument();
     expect(screen.queryByText("Remove")).not.toBeInTheDocument();
@@ -73,7 +73,7 @@ describe(PaymentMethodsView.name, () => {
     setup({ data: [], canManageBilling: false });
 
     expect(screen.getByText("No payment methods yet")).toBeInTheDocument();
-    expect(screen.getByText("Only owners and billing members can change payment methods.")).toBeInTheDocument();
+    expect(screen.getByText("Only owners, admins and billing members can change payment methods.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add Payment Method" })).not.toBeInTheDocument();
   });
 

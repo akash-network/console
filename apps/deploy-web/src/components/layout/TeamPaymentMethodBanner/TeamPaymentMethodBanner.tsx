@@ -32,7 +32,7 @@ export function TeamPaymentMethodBanner({ dependencies: d = DEPENDENCIES }: Prop
             <span className="font-semibold">{team.name} has no payment method.</span>{" "}
             {canSetUpBilling
               ? "Add one so your team can deploy. Organization billing is separate from your personal account."
-              : "No one can deploy until an owner or a billing member adds one."}
+              : "No one can deploy until an owner, an admin or a billing member adds one."}
           </span>
         </div>
         {canSetUpBilling && (

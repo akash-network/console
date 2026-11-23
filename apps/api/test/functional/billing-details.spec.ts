@@ -79,9 +79,9 @@ describe("Billing details", () => {
   });
 
   describe("PUT /v1/billing-details", () => {
-    it("lets a billing member bill the team's company with a contact, address and VAT number", async () => {
+    it.each(["billing", "admin"] satisfies OrganizationRole[])("lets a %s bill the team's company with a contact, address and VAT number", async role => {
       const { team, headersOf, memberWith } = await setup();
-      const billingMember = await memberWith("billing");
+      const caller = await memberWith(role);
       const customerId = await setTeamCustomer(team.id);
       nock(STRIPE_API)
         .get(`/v1/customers/${customerId}/tax_ids`)
@@ -125,7 +125,7 @@ describe("Billing details", () => {
           tax_ids: { object: "list", data: [taxIdOf(customerId, { id: "txi_new", value: "DE123456789", status: "pending" })], has_more: false }
         });
 
-      const response = await putBillingDetails(headersOf(billingMember), VALID_INPUT);
+      const response = await putBillingDetails(headersOf(caller), VALID_INPUT);
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
@@ -141,12 +141,12 @@ describe("Billing details", () => {
       expect(customerUpdated.isDone()).toBe(true);
     });
 
-    it("refuses an admin, who may read the team's billing but not change it", async () => {
+    it.each(["member", "viewer"] satisfies OrganizationRole[])("refuses a %s, who may not change the team's billing", async role => {
       const { team, headersOf, memberWith } = await setup();
-      const admin = await memberWith("admin");
+      const member = await memberWith(role);
       await setTeamCustomer(team.id);
 
-      const response = await putBillingDetails(headersOf(admin), VALID_INPUT);
+      const response = await putBillingDetails(headersOf(member), VALID_INPUT);
 
       expect(response.status).toBe(403);
     });

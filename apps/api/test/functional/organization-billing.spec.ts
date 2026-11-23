@@ -121,16 +121,16 @@ describe("Organization billing", () => {
     });
   });
 
-  describe("POST /v1/stripe/payment-methods/setup by a billing member", () => {
-    it("sets up a card on the team's customer", async () => {
+  describe("POST /v1/stripe/payment-methods/setup by a billing member or an admin", () => {
+    it.each(["billing", "admin"] satisfies OrganizationRole[])("sets up a card on the team's customer for a %s", async role => {
       const { team, headersOf, memberWith } = await setup();
-      const billingMember = await memberWith("billing");
+      const caller = await memberWith(role);
       const teamCustomerId = await setTeamCustomer(team.id);
       const setupIntent = nock(STRIPE_API)
         .post("/v1/setup_intents", body => body.customer === teamCustomerId)
         .reply(200, { id: "seti_1", object: "setup_intent", client_secret: "seti_secret" });
 
-      const response = await app.request("/v1/stripe/payment-methods/setup", { method: "POST", headers: headersOf(billingMember) });
+      const response = await app.request("/v1/stripe/payment-methods/setup", { method: "POST", headers: headersOf(caller) });
 
       expect(response.status).toBe(200);
       expect(setupIntent.isDone()).toBe(true);
@@ -138,26 +138,26 @@ describe("Organization billing", () => {
   });
 
   describe("card and coupon changes by roles that may not make them", () => {
-    it("refuses an admin who marks the team's default card", async () => {
+    it("refuses a member who marks the team's default card", async () => {
       const { team, headersOf, memberWith } = await setup();
-      const admin = await memberWith("admin");
+      const member = await memberWith("member");
       await setTeamCustomer(team.id);
 
       const response = await app.request("/v1/stripe/payment-methods/default", {
         method: "POST",
         body: JSON.stringify({ data: { id: "pm_team" } }),
-        headers: { "Content-Type": "application/json", ...headersOf(admin) }
+        headers: { "Content-Type": "application/json", ...headersOf(member) }
       });
 
       expect(response.status).toBe(403);
     });
 
-    it("refuses an admin who removes one of the team's cards", async () => {
+    it("refuses a member who removes one of the team's cards", async () => {
       const { team, headersOf, memberWith } = await setup();
-      const admin = await memberWith("admin");
+      const member = await memberWith("member");
       await setTeamCustomer(team.id);
 
-      const response = await app.request("/v1/stripe/payment-methods/pm_team", { method: "DELETE", headers: headersOf(admin) });
+      const response = await app.request("/v1/stripe/payment-methods/pm_team", { method: "DELETE", headers: headersOf(member) });
 
       expect(response.status).toBe(403);
     });
@@ -177,7 +177,7 @@ describe("Organization billing", () => {
   });
 
   describe("POST /v1/stripe/payment-methods/setup by other roles", () => {
-    it.each(["admin", "member", "viewer"] satisfies OrganizationRole[])("refuses a %s, who may not add the team's cards", async role => {
+    it.each(["member", "viewer"] satisfies OrganizationRole[])("refuses a %s, who may not add the team's cards", async role => {
       const { headersOf, memberWith } = await setup();
       const member = await memberWith(role);
 
@@ -377,17 +377,17 @@ describe("Organization billing", () => {
   });
 
   describe("POST /v1/wallet-settings", () => {
-    it("saves auto reload for the team's wallet when its billing member sets it up", async () => {
+    it.each(["billing", "admin"] satisfies OrganizationRole[])("saves auto reload for the team's wallet when a %s sets it up", async role => {
       const { team, headersOf, memberWith } = await setup();
-      const billingMember = await memberWith("billing");
+      const caller = await memberWith(role);
       const teamWallet = await seedTeamWallet(team.id);
 
-      const response = await saveWalletSettings(headersOf(billingMember));
+      const response = await saveWalletSettings(headersOf(caller));
 
       expect(response.status).toBe(200);
       const settings = resolveTable("WalletSetting");
       expect(await db.query.WalletSetting.findMany({ where: eq(settings.walletId, teamWallet.id) })).toEqual([
-        expect.objectContaining({ organizationId: team.id, userId: billingMember.id })
+        expect.objectContaining({ organizationId: team.id, userId: caller.id })
       ]);
     });
 

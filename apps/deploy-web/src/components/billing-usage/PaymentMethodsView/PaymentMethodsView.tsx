@@ -48,7 +48,7 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
   const canManageBilling = d.useCanManageBilling();
   const footerNote = canManageBilling
     ? data.length > 0 && "All transactions will be made using your default payment method."
-    : "Only owners and billing members can change payment methods.";
+    : "Only owners, admins and billing members can change payment methods.";
 
   return (
     <SettingsSection title="Payment Method">

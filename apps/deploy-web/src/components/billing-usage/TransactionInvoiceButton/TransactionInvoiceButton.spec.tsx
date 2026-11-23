@@ -42,20 +42,20 @@ describe(TransactionInvoiceButton.name, () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it.each(["owner", "billing"] as const)("lets a team %s get a new invoice", role => {
+  it.each(["owner", "admin", "billing"] as const)("lets a team %s get a new invoice", role => {
     setup({ transaction: createMockTransaction({ type: "payment_intent", status: "succeeded", stripeInvoiceId: null }), role });
 
     expect(screen.getByRole("button", { name: "Get invoice" })).toBeInTheDocument();
   });
 
-  it("lets an admin download an existing invoice but not get a new one", () => {
-    setup({ transaction: createMockTransaction({ type: "payment_intent", status: "succeeded", stripeInvoiceId: "in_1" }), role: "admin" });
+  it("lets a member download an existing invoice but not get a new one", () => {
+    setup({ transaction: createMockTransaction({ type: "payment_intent", status: "succeeded", stripeInvoiceId: "in_1" }), role: "member" });
 
     expect(screen.getByRole("button", { name: "Download invoice" })).toBeInTheDocument();
   });
 
-  it("offers an admin no new invoice", () => {
-    setup({ transaction: createMockTransaction({ type: "payment_intent", status: "succeeded", stripeInvoiceId: null }), role: "admin" });
+  it("offers a member no new invoice", () => {
+    setup({ transaction: createMockTransaction({ type: "payment_intent", status: "succeeded", stripeInvoiceId: null }), role: "member" });
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
