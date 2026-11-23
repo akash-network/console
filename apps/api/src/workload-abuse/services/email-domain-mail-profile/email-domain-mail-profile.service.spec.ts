@@ -184,6 +184,18 @@ describe(EmailDomainMailProfileService.name, () => {
     expect(logger.error).toHaveBeenCalledWith({ event: "EMAIL_DOMAIN_MAIL_PROFILE_SAVE_FAILED", domain: "example-corp.com", error });
   });
 
+  it("looks a domain up and saves it again on the next lookup after its save failed", async () => {
+    const { service, resolver, repository } = setup({ a: { "example-corp.com": ["45.10.0.3"] } });
+    repository.upsertProfile.mockRejectedValueOnce(new Error("database unavailable"));
+    await service.findProfile("example-corp.com");
+
+    const profile = await service.findProfile("example-corp.com");
+
+    expect(profile).toMatchObject({ domain: "example-corp.com" });
+    expect(resolver.resolveMx).toHaveBeenCalledTimes(2);
+    expect(repository.upsertProfile).toHaveBeenCalledTimes(2);
+  });
+
   describe("recordProfile", () => {
     it("looks up and stores the domain's mail servers", async () => {
       const { service, repository } = setup({ mx: { "step-sis.help": [{ exchange: "mail.step-sis.help", priority: 10 }] }, a: { "mail.step-sis.help": ["23.88.114.19"] } });
@@ -199,9 +211,8 @@ describe(EmailDomainMailProfileService.name, () => {
       });
     });
 
-    it("looks the domain up and saves it again when an earlier lookup cached a profile it could not save", async () => {
+    it("looks the domain up and saves it even when a cached profile exists", async () => {
       const { service, resolver, repository } = setup({ a: { "example-corp.com": ["45.10.0.3"] } });
-      repository.upsertProfile.mockRejectedValueOnce(new Error("database unavailable"));
       await service.findProfile("example-corp.com");
 
       const recorded = await service.recordProfile("example-corp.com");

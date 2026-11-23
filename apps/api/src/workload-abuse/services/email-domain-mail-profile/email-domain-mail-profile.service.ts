@@ -54,7 +54,7 @@ export class EmailDomainMailProfileService {
     return profile;
   }
 
-  /** Skips the cache, so a profile whose earlier save failed is written again. */
+  /** Skips the cache, so a block always writes the domain's current mail servers. */
   async recordProfile(domain: string): Promise<boolean> {
     const profile = await this.#resolveProfile(domain);
 
@@ -113,10 +113,9 @@ export class EmailDomainMailProfileService {
 
   /** Written outside the activation's transaction, which a hold rolls back by throwing. */
   async #storeProfile(profile: EmailDomainMailProfile): Promise<boolean> {
-    this.#profiles.set(profile.domain, profile);
-
     try {
       await this.txService.outsideTransaction(async () => await this.emailDomainMailHostRepository.upsertProfile(profile));
+      this.#profiles.set(profile.domain, profile);
       return true;
     } catch (error) {
       this.logger.error({ event: "EMAIL_DOMAIN_MAIL_PROFILE_SAVE_FAILED", domain: profile.domain, error });
