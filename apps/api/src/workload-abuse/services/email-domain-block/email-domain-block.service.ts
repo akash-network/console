@@ -27,10 +27,17 @@ export const HELD_SIGNUP_BLOCK_REASON = "held_signup";
 
 export type HeldSignupBlockEvidence = Extract<EmailDomainSignal, { blockedDomain: string }>;
 
+export type HeldSignup = {
+  userId: UserOutput["id"];
+  emailDomain: string;
+  evidence: HeldSignupBlockEvidence;
+};
+
 type BlockRequest = {
   userId: UserOutput["id"];
   context: Record<string, unknown>;
   excludeWalletId?: number;
+  assessedEmailDomain?: string;
   reason: string;
   isEnforcing: boolean;
   hasSecondAccount: (domain: string) => Promise<boolean>;
@@ -38,6 +45,7 @@ type BlockRequest = {
 
 type SkipReason =
   | "no_domain"
+  | "email_changed"
   | "public_suffix"
   | "public_provider"
   | "allowlisted"
@@ -85,13 +93,14 @@ export class EmailDomainBlockService {
   }
 
   /** The hold already tied the domain to a blocked one, which stands in for the second mining mailbox the workload path waits for. */
-  async blockDomainOfHeldSignup(userId: UserOutput["id"], evidence: HeldSignupBlockEvidence): Promise<void> {
+  async blockDomainOfHeldSignup({ userId, emailDomain, evidence }: HeldSignup): Promise<void> {
     const mode = this.config.get("WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE");
     if (mode === "off") return;
 
     await this.#block({
       userId,
       context: { trigger: "held_signup", signal: evidence.signal, blockedDomain: evidence.blockedDomain },
+      assessedEmailDomain: emailDomain,
       reason: HELD_SIGNUP_BLOCK_REASON,
       isEnforcing: mode === "enforce",
       hasSecondAccount: async () => true
@@ -104,6 +113,10 @@ export class EmailDomainBlockService {
     const emailDomain = extractEmailDomain(user?.email);
 
     if (!emailDomain) return this.#skip("no_domain", { ...request.context, userId });
+
+    if (request.assessedEmailDomain && emailDomain !== request.assessedEmailDomain) {
+      return this.#skip("email_changed", { ...request.context, userId, emailDomain, assessedEmailDomain: request.assessedEmailDomain });
+    }
 
     const domain = getRegistrableDomain(emailDomain);
 

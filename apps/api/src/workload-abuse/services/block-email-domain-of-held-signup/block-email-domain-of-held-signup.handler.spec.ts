@@ -18,7 +18,11 @@ describe(BlockEmailDomainOfHeldSignupHandler.name, () => {
 
     await handler.handle(payload);
 
-    expect(emailDomainBlockService.blockDomainOfHeldSignup).toHaveBeenCalledWith(payload.userId, payload.evidence);
+    expect(emailDomainBlockService.blockDomainOfHeldSignup).toHaveBeenCalledWith({
+      userId: payload.userId,
+      emailDomain: payload.emailDomain,
+      evidence: payload.evidence
+    });
   });
 
   it("records a failure and rethrows it, so the queue retries the block", async () => {
@@ -46,7 +50,7 @@ describe(BlockEmailDomainOfHeldSignupHandler.name, () => {
 
   function setup() {
     const evidence: HeldSignupBlockEvidence = { signal: "mail_server_shared_with_blocked_domain", blockedDomain: "wexdano.org" };
-    const payload = { userId: faker.string.uuid(), evidence, version: 1 as const };
+    const payload = { userId: faker.string.uuid(), emailDomain: "farm.example", evidence, version: 1 as const };
     const emailDomainBlockService = mock<EmailDomainBlockService>();
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const logger = mock<ReturnType<CreateLogger>>();

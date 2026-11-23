@@ -95,22 +95,22 @@ export class TrialSignupHoldService {
 
     this.logger.warn({ event: "TRIAL_SIGNUP_HELD_FOR_EMAIL_DOMAIN", ...context });
     await this.#reportHeldIfLinked(user);
-    await this.#requestDomainBlock(user.id, assessment.signals);
+    await this.#requestDomainBlock(user.id, assessment);
 
     return true;
   }
 
   /** Only a signal naming an already blocked domain blocks, since a burst or a forwarding-only domain can be a real company onboarding its staff. */
-  async #requestDomainBlock(userId: UserOutput["id"], signals: EmailDomainSignal[]): Promise<void> {
+  async #requestDomainBlock(userId: UserOutput["id"], { domain: emailDomain, signals }: EmailDomainAssessment): Promise<void> {
     if (this.config.get("WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE") === "off") return;
 
     const evidence = signals.find(isTiedToBlockedDomain);
-    if (!evidence) return;
+    if (!evidence || !emailDomain) return;
 
     try {
       await this.txService.outsideTransaction(
         async () =>
-          await this.jobQueueService.enqueue(new BlockEmailDomainOfHeldSignup({ userId, evidence }), {
+          await this.jobQueueService.enqueue(new BlockEmailDomainOfHeldSignup({ userId, emailDomain, evidence }), {
             singletonKey: blockEmailDomainOfHeldSignupKeyFor(userId)
           })
       );

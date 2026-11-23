@@ -212,7 +212,7 @@ describe(TrialSignupHoldService.name, () => {
         expect(await service.isHeld(user)).toBe(true);
         expect(txService.outsideTransaction).toHaveBeenCalled();
         expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-          new BlockEmailDomainOfHeldSignup({ userId: user.id, evidence: signals[0] as HeldSignupBlockEvidence }),
+          new BlockEmailDomainOfHeldSignup({ userId: user.id, emailDomain: DOMAIN, evidence: signals[0] as HeldSignupBlockEvidence }),
           {
             singletonKey: blockEmailDomainOfHeldSignupKeyFor(user.id)
           }
@@ -231,11 +231,19 @@ describe(TrialSignupHoldService.name, () => {
         await service.isHeld(user);
 
         expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-          new BlockEmailDomainOfHeldSignup({ userId: user.id, evidence: device as HeldSignupBlockEvidence }),
+          new BlockEmailDomainOfHeldSignup({ userId: user.id, emailDomain: DOMAIN, evidence: device as HeldSignupBlockEvidence }),
           {
             singletonKey: blockEmailDomainOfHeldSignupKeyFor(user.id)
           }
         );
+      });
+
+      it("asks for no block when the held address has no domain to block", async () => {
+        const device: EmailDomainSignal = { signal: "device_shared_with_blocked_domain", linkedUserId: faker.string.uuid(), blockedDomain: "afronewz.com" };
+        const { service, user, jobQueueService } = setup({ mode: "off", tagMode: "off", domainMode: "enforce", domainSignals: [device], assessedDomain: null });
+
+        expect(await service.isHeld(user)).toBe(true);
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       });
 
       it("asks for no block when the held sign-up block is switched off", async () => {
@@ -319,6 +327,7 @@ describe(TrialSignupHoldService.name, () => {
       domainMode?: "off" | "report" | "enforce";
       blockMode?: "off" | "report" | "enforce";
       domainSignals?: EmailDomainSignal[];
+      assessedDomain?: string | null;
       linkedCount?: number;
       minLinkedAccounts?: number;
       windowMinutes?: number;
@@ -343,7 +352,7 @@ describe(TrialSignupHoldService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const emailDomainReputationService = mock<EmailDomainReputationService>({
-      findSignals: vi.fn().mockResolvedValue({ domain: DOMAIN, signals: input.domainSignals ?? [] })
+      findSignals: vi.fn().mockResolvedValue({ domain: "assessedDomain" in input ? input.assessedDomain : DOMAIN, signals: input.domainSignals ?? [] })
     });
     const service = new TrialSignupHoldService(userRepository, jobQueueService, txService, config, emailDomainReputationService, createLogger);
 

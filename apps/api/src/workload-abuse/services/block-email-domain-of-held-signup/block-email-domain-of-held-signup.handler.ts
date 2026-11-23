@@ -28,10 +28,10 @@ export class BlockEmailDomainOfHeldSignupHandler implements JobHandler<BlockEmai
   }
 
   async handle(payload: JobPayload<BlockEmailDomainOfHeldSignup>): Promise<void> {
-    const { userId, evidence } = payload;
+    const { userId, emailDomain, evidence } = payload;
 
     try {
-      await this.emailDomainBlockService.blockDomainOfHeldSignup(userId, evidence);
+      await this.emailDomainBlockService.blockDomainOfHeldSignup({ userId, emailDomain, evidence });
     } catch (error) {
       this.instrumentation.recordDomainBlock("failed");
       this.logger.error({ event: "EMAIL_DOMAIN_AUTO_BLOCK_FAILED", trigger: "held_signup", userId, error });

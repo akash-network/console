@@ -37,7 +37,7 @@ describe(BlockEmailDomainOfHeldSignupHandler.name, () => {
     const earlierTrial = await seedTrial(`first@${domain}`);
     const held = await seedHeldSignup(`second@${domain}`);
 
-    await runDomainBlock(held.user.id);
+    await runDomainBlock(held.user.id, domain);
 
     expect(await findDomain()).toMatchObject({ status: "blocked", source: "auto", reason: HELD_SIGNUP_BLOCK_REASON, triggeredByUserId: held.user.id });
     await expectJobCompleted(LockBlockedDomainWallet[JOB_NAME], { singletonKey: lockBlockedDomainWalletKeyFor(earlierTrial.wallet.id) });
@@ -49,7 +49,7 @@ describe(BlockEmailDomainOfHeldSignupHandler.name, () => {
     const earlierTrial = await seedTrial(`first@${domain}`);
     const held = await seedHeldSignup(`second@${domain}`);
 
-    await runDomainBlock(held.user.id);
+    await runDomainBlock(held.user.id, domain);
 
     expect(await findDomain()).toBeUndefined();
     expect(await findSiblingLocks(earlierTrial.wallet.id)).toEqual([]);
@@ -62,10 +62,21 @@ describe(BlockEmailDomainOfHeldSignupHandler.name, () => {
     });
     const held = await seedHeldSignup(`second@${domain}`);
 
-    await runDomainBlock(held.user.id);
+    await runDomainBlock(held.user.id, domain);
 
     expect(await findDomain()).toBeUndefined();
     expect(await findSiblingLocks(established.wallet.id)).toEqual([]);
+  });
+
+  it("leaves alone the domain a held user's address moved to while the block waited in the queue", async () => {
+    const { domain, seedHeldSignup, seedTrial, runDomainBlock, findDomain, findSiblingLocks } = await setup({ mode: "enforce" });
+    const trialOnNewDomain = await seedTrial(`first@${domain}`);
+    const held = await seedHeldSignup(`second@${domain}`);
+
+    await runDomainBlock(held.user.id, "assessed-farm.test");
+
+    expect(await findDomain()).toBeUndefined();
+    expect(await findSiblingLocks(trialOnNewDomain.wallet.id)).toEqual([]);
   });
 
   async function setup(input: { mode: "report" | "enforce" }) {
@@ -96,11 +107,11 @@ describe(BlockEmailDomainOfHeldSignupHandler.name, () => {
       return { user: await seedUser({ email }) };
     }
 
-    async function runDomainBlock(userId: string) {
+    async function runDomainBlock(userId: string, emailDomain: string) {
       const singletonKey = blockEmailDomainOfHeldSignupKeyFor(userId);
       const evidence: HeldSignupBlockEvidence = { signal: "mail_server_shared_with_blocked_domain", blockedDomain: "wexdano.test" };
 
-      await enqueue(new BlockEmailDomainOfHeldSignup({ userId, evidence }), { singletonKey });
+      await enqueue(new BlockEmailDomainOfHeldSignup({ userId, emailDomain, evidence }), { singletonKey });
       await startWorkers();
       await expectJobCompleted(BlockEmailDomainOfHeldSignup[JOB_NAME], { singletonKey });
     }

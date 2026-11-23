@@ -5,7 +5,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
 import type { CreateLogger } from "@src/core";
 import type { JobQueueService } from "@src/core";
-import type { UserRepository } from "@src/user/repositories";
+import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
@@ -533,11 +533,12 @@ describe(EmailDomainBlockService.name, () => {
 
   describe("blockDomainOfHeldSignup", () => {
     const EVIDENCE = { signal: "mail_server_shared_with_blocked_domain", blockedDomain: "farm-sibling.com" } as const;
+    const heldSignupOf = (user: UserOutput) => ({ userId: user.id, emailDomain: user.email?.split("@")[1] ?? "", evidence: EVIDENCE });
 
     it("blocks the held user's registrable domain without waiting for a second caught account", async () => {
       const { service, user, blockedEmailDomainRepository, detectionRepository, instrumentation, logger } = setup({ email: "farmer@eu.attacker.com" });
 
-      await service.blockDomainOfHeldSignup(user.id, EVIDENCE);
+      await service.blockDomainOfHeldSignup(heldSignupOf(user));
 
       expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith({
         domain: "attacker.com",
@@ -563,7 +564,7 @@ describe(EmailDomainBlockService.name, () => {
         siblings: [{ walletId: 7, userId: "user-7" }]
       });
 
-      await service.blockDomainOfHeldSignup(user.id, EVIDENCE);
+      await service.blockDomainOfHeldSignup(heldSignupOf(user));
 
       expect(emailDomainMailProfileService.recordProfile).toHaveBeenCalledWith("attacker.com");
       expect(userWalletRepository.findLockableTrialWalletsByEmailDomain).toHaveBeenCalledWith("attacker.com", { excludeWalletId: undefined, limit: 201 });
@@ -575,7 +576,7 @@ describe(EmailDomainBlockService.name, () => {
     it("follows its own mode rather than the workload block's", async () => {
       const { service, user, blockedEmailDomainRepository } = setup({ email: "farmer@attacker.com", mode: "detect", heldSignupMode: "enforce" });
 
-      await service.blockDomainOfHeldSignup(user.id, EVIDENCE);
+      await service.blockDomainOfHeldSignup(heldSignupOf(user));
 
       expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalled();
     });
@@ -587,7 +588,7 @@ describe(EmailDomainBlockService.name, () => {
         siblings: [{ walletId: 7, userId: "user-7" }]
       });
 
-      await service.blockDomainOfHeldSignup(user.id, EVIDENCE);
+      await service.blockDomainOfHeldSignup(heldSignupOf(user));
 
       expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
@@ -600,7 +601,7 @@ describe(EmailDomainBlockService.name, () => {
     it("does nothing at all when switched off", async () => {
       const { service, user, userRepository, instrumentation } = setup({ email: "farmer@attacker.com", heldSignupMode: "off" });
 
-      await service.blockDomainOfHeldSignup(user.id, EVIDENCE);
+      await service.blockDomainOfHeldSignup(heldSignupOf(user));
 
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(instrumentation.recordDomainBlock).not.toHaveBeenCalled();
@@ -612,8 +613,8 @@ describe(EmailDomainBlockService.name, () => {
       const enforcing = setup({ email: "farmer@attacker.com", existing: blocked, siblings });
       const reporting = setup({ email: "farmer@attacker.com", existing: blocked, siblings, heldSignupMode: "report" });
 
-      await enforcing.service.blockDomainOfHeldSignup(enforcing.user.id, EVIDENCE);
-      await reporting.service.blockDomainOfHeldSignup(reporting.user.id, EVIDENCE);
+      await enforcing.service.blockDomainOfHeldSignup(heldSignupOf(enforcing.user));
+      await reporting.service.blockDomainOfHeldSignup(heldSignupOf(reporting.user));
 
       expect(enforcing.jobQueueService.enqueue).toHaveBeenCalledWith(new LockBlockedDomainWallet({ walletId: 7, domain: "attacker.com" }), {
         singletonKey: "lockBlockedDomainWallet.7"
@@ -628,10 +629,10 @@ describe(EmailDomainBlockService.name, () => {
       const allowed = setup({ email: "farmer@attacker.com", existing: createBlockedEmailDomain({ domain: "attacker.com", status: "allowed" }) });
       const publicProvider = setup({ email: "farmer@gmail.com" });
 
-      await paid.service.blockDomainOfHeldSignup(paid.user.id, EVIDENCE);
-      await established.service.blockDomainOfHeldSignup(established.user.id, EVIDENCE);
-      await allowed.service.blockDomainOfHeldSignup(allowed.user.id, EVIDENCE);
-      await publicProvider.service.blockDomainOfHeldSignup(publicProvider.user.id, EVIDENCE);
+      await paid.service.blockDomainOfHeldSignup(heldSignupOf(paid.user));
+      await established.service.blockDomainOfHeldSignup(heldSignupOf(established.user));
+      await allowed.service.blockDomainOfHeldSignup(heldSignupOf(allowed.user));
+      await publicProvider.service.blockDomainOfHeldSignup(heldSignupOf(publicProvider.user));
 
       expect(paid.instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "domain_has_paid_user");
       expect(established.instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "domain_predates_attack");
@@ -643,10 +644,53 @@ describe(EmailDomainBlockService.name, () => {
       }
     });
 
+    it("leaves alone the domain a held user's address moved to after the hold assessed another", async () => {
+      const { service, user, userRepository, blockedEmailDomainRepository, jobQueueService, instrumentation, logger } = setup({
+        email: "farmer@victim.com",
+        siblings: [{ walletId: 7, userId: "user-7" }]
+      });
+
+      await service.blockDomainOfHeldSignup({ userId: user.id, emailDomain: "attacker.com", evidence: EVIDENCE });
+
+      expect(blockedEmailDomainRepository.findNearestRule).not.toHaveBeenCalled();
+      expect(userRepository.hasEstablishedUserWithEmailDomain).not.toHaveBeenCalled();
+      expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "email_changed");
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "EMAIL_DOMAIN_AUTO_BLOCK_SKIPPED",
+        reason: "email_changed",
+        trigger: "held_signup",
+        signal: EVIDENCE.signal,
+        blockedDomain: EVIDENCE.blockedDomain,
+        userId: user.id,
+        emailDomain: "victim.com",
+        assessedEmailDomain: "attacker.com"
+      });
+    });
+
+    it("treats a move to another subdomain of the same registrable domain as a changed address", async () => {
+      const { service, user, blockedEmailDomainRepository, instrumentation } = setup({ email: "farmer@us.attacker.com" });
+
+      await service.blockDomainOfHeldSignup({ userId: user.id, emailDomain: "eu.attacker.com", evidence: EVIDENCE });
+
+      expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+      expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "email_changed");
+    });
+
+    it("logs a changed address in report mode too, so dropped blocks stay visible before enforcing", async () => {
+      const { service, user, instrumentation } = setup({ email: "farmer@victim.com", heldSignupMode: "report" });
+
+      await service.blockDomainOfHeldSignup({ userId: user.id, emailDomain: "attacker.com", evidence: EVIDENCE });
+
+      expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "email_changed");
+      expect(instrumentation.recordDomainBlock).not.toHaveBeenCalledWith("dry_run");
+    });
+
     it("skips a held user that no longer exists", async () => {
       const { service, user, instrumentation, logger } = setup({ userMissing: true });
 
-      await service.blockDomainOfHeldSignup(user.id, EVIDENCE);
+      await service.blockDomainOfHeldSignup(heldSignupOf(user));
 
       expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "no_domain");
       expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_DOMAIN_AUTO_BLOCK_SKIPPED", reason: "no_domain", userId: user.id }));
