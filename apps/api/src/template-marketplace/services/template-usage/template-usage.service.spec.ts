@@ -23,8 +23,28 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
+const IMPORTED_REF = "akash-network-awesome-akash-comfyui";
+
 describe(TemplateUsageService.name, () => {
   describe("recordDeployed", () => {
+    it("records a deploy of an imported template under its awesome-akash id, with the version deployed, and tells analytics the same id", async () => {
+      const templateVersionId = faker.string.uuid();
+      const { service, templateUsageEventRepository, analyticsService } = setup({ template: { importedRef: IMPORTED_REF, isOfficial: true } });
+      const definition = buildDefinition({ templateVersionId });
+
+      await service.recordDeployed(definition, { isTrialing: false });
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ source: "awesome_akash", templateRef: IMPORTED_REF, templateVersionId, action: "deploy" })
+      );
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        definition.userId,
+        "template_deployed",
+        { source: "official", template_id: IMPORTED_REF, template_version: 3, network: "mainnet" },
+        { insertId: `template_deploy:${definition.id}` }
+      );
+    });
+
     it("records a Console template deploy by its template id and version", async () => {
       const templateId = faker.string.uuid();
       const templateVersionId = faker.string.uuid();
@@ -308,6 +328,7 @@ describe(TemplateUsageService.name, () => {
       await service.recordFork(source, fork);
 
       expect(templateUsageEventRepository.recordForkOncePerDay).toHaveBeenCalledWith({
+        source: "console",
         templateRef: source.id,
         templateVersionId: source.currentVersionId,
         userId: fork.userId,
@@ -315,6 +336,17 @@ describe(TemplateUsageService.name, () => {
         network: "sandbox"
       });
       expect(txService.outsideTransaction).not.toHaveBeenCalled();
+    });
+
+    it("counts a copy of an imported template under the awesome-akash id its usage is kept by", async () => {
+      const { service, templateUsageEventRepository } = setup();
+      const source = { id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid(), importedRef: IMPORTED_REF };
+
+      await service.recordFork(source, { userId: faker.string.uuid(), organizationId: faker.string.uuid() });
+
+      expect(templateUsageEventRepository.recordForkOncePerDay).toHaveBeenCalledWith(
+        expect.objectContaining({ source: "awesome_akash", templateRef: IMPORTED_REF, templateVersionId: source.currentVersionId })
+      );
     });
 
     it("counts no copy made inside the publishing organization", async () => {
@@ -347,7 +379,7 @@ describe(TemplateUsageService.name, () => {
 
       await service.recordFavorite(templateId, action);
 
-      expect(templateUsageEventRepository.findCurrentVersionIdOfTemplate).toHaveBeenCalledWith(templateId);
+      expect(templateUsageEventRepository.findReferencedTemplate).toHaveBeenCalledWith(templateId);
       expect(templateUsageEventRepository.record).toHaveBeenCalledWith({
         source: "console",
         templateRef: templateId,
@@ -368,6 +400,28 @@ describe(TemplateUsageService.name, () => {
 
       expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
         expect.objectContaining({ templateRef: templateId, templateVersionId: null, userId: user!.id, organizationId: null })
+      );
+    });
+
+    it("records a favorite of an imported template under the awesome-akash id its usage is kept by", async () => {
+      const currentVersionId = faker.string.uuid();
+      const { service, templateUsageEventRepository } = setup({ currentVersionId, importedRef: IMPORTED_REF });
+
+      await service.recordFavorite(faker.string.uuid(), "favorite");
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ source: "awesome_akash", templateRef: IMPORTED_REF, templateVersionId: currentVersionId })
+      );
+    });
+
+    it("records a favorite of a template that is gone by its id, with no version", async () => {
+      const templateId = faker.string.uuid();
+      const { service, templateUsageEventRepository } = setup({ isTemplateGone: true });
+
+      await service.recordFavorite(templateId, "unfavorite");
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ source: "console", templateRef: templateId, templateVersionId: null })
       );
     });
 
@@ -558,7 +612,13 @@ describe(TemplateUsageService.name, () => {
       const { service, analyticsService, templateUsageEventRepository, commit } = setup({ template: { isOfficial: true, versionNumber: 5 } });
       const source = { id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid() };
       const fork = { userId: faker.string.uuid(), organizationId: faker.string.uuid() };
-      templateUsageEventRepository.findTemplateOfVersion.mockResolvedValue({ templateId: source.id, versionNumber: 5, isOfficial: true, visibility: "public" });
+      templateUsageEventRepository.findTemplateOfVersion.mockResolvedValue({
+        templateId: source.id,
+        versionNumber: 5,
+        isOfficial: true,
+        visibility: "public",
+        importedRef: null
+      });
 
       await service.recordFork(source, fork);
 
@@ -663,6 +723,8 @@ describe(TemplateUsageService.name, () => {
       wallet?: ReturnType<typeof createUserWallet>;
       setting?: DeploymentSettingsOutput;
       currentVersionId?: string | null;
+      importedRef?: string;
+      isTemplateGone?: boolean;
       user?: null;
       activeOrganizationId?: string | null;
       template?: Partial<VersionedTemplate>;
@@ -673,7 +735,7 @@ describe(TemplateUsageService.name, () => {
     const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
     const templateId = "templateIdOfVersion" in input ? input.templateIdOfVersion : faker.string.uuid();
     templateUsageEventRepository.findTemplateOfVersion.mockResolvedValue(
-      templateId ? { templateId, versionNumber: 3, isOfficial: false, visibility: "public", ...input.template } : undefined
+      templateId ? { templateId, versionNumber: 3, isOfficial: false, visibility: "public", importedRef: null, ...input.template } : undefined
     );
     templateUsageEventRepository.record.mockResolvedValue(input.isNewEvent ?? true);
     templateUsageEventRepository.recordForkOncePerDay.mockResolvedValue(input.isNewEvent ?? true);
@@ -694,8 +756,10 @@ describe(TemplateUsageService.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const featureFlags = mock<FeatureFlagsService>();
     featureFlags.isEnabledForSubject.mockImplementation(flag => flag === FeatureFlags.TEMPLATE_MARKETPLACE && !input.isMarketplaceOff);
-    templateUsageEventRepository.findCurrentVersionIdOfTemplate.mockResolvedValue(
-      input.currentVersionId === undefined ? faker.string.uuid() : input.currentVersionId
+    templateUsageEventRepository.findReferencedTemplate.mockResolvedValue(
+      input.isTemplateGone
+        ? undefined
+        : { currentVersionId: input.currentVersionId === undefined ? faker.string.uuid() : input.currentVersionId, importedRef: input.importedRef ?? null }
     );
     const user = input.user === null ? undefined : mock<UserOutput>({ id: faker.string.uuid() });
     const activeOrganizationId = input.activeOrganizationId === undefined ? faker.string.uuid() : input.activeOrganizationId;

@@ -528,6 +528,7 @@ describe("Marketplace template writes", () => {
         visibility: "private",
         isListed: true,
         isOfficial: false,
+        importedRef: null,
         moderationStatus: "active",
         projectId: project.id,
         copiedFromId: null,

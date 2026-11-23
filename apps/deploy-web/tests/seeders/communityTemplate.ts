@@ -14,6 +14,7 @@ export const buildCommunityTemplateCard = (overrides: Partial<CommunityTemplateC
     categories: [],
     isOfficial: false,
     isFeatured: false,
+    importedRef: null,
     publisher: { name: faker.company.name(), handle: faker.internet.domainWord(), verified: false },
     resources: null,
     versionCount: 1,

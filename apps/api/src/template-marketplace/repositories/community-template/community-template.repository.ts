@@ -5,6 +5,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { TxService } from "@src/core/services";
 import type { TemplateHardware } from "@src/template/types/template";
 import { listedTemplate } from "@src/template-marketplace/repositories/marketplace-template/publicly-readable-template";
+import { isCountedForTemplate, namesTemplateUsage } from "@src/template-marketplace/repositories/marketplace-template/template-usage-reference";
 
 export type CommunityTemplateRow = {
   id: string;
@@ -14,6 +15,8 @@ export type CommunityTemplateRow = {
   categories: string[];
   isOfficial: boolean;
   isFeatured: boolean;
+  /** The awesome-akash gallery id of a template the import owns, null for every other. */
+  importedRef: string | null;
   publishedAt: Date;
   updatedAt: Date;
   publisher: { name: string; handle: string; isVerified: boolean };
@@ -63,6 +66,7 @@ export class CommunityTemplateRepository {
         categories: this.templates.categories,
         isOfficial: this.templates.isOfficial,
         isFeatured: this.templates.isFeatured,
+        importedRef: this.templates.importedRef,
         publishedAt: this.templates.publishedAt,
         updatedAt: this.templates.updatedAt,
         publisher: { name: this.organizations.name, handle: this.publishers.handle, isVerified: this.publishers.isVerified },
@@ -80,7 +84,7 @@ export class CommunityTemplateRepository {
       .innerJoin(this.versions, this.#isLiveCurrentVersion)
       .innerJoin(this.organizations, and(eq(this.organizations.id, this.templates.organizationId), isNull(this.organizations.deletedAt)))
       .innerJoin(this.publishers, eq(this.publishers.organizationId, this.templates.organizationId))
-      .leftJoin(this.scores, and(eq(this.scores.source, "console"), eq(this.scores.templateRef, sql`${this.templates.id}::text`)))
+      .leftJoin(this.scores, namesTemplateUsage(this.scores.source, this.scores.templateRef))
       .where(and(listedTemplate(), organizationId ? eq(this.templates.organizationId, organizationId) : undefined))
       .orderBy(sql`coalesce(${this.scores.popularScore}, 0) desc`, desc(this.templates.publishedAt), this.templates.id)
       .limit(limit);
@@ -105,11 +109,10 @@ export class CommunityTemplateRepository {
       .leftJoin(
         this.usageEvents,
         and(
-          eq(this.usageEvents.source, "console"),
-          eq(this.usageEvents.templateRef, sql`${this.templates.id}::text`),
+          namesTemplateUsage(this.usageEvents.source, this.usageEvents.templateRef),
           eq(this.usageEvents.action, "deploy"),
           eq(this.usageEvents.network, COUNTED_NETWORK),
-          sql`${this.usageEvents.organizationId} is distinct from ${this.templates.organizationId}`
+          isCountedForTemplate(this.usageEvents.organizationId)
         )
       )
       .where(and(listedTemplate(), eq(this.templates.organizationId, organizationId)));

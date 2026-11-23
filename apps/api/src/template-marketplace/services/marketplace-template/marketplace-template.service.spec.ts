@@ -81,6 +81,7 @@ describe(MarketplaceTemplateService.name, () => {
         isListed: template.isListed,
         isOfficial: template.isOfficial,
         moderationStatus: template.moderationStatus,
+        importedRef: null,
         projectId: template.projectId,
         copiedFromId: template.copiedFromId,
         copiedFrom: null,
@@ -344,6 +345,15 @@ describe(MarketplaceTemplateService.name, () => {
       expect(results.map(({ canEdit }) => canEdit)).toEqual([true, false]);
     });
 
+    it("names the gallery id of an imported template and never offers its edit, whatever the caller's rules", async () => {
+      const imported = createTemplateRow({ importedRef: "akash-network-awesome-akash-comfyui", visibility: "public", isOfficial: true });
+      const { service } = setup({ template: imported, rules: [{ action: "manage", subject: "Template" }], activeOrganizationId: imported.organizationId });
+
+      const result = await service.getTemplate(imported.id);
+
+      expect(result).toMatchObject({ importedRef: "akash-network-awesome-akash-comfyui", canEdit: false });
+    });
+
     it("checks the update rule against the template's owner and visibility", async () => {
       const userId = faker.string.uuid();
       const owned = createTemplateRow({ projectId: null, userId, visibility: "organization" });
@@ -440,6 +450,39 @@ describe(MarketplaceTemplateService.name, () => {
 
       await expect(service.getTemplate(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Template not found" });
       expect(templateVersionRepository.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getImportedTemplate", () => {
+    it("describes the template imported under a gallery id as its own id does", async () => {
+      const imported = createTemplateRow({ importedRef: "akash-network-awesome-akash-comfyui", visibility: "public" });
+      const { service, repository } = setup({ template: imported });
+      repository.findIdByImportedRef.mockResolvedValue(imported.id);
+
+      const result = await service.getImportedTemplate("akash-network-awesome-akash-comfyui");
+
+      expect(repository.findIdByImportedRef).toHaveBeenCalledWith("akash-network-awesome-akash-comfyui");
+      expect(repository.findReadable).toHaveBeenCalledWith(imported.id);
+      expect(result).toEqual(await service.getTemplate(imported.id));
+      expect(result).toMatchObject({ id: imported.id, importedRef: "akash-network-awesome-akash-comfyui" });
+    });
+
+    it("answers 404 for a gallery id no template was imported under, without reading any template", async () => {
+      const { service, repository } = setup();
+      repository.findIdByImportedRef.mockResolvedValue(undefined);
+
+      await expect(service.getImportedTemplate("akash-network-awesome-akash-unknown")).rejects.toMatchObject({ status: 404, message: "Template not found" });
+      expect(repository.findReadable).not.toHaveBeenCalled();
+    });
+
+    it("answers what the template's own id answers when the caller may not read it", async () => {
+      const { service, repository } = setup({ template: undefined, removedTitle: "ComfyUI" });
+      repository.findIdByImportedRef.mockResolvedValue(faker.string.uuid());
+
+      await expect(service.getImportedTemplate("akash-network-awesome-akash-comfyui")).rejects.toMatchObject({
+        status: 410,
+        errorCode: "template_removed"
+      });
     });
   });
 
@@ -823,6 +866,24 @@ describe(MarketplaceTemplateService.name, () => {
       expect(result.map(item => item.copiedFromId)).toEqual([readableSourceId, readableSourceId, null, null]);
     });
 
+    it("offers no edit of an imported template to a member who may manage every template of the organization", async () => {
+      const organizationId = faker.string.uuid();
+      const [imported, own] = [createListRow({ organizationId, importedRef: "akash-network-awesome-akash-comfyui" }), createListRow({ organizationId })];
+      const { service, readableRepository, templateVersionRepository } = setup({
+        rules: [{ action: "manage", subject: "Template" }],
+        activeOrganizationId: organizationId
+      });
+      readableRepository.listInOrganization.mockResolvedValue([imported, own]);
+
+      const result = await service.listInOrganization({});
+
+      expect(result.map(({ id, canEdit }) => ({ id, canEdit }))).toEqual([
+        { id: imported.id, canEdit: false },
+        { id: own.id, canEdit: true }
+      ]);
+      expect(templateVersionRepository.findNewestOf).toHaveBeenCalledWith([own.id]);
+    });
+
     it("shows each listed template's deploys and last deploy, read in one summary", async () => {
       const organizationId = faker.string.uuid();
       const [deployed, quiet] = [createListRow({ organizationId }), createListRow({ organizationId })];
@@ -897,6 +958,7 @@ describe(MarketplaceTemplateService.name, () => {
       visibility: "private",
       isListed: true,
       moderationStatus: "active",
+      importedRef: null,
       publishedAt: null,
       updatedAt: faker.date.recent(),
       currentVersion: { version: 2, status: "live", createdAt: faker.date.recent() },
@@ -932,6 +994,8 @@ describe(MarketplaceTemplateService.name, () => {
       publishedAt: null,
       removedAt: null,
       removedBy: null,
+      importedRef: null,
+      importedContentHash: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       authorUsername: faker.internet.userName(),

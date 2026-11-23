@@ -5,6 +5,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { createImportedReadOnlyError } from "@src/template-marketplace/lib/template-write-access/imported-read-only-error";
 import { findTemplateWriteRefusal, type TemplateWriteAction } from "@src/template-marketplace/lib/template-write-access/template-write-access";
 import {
   MarketplaceTemplateRepository,
@@ -46,6 +47,7 @@ export class TemplateWriteAccessService {
     const activeOrganizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
     const refusal = findTemplateWriteRefusal(template, action, { ability: this.authService.ability, activeOrganizationId });
 
+    if (refusal === "imported_read_only") throw createImportedReadOnlyError();
     if (refusal === "outside_active_organization") {
       throw createError(403, "Switch to the template's organization to change it", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
     }

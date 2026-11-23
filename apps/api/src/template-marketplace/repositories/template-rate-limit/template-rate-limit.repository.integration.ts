@@ -86,6 +86,30 @@ describe(TemplateRateLimitRepository.name, () => {
       expectAbout(await repository.findSecondsUntilRoom("version", { organizationId: otherOrganization.id }, { max: 1, ...HOUR }), 30 * 60);
     });
 
+    it("counts neither the templates nor the versions the awesome-akash import wrote against the organization that owns them", async () => {
+      const { repository, user, organization } = await setup();
+      const [own] = await seedTemplates({ authorId: user.id, organizationId: organization.id, minutesAgo: [50] });
+      const imported = await Promise.all([
+        seedImportedTemplate({ organizationId: organization.id }),
+        seedImportedTemplate({ organizationId: organization.id }),
+        seedImportedTemplate({ organizationId: organization.id })
+      ]);
+      await seedVersions(own.id, [{ version: 2, createdById: user.id, minutesAgo: 30 }]);
+      await Promise.all(
+        imported.map(template =>
+          seedVersions(template.id, [
+            { version: 2, createdById: null, minutesAgo: 20 },
+            { version: 3, createdById: null, minutesAgo: 10 }
+          ])
+        )
+      );
+
+      expectAbout(await repository.findSecondsUntilRoom("create", { organizationId: organization.id }, { max: 1, ...HOUR }), 10 * 60);
+      expect(await repository.findSecondsUntilRoom("create", { organizationId: organization.id }, { max: 2, ...HOUR })).toBeUndefined();
+      expectAbout(await repository.findSecondsUntilRoom("version", { organizationId: organization.id }, { max: 1, ...HOUR }), 30 * 60);
+      expect(await repository.findSecondsUntilRoom("version", { organizationId: organization.id }, { max: 2, ...HOUR })).toBeUndefined();
+    });
+
     it("counts publishes by who accepted the terms and by the organization published under", async () => {
       const { repository, user, organization } = await setup();
       const [otherUser, otherOrganization] = await Promise.all([seedUser(), seedOrganization()]);
@@ -183,7 +207,11 @@ describe(TemplateRateLimitRepository.name, () => {
       .returning();
   }
 
-  async function seedVersions(templateId: string, versions: { version: number; createdById: string; minutesAgo: number }[]) {
+  async function seedImportedTemplate({ organizationId }: { organizationId: string }) {
+    return await seedTemplate({ organizationId, importedRef: `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`, visibility: "public" });
+  }
+
+  async function seedVersions(templateId: string, versions: { version: number; createdById: string | null; minutesAgo: number }[]) {
     await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("TemplateVersions"))

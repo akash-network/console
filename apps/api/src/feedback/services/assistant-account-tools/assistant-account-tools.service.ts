@@ -89,6 +89,11 @@ function marketplaceSourceOf({ source, reviewedByAkash }: ListedTemplate): Templ
   return source === "community" && reviewedByAkash ? "official" : source;
 }
 
+/** The gallery template an imported one copies is in the search already, under the id that still deploys in one click. */
+function isNotImported({ importedRef }: CommunityTemplateCard): boolean {
+  return importedRef === null;
+}
+
 function listedMarketplaceTemplateOf({ id, title, summary, categories, isOfficial, publisher, resources }: CommunityTemplateCard): ListedTemplate {
   return {
     id,
@@ -253,7 +258,8 @@ export class AssistantAccountToolsService {
   /** Mapped once per gallery reading, which the gallery itself keeps for a minute. */
   async #marketplaceTemplates(): Promise<ListedTemplate[]> {
     const source = await this.communityTemplateService.getGallery();
-    if (this.#marketplace?.source !== source) this.#marketplace = { source, templates: source.templates.map(listedMarketplaceTemplateOf) };
+    if (this.#marketplace?.source !== source)
+      this.#marketplace = { source, templates: source.templates.filter(isNotImported).map(listedMarketplaceTemplateOf) };
 
     return this.#marketplace.templates;
   }

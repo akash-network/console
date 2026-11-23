@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { publisherHandleCandidates } from "./publisher-handle";
+import { officialPublisherHandleCandidates, publisherHandleCandidates } from "./publisher-handle";
 
 describe(publisherHandleCandidates.name, () => {
   it("offers a team's slug first, then numbered and random variants", () => {
@@ -60,5 +60,36 @@ describe(publisherHandleCandidates.name, () => {
     const [first] = publisherHandleCandidates({ type: "personal", slug: "personal-0123456789ab", ownerUsername: null });
 
     expect(first).toMatch(/^publisher-[0-9a-f]{8}$/);
+  });
+});
+
+describe(officialPublisherHandleCandidates.name, () => {
+  it("offers the slug of the organization the import publishes for, a name every other publisher is kept from", () => {
+    const akash = { type: "team" as const, slug: "akash", ownerUsername: "sam" };
+
+    expect(officialPublisherHandleCandidates(akash, () => "abcd1234")).toEqual([
+      "akash",
+      "akash-2",
+      "akash-3",
+      "akash-4",
+      "akash-5",
+      "akash-6",
+      "akash-7",
+      "akash-8",
+      "akash-9",
+      "akash-10",
+      "akash-abcd1234"
+    ]);
+    expect(publisherHandleCandidates(akash, () => "abcd1234")[0]).toBe("publisher-abcd1234");
+  });
+
+  it("offers a personal organization's username, and never the word the route of the caller's own publisher answers to", () => {
+    const personal = officialPublisherHandleCandidates({ type: "personal", slug: "personal-0123456789ab", ownerUsername: "Akash-Network" }, () => "abcd1234");
+    const current = officialPublisherHandleCandidates({ type: "team", slug: "current", ownerUsername: null }, () => "abcd1234");
+    const nameless = officialPublisherHandleCandidates({ type: "personal", slug: "personal-0123456789ab", ownerUsername: null }, () => "abcd1234");
+
+    expect(personal[0]).toBe("akash-network");
+    expect(current[0]).toBe("current-2");
+    expect(nameless[0]).toBe("publisher-abcd1234");
   });
 });

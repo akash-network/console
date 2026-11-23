@@ -57,6 +57,21 @@ describe(MarketplaceTemplateController.name, () => {
     });
   });
 
+  describe("getImportedTemplate", () => {
+    it("answers the template imported under a gallery id in the shape its own id answers", async () => {
+      const template = createTemplate({ importedRef: "akash-network-awesome-akash-comfyui", currentVersion: createVersion() });
+      const { controller, service } = setup();
+      service.getImportedTemplate.mockResolvedValue(template);
+      service.getTemplate.mockResolvedValue(template);
+
+      const result = await controller.getImportedTemplate("akash-network-awesome-akash-comfyui");
+
+      expect(result).toEqual(await controller.getTemplate(template.id));
+      expect(result.data).toMatchObject({ importedRef: "akash-network-awesome-akash-comfyui", createdAt: template.createdAt.toISOString() });
+      expect(service.getImportedTemplate).toHaveBeenCalledWith("akash-network-awesome-akash-comfyui");
+    });
+  });
+
   describe("getPublishReadiness", () => {
     it("answers what the publish service found", async () => {
       const readiness = mock<Awaited<ReturnType<TemplatePublishService["getReadiness"]>>>({ canPublish: false, termsVersion: "2026-11" });
@@ -321,6 +336,7 @@ describe(MarketplaceTemplateController.name, () => {
       isListed: false,
       isOfficial: false,
       moderationStatus: "active",
+      importedRef: null,
       projectId: faker.string.uuid(),
       copiedFromId: null,
       copiedFrom: null,

@@ -64,6 +64,7 @@ export type UserTemplateListRow = Pick<
   | "visibility"
   | "isListed"
   | "moderationStatus"
+  | "importedRef"
   | "publishedAt"
   | "updatedAt"
 > & {
@@ -152,6 +153,7 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
         visibility: this.table.visibility,
         isListed: this.table.isListed,
         moderationStatus: this.table.moderationStatus,
+        importedRef: this.table.importedRef,
         publishedAt: this.table.publishedAt,
         updatedAt: this.table.updatedAt,
         currentVersion: { version: this.versions.version, status: this.versions.status, createdAt: this.versions.createdAt },
@@ -201,6 +203,13 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
       publisher:
         publisherName && publisherSlug && publisherType ? { name: publisherName, slug: publisherSlug, type: publisherType, handle: publisherHandle } : null
     };
+  }
+
+  /** Answers the id whoever asks, since what the caller may read of the template is decided when it is read by that id. */
+  async findIdByImportedRef(importedRef: string): Promise<string | undefined> {
+    const [template] = await this.cursor.select({ id: this.table.id }).from(this.table).where(eq(this.table.importedRef, importedRef)).limit(1);
+
+    return template?.id;
   }
 
   async findReadableIds(ids: string[]): Promise<Set<string>> {
