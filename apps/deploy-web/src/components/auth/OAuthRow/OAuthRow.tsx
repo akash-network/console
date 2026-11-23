@@ -6,12 +6,16 @@ import { Button } from "@akashnetwork/ui/components";
 import { ColoredGoogleIcon } from "@src/components/icons/ColoredGoogleIcon";
 import { GithubIcon } from "@src/components/icons/GithubIcon";
 import { useServices } from "@src/context/ServicesProvider";
+import { useInAppBrowser } from "@src/hooks/useInAppBrowser/useInAppBrowser";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
+import { InAppBrowserNotice } from "../InAppBrowserNotice/InAppBrowserNotice";
 
 export const DEPENDENCIES = {
   Button,
   ColoredGoogleIcon,
   GithubIcon,
+  InAppBrowserNotice,
+  useInAppBrowser,
   useReturnTo
 };
 
@@ -22,6 +26,7 @@ interface Props {
 export function OAuthRow({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { authService, analyticsService } = useServices();
   const { returnTo } = d.useReturnTo({ defaultReturnTo: "/" });
+  const inAppBrowser = d.useInAppBrowser();
 
   const redirectToSocialLogin = useCallback(
     async function redirectToSocialLogin(provider: "github" | "google-oauth2") {
@@ -33,15 +38,19 @@ export function OAuthRow({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
   return (
     <div className="flex w-full flex-col gap-2.5">
-      <d.Button
-        type="button"
-        variant="outline"
-        onClick={() => redirectToSocialLogin("google-oauth2")}
-        className="h-10 w-full gap-2 border-neutral-200 dark:border-neutral-800"
-      >
-        <d.ColoredGoogleIcon />
-        Continue with Google
-      </d.Button>
+      {inAppBrowser ? (
+        <d.InAppBrowserNotice browser={inAppBrowser} />
+      ) : (
+        <d.Button
+          type="button"
+          variant="outline"
+          onClick={() => redirectToSocialLogin("google-oauth2")}
+          className="h-10 w-full gap-2 border-neutral-200 dark:border-neutral-800"
+        >
+          <d.ColoredGoogleIcon />
+          Continue with Google
+        </d.Button>
+      )}
       <d.Button
         type="button"
         variant="outline"
