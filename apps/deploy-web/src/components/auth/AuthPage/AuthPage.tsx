@@ -11,8 +11,6 @@ import { H100PriceStatus } from "@src/components/gpu/H100PriceStatus/H100PriceSt
 import { PasswordAuth } from "../PasswordAuth/PasswordAuth";
 import { PasswordlessAuthClient } from "../PasswordlessAuth/PasswordlessAuth";
 
-export const PROVIDER_LOGIN_FAILED_ERROR = "provider_login_failed";
-
 export const DEPENDENCIES = {
   AuthLayout,
   H100PriceStatus,
@@ -33,7 +31,7 @@ export function AuthPage({ referralCode, dependencies: d = DEPENDENCIES }: Props
   const searchParams = d.useSearchParams();
   const forcePassword = searchParams.get("auth") === "password";
   const showPasswordless = !forcePassword;
-  const hasProviderLoginFailed = searchParams.get("error") === PROVIDER_LOGIN_FAILED_ERROR;
+  const hasSignInFailed = searchParams.has("error");
 
   useEffect(
     function stripTabParamWhenPasswordless() {
@@ -50,7 +48,7 @@ export function AuthPage({ referralCode, dependencies: d = DEPENDENCIES }: Props
     <d.AuthLayout topRightContent={<d.H100PriceStatus />}>
       <d.NextSeo title="Sign in to Akash Console" />
       <div className="flex w-full max-w-[420px] flex-col items-center gap-6 px-3 py-4 sm:px-6 lg:px-0">
-        {hasProviderLoginFailed && (
+        {hasSignInFailed && (
           <Alert variant="destructive">
             <AlertDescription>Sign-in with your provider did not complete. Please try again or use another sign-in method.</AlertDescription>
           </Alert>

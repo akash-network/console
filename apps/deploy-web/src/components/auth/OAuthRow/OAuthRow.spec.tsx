@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { InAppBrowser } from "@src/lib/in-app-browser/detectInAppBrowser";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import { DEPENDENCIES, OAuthRow } from "./OAuthRow";
@@ -36,7 +37,37 @@ describe(OAuthRow.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("social_login_init", { provider: "github" }, "GA");
   });
 
-  function setup(input: { returnTo?: string; dependencies?: Partial<typeof DEPENDENCIES> } = {}) {
+  it("does not show the in-app browser notice in a regular browser", () => {
+    const InAppBrowserNoticeMock = vi.fn(ComponentMock);
+    setup({ dependencies: { InAppBrowserNotice: InAppBrowserNoticeMock as never } });
+
+    expect(InAppBrowserNoticeMock).not.toHaveBeenCalled();
+  });
+
+  describe("when opened inside an in-app browser", () => {
+    it("replaces the Google button with a notice naming the in-app browser", () => {
+      const ButtonMock = vi.fn(ComponentMock);
+      const InAppBrowserNoticeMock = vi.fn(ComponentMock);
+      setup({ inAppBrowser: "X", dependencies: { Button: ButtonMock as never, InAppBrowserNotice: InAppBrowserNoticeMock as never } });
+
+      expect(InAppBrowserNoticeMock).toHaveBeenCalledWith({ browser: "X" }, {});
+      expect(ButtonMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps GitHub sign-in available", async () => {
+      const ButtonMock = vi.fn(ComponentMock);
+      const { authService } = setup({ inAppBrowser: "X", returnTo: "/dashboard", dependencies: { Button: ButtonMock as never } });
+      authService.loginViaOauth.mockResolvedValue(undefined);
+
+      await act(async () => {
+        ButtonMock.mock.calls[0][0].onClick();
+      });
+
+      expect(authService.loginViaOauth).toHaveBeenCalledWith({ connection: "github", returnTo: "/dashboard" });
+    });
+  });
+
+  function setup(input: { returnTo?: string; inAppBrowser?: InAppBrowser; dependencies?: Partial<typeof DEPENDENCIES> } = {}) {
     const authService = mock<AuthService>();
     const analyticsService = mock<AnalyticsService>();
     const useReturnTo: typeof DEPENDENCIES.useReturnTo = () => ({
@@ -53,6 +84,7 @@ describe(OAuthRow.name, () => {
           dependencies={{
             ...MockComponents(DEPENDENCIES),
             useReturnTo,
+            useInAppBrowser: () => input.inAppBrowser,
             ...input.dependencies
           }}
         />

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { DEPENDENCIES } from "./AuthPage";
-import { AuthPage, PROVIDER_LOGIN_FAILED_ERROR } from "./AuthPage";
+import { AuthPage } from "./AuthPage";
 
 import { render, screen } from "@testing-library/react";
 
@@ -35,7 +35,12 @@ describe(AuthPage.name, () => {
   });
 
   it("shows a provider failure message when ?error=provider_login_failed is present", () => {
-    setup({ error: PROVIDER_LOGIN_FAILED_ERROR });
+    setup({ error: "provider_login_failed" });
+    expect(screen.getByText(/Sign-in with your provider did not complete/)).toBeInTheDocument();
+  });
+
+  it("shows a provider failure message when the identity provider redirects back with its own error code", () => {
+    setup({ error: "invalid_request" });
     expect(screen.getByText(/Sign-in with your provider did not complete/)).toBeInTheDocument();
   });
 
