@@ -13,6 +13,10 @@ export const TRIAL_BLOCKED_DOMAIN_MESSAGE = "Trial is not available for this ema
 
 export const TRIAL_UNAVAILABLE_MESSAGE = "Unable to start trial. Please contact support for assistance.";
 
+export const TRIAL_EMAIL_VERIFICATION_REQUIRED_MESSAGE = "Confirm your email address to start your trial.";
+
+export const EMAIL_VERIFICATION_REQUIRED_ERROR_CODE = "email_verification_required";
+
 /** The refusals that keep a wallet from ever being activated, shared by the activation itself and by the spends that would otherwise wait on it. */
 @singleton()
 export class TrialEligibilityService {
@@ -48,6 +52,7 @@ export class TrialEligibilityService {
     const user = await this.userRepository.findById(userId);
     if (!user) return;
 
+    assert(user.emailVerified, 403, TRIAL_EMAIL_VERIFICATION_REQUIRED_MESSAGE, { errorCode: EMAIL_VERIFICATION_REQUIRED_ERROR_CODE });
     await this.assertNoDuplicateFingerprint(user);
     await this.assertEmailDomainNotBlocked(user);
     await this.assertNotHeld(user);

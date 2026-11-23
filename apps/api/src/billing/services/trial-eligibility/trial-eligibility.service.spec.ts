@@ -8,7 +8,13 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import type { TrialSignupHoldService } from "@src/workload-abuse/services/trial-signup-hold/trial-signup-hold.service";
-import { TRIAL_BLOCKED_DOMAIN_MESSAGE, TRIAL_UNAVAILABLE_MESSAGE, TrialEligibilityService } from "./trial-eligibility.service";
+import {
+  EMAIL_VERIFICATION_REQUIRED_ERROR_CODE,
+  TRIAL_BLOCKED_DOMAIN_MESSAGE,
+  TRIAL_EMAIL_VERIFICATION_REQUIRED_MESSAGE,
+  TRIAL_UNAVAILABLE_MESSAGE,
+  TrialEligibilityService
+} from "./trial-eligibility.service";
 
 import { createUser } from "@test/seeders/user.seeder";
 
@@ -18,6 +24,21 @@ describe(TrialEligibilityService.name, () => {
       const { service, user } = setup();
 
       await expect(service.assertEligible(user.id)).resolves.toBeUndefined();
+    });
+
+    it("asks a user who has not confirmed their email to confirm it, before any other refusal", async () => {
+      const { service, user, userRepository, blockedEmailDomainService } = setup({
+        user: createUser({ emailVerified: false, lastFingerprint: faker.string.alphanumeric(32) }),
+        hasDuplicateFingerprint: true
+      });
+
+      await expect(service.assertEligible(user.id)).rejects.toMatchObject({
+        status: 403,
+        message: TRIAL_EMAIL_VERIFICATION_REQUIRED_MESSAGE,
+        errorCode: EMAIL_VERIFICATION_REQUIRED_ERROR_CODE
+      });
+      expect(userRepository.findTrialUsersByFingerprint).not.toHaveBeenCalled();
+      expect(blockedEmailDomainService.isBlockedEmail).not.toHaveBeenCalled();
     });
 
     it("refuses a user sharing a fingerprint with another trial account in production", async () => {
@@ -31,7 +52,7 @@ describe(TrialEligibilityService.name, () => {
     it("leaves a shared fingerprint alone outside production, with the check off, or without a fingerprint", async () => {
       const notProduction = setup({ hasDuplicateFingerprint: true, isProduction: false });
       const checkOff = setup({ hasDuplicateFingerprint: true, isFingerprintCheckEnabled: false });
-      const noFingerprint = setup({ hasDuplicateFingerprint: true, user: createUser({ lastFingerprint: null }) });
+      const noFingerprint = setup({ hasDuplicateFingerprint: true, user: createUser({ emailVerified: true, lastFingerprint: null }) });
 
       await expect(notProduction.service.assertEligible(notProduction.user.id)).resolves.toBeUndefined();
       await expect(checkOff.service.assertEligible(checkOff.user.id)).resolves.toBeUndefined();
@@ -77,7 +98,7 @@ describe(TrialEligibilityService.name, () => {
     isBlockedEmailDomain?: boolean;
     isHeld?: boolean;
   }) {
-    const user = input?.user ?? createUser({ lastFingerprint: faker.string.alphanumeric(32) });
+    const user = input?.user ?? createUser({ emailVerified: true, lastFingerprint: faker.string.alphanumeric(32) });
     const featureFlagsService = mock<FeatureFlagsService>({ isEnabledForSubject: vi.fn(() => input?.isFingerprintCheckEnabled ?? true) });
     const stripeService = mock<StripeService>({ isProduction: input?.isProduction ?? true });
     const userRepository = mock<UserRepository>({
