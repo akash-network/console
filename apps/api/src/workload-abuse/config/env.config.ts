@@ -163,6 +163,8 @@ export const envSchema = z.object({
   WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   /** `report` grants the trial and only logs the email domain signals that would have held it. */
   WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
+  /** `report` logs the block a held sign-up would have placed on its domain; only a hold tied to an already blocked domain blocks. */
+  WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(5)),
   WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(24))
 });

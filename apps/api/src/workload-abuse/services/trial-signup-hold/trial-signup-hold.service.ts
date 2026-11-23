@@ -3,12 +3,22 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
+import { BlockEmailDomainOfHeldSignup, blockEmailDomainOfHeldSignupKeyFor } from "@src/workload-abuse/events/block-email-domain-of-held-signup";
 import { hasGeneratedPlusTag } from "@src/workload-abuse/lib/generated-email-tag/generated-email-tag";
-import { type EmailDomainAssessment, EmailDomainReputationService } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
+import type { HeldSignupBlockEvidence } from "@src/workload-abuse/services/email-domain-block/email-domain-block.service";
+import {
+  type EmailDomainAssessment,
+  EmailDomainReputationService,
+  type EmailDomainSignal
+} from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
 type HeldUser = Pick<UserOutput, "id" | "email" | "lastFingerprint">;
+
+function isTiedToBlockedDomain(signal: EmailDomainSignal): signal is HeldSignupBlockEvidence {
+  return "blockedDomain" in signal;
+}
 
 /** Counts only accounts active within the review window, so a hold lifts by itself once they leave it. */
 @singleton()
@@ -85,8 +95,28 @@ export class TrialSignupHoldService {
 
     this.logger.warn({ event: "TRIAL_SIGNUP_HELD_FOR_EMAIL_DOMAIN", ...context });
     await this.#reportHeldIfLinked(user);
+    await this.#requestDomainBlock(user.id, assessment);
 
     return true;
+  }
+
+  /** Only a signal naming an already blocked domain blocks, since a burst or a forwarding-only domain can be a real company onboarding its staff. */
+  async #requestDomainBlock(userId: UserOutput["id"], { domain: emailDomain, signals }: EmailDomainAssessment): Promise<void> {
+    if (this.config.get("WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE") === "off") return;
+
+    const evidence = signals.find(isTiedToBlockedDomain);
+    if (!evidence || !emailDomain) return;
+
+    try {
+      await this.txService.outsideTransaction(
+        async () =>
+          await this.jobQueueService.enqueue(new BlockEmailDomainOfHeldSignup({ userId, emailDomain, evidence }), {
+            singletonKey: blockEmailDomainOfHeldSignupKeyFor(userId)
+          })
+      );
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_SIGNUP_DOMAIN_BLOCK_REQUEST_FAILED", userId, error });
+    }
   }
 
   /** Fails open, since every signal is a heuristic and a database or DNS fault must not cost a real user their trial. */

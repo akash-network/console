@@ -242,7 +242,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
    */
   async findLockableTrialWalletsByEmailDomain(
     domain: string,
-    options: { excludeWalletId: number; limit: number }
+    options: { excludeWalletId?: number; limit: number }
   ): Promise<Array<{ walletId: number; userId: string }>> {
     return await this.cursor
       .select({ walletId: this.table.id, userId: Users.id })
@@ -254,7 +254,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
             isEmailWithinDomain(Users.email, domain),
             eq(this.table.isTrialing, true),
             isNull(this.table.abuseLockedAt),
-            ne(this.table.id, options.excludeWalletId),
+            options.excludeWalletId === undefined ? undefined : ne(this.table.id, options.excludeWalletId),
             notExists(
               this.cursor
                 .select({ id: StripeTransactions.id })

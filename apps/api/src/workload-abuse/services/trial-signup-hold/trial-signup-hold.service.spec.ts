@@ -5,6 +5,8 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger, JobQueueService } from "@src/core";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
+import { BlockEmailDomainOfHeldSignup, blockEmailDomainOfHeldSignupKeyFor } from "@src/workload-abuse/events/block-email-domain-of-held-signup";
+import type { HeldSignupBlockEvidence } from "@src/workload-abuse/services/email-domain-block/email-domain-block.service";
 import type { EmailDomainReputationService, EmailDomainSignal } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -203,6 +205,76 @@ describe(TrialSignupHoldService.name, () => {
       });
     });
 
+    describe("when the hold ties the domain to an already blocked one", () => {
+      it("asks for the domain to be blocked outside the transaction, once per held user", async () => {
+        const { service, user, jobQueueService, txService } = setup({ mode: "off", tagMode: "off", domainMode: "enforce", domainSignals: signals });
+
+        expect(await service.isHeld(user)).toBe(true);
+        expect(txService.outsideTransaction).toHaveBeenCalled();
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new BlockEmailDomainOfHeldSignup({ userId: user.id, emailDomain: DOMAIN, evidence: signals[0] as HeldSignupBlockEvidence }),
+          {
+            singletonKey: blockEmailDomainOfHeldSignupKeyFor(user.id)
+          }
+        );
+      });
+
+      it("passes the first signal naming a blocked domain as the evidence", async () => {
+        const device: EmailDomainSignal = { signal: "device_shared_with_blocked_domain", linkedUserId: faker.string.uuid(), blockedDomain: "afronewz.com" };
+        const { service, user, jobQueueService } = setup({
+          mode: "off",
+          tagMode: "off",
+          domainMode: "enforce",
+          domainSignals: [{ signal: "signup_burst", burstDomain: DOMAIN, signups: 7 }, device, ...signals]
+        });
+
+        await service.isHeld(user);
+
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new BlockEmailDomainOfHeldSignup({ userId: user.id, emailDomain: DOMAIN, evidence: device as HeldSignupBlockEvidence }),
+          {
+            singletonKey: blockEmailDomainOfHeldSignupKeyFor(user.id)
+          }
+        );
+      });
+
+      it("asks for no block when the held address has no domain to block", async () => {
+        const device: EmailDomainSignal = { signal: "device_shared_with_blocked_domain", linkedUserId: faker.string.uuid(), blockedDomain: "afronewz.com" };
+        const { service, user, jobQueueService } = setup({ mode: "off", tagMode: "off", domainMode: "enforce", domainSignals: [device], assessedDomain: null });
+
+        expect(await service.isHeld(user)).toBe(true);
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      });
+
+      it("asks for no block when the held sign-up block is switched off", async () => {
+        const { service, user, jobQueueService } = setup({ mode: "off", tagMode: "off", domainMode: "enforce", domainSignals: signals, blockMode: "off" });
+
+        expect(await service.isHeld(user)).toBe(true);
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      });
+
+      it("still holds the trial and logs the failure when the block cannot be queued", async () => {
+        const { service, user, jobQueueService, logger } = setup({ mode: "off", tagMode: "off", domainMode: "enforce", domainSignals: signals });
+        const error = new Error("queue unavailable");
+        jobQueueService.enqueue.mockRejectedValue(error);
+
+        expect(await service.isHeld(user)).toBe(true);
+        expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_DOMAIN_BLOCK_REQUEST_FAILED", userId: user.id, error });
+      });
+    });
+
+    it("holds without asking for a block when only a burst or forwarding-only mail ties the domain to abuse", async () => {
+      const { service, user, jobQueueService } = setup({
+        mode: "off",
+        tagMode: "off",
+        domainMode: "enforce",
+        domainSignals: [{ signal: "signup_burst", burstDomain: DOMAIN, signups: 5 }, { signal: "forwarding_only_without_website" }]
+      });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it("only logs the hold it would have placed in report mode", async () => {
       const { service, user, jobQueueService, logger } = setup({ mode: "off", tagMode: "off", domainMode: "report", domainSignals: signals });
 
@@ -237,7 +309,11 @@ describe(TrialSignupHoldService.name, () => {
     });
 
     it("skips the assessment once an earlier rule holds the trial", async () => {
-      const { service, user, emailDomainReputationService } = setup({ tagMode: "enforce", email: "veliarothmann5510+y177lq10ru@hotmail.com", domainMode: "enforce" });
+      const { service, user, emailDomainReputationService } = setup({
+        tagMode: "enforce",
+        email: "veliarothmann5510+y177lq10ru@hotmail.com",
+        domainMode: "enforce"
+      });
 
       expect(await service.isHeld(user)).toBe(true);
       expect(emailDomainReputationService.findSignals).not.toHaveBeenCalled();
@@ -249,7 +325,9 @@ describe(TrialSignupHoldService.name, () => {
       mode?: "off" | "report" | "enforce";
       tagMode?: "off" | "report" | "enforce";
       domainMode?: "off" | "report" | "enforce";
+      blockMode?: "off" | "report" | "enforce";
       domainSignals?: EmailDomainSignal[];
+      assessedDomain?: string | null;
       linkedCount?: number;
       minLinkedAccounts?: number;
       windowMinutes?: number;
@@ -268,12 +346,13 @@ describe(TrialSignupHoldService.name, () => {
       WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: input.minLinkedAccounts ?? 2,
       WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: input.tagMode ?? "report",
       WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: input.domainMode ?? "report",
+      WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: input.blockMode ?? "report",
       WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "windowMinutes" in input ? input.windowMinutes : 45
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const emailDomainReputationService = mock<EmailDomainReputationService>({
-      findSignals: vi.fn().mockResolvedValue({ domain: DOMAIN, signals: input.domainSignals ?? [] })
+      findSignals: vi.fn().mockResolvedValue({ domain: "assessedDomain" in input ? input.assessedDomain : DOMAIN, signals: input.domainSignals ?? [] })
     });
     const service = new TrialSignupHoldService(userRepository, jobQueueService, txService, config, emailDomainReputationService, createLogger);
 
