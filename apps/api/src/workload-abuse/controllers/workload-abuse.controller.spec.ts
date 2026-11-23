@@ -5,6 +5,7 @@ import type {
   BehaviouralReplaySummary,
   BehaviouralSignalReplayService
 } from "@src/workload-abuse/services/behavioural-signal-replay/behavioural-signal-replay.service";
+import type { EmailDomainMailProfileService } from "@src/workload-abuse/services/email-domain-mail-profile/email-domain-mail-profile.service";
 import type { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import type { TrialAbuseEnforcementJobService } from "@src/workload-abuse/services/trial-abuse-enforcement-job/trial-abuse-enforcement-job.service";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -76,6 +77,15 @@ describe(WorkloadAbuseController.name, () => {
     expect(behaviouralSignalReplayService.replay).toHaveBeenCalledWith(options);
   });
 
+  describe("recordBlockedDomainMailServers", () => {
+    it("records the mail servers of blocked domains that have none and returns the counts", async () => {
+      const { controller, emailDomainMailProfileService } = setup();
+      emailDomainMailProfileService.recordMissingBlockedDomainProfiles.mockResolvedValue({ found: 3, recorded: 2 });
+
+      expect(await controller.recordBlockedDomainMailServers()).toEqual({ found: 3, recorded: 2 });
+    });
+  });
+
   function setup() {
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     probeJobService.reconcile.mockResolvedValue();
@@ -83,8 +93,15 @@ describe(WorkloadAbuseController.name, () => {
     enforcementJobService.reconcile.mockResolvedValue();
     const probeEvidenceService = mock<ProbeEvidenceService>();
     const behaviouralSignalReplayService = mock<BehaviouralSignalReplayService>();
-    const controller = new WorkloadAbuseController(probeJobService, enforcementJobService, probeEvidenceService, behaviouralSignalReplayService);
+    const emailDomainMailProfileService = mock<EmailDomainMailProfileService>();
+    const controller = new WorkloadAbuseController(
+      probeJobService,
+      enforcementJobService,
+      probeEvidenceService,
+      behaviouralSignalReplayService,
+      emailDomainMailProfileService
+    );
 
-    return { controller, probeJobService, enforcementJobService, probeEvidenceService, behaviouralSignalReplayService };
+    return { controller, probeJobService, enforcementJobService, probeEvidenceService, behaviouralSignalReplayService, emailDomainMailProfileService };
   }
 });

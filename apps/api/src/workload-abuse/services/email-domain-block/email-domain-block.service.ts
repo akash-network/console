@@ -12,6 +12,7 @@ import {
 } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import { EmailDomainMailProfileService } from "@src/workload-abuse/services/email-domain-mail-profile/email-domain-mail-profile.service";
 import {
   LockBlockedDomainWallet,
   lockBlockedDomainWalletKeyFor
@@ -47,6 +48,7 @@ export class EmailDomainBlockService {
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly blockedEmailDomainRepository: BlockedEmailDomainRepository,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly emailDomainMailProfileService: EmailDomainMailProfileService,
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
     private readonly jobQueueService: JobQueueService,
     private readonly config: WorkloadAbuseConfigService,
@@ -106,6 +108,7 @@ export class EmailDomainBlockService {
       this.blockedEmailDomainService.rememberBlocked(domain);
       this.instrumentation.recordDomainBlock("blocked");
       this.logger.warn({ event: "EMAIL_DOMAIN_AUTO_BLOCKED", ...context });
+      await this.emailDomainMailProfileService.recordProfile(domain);
     } else if (!(await this.#adoptRacedBlock(domain, context))) {
       return;
     }

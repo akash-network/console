@@ -91,6 +91,35 @@ describe(EmailDomainMailHostRepository.name, () => {
     });
   });
 
+  describe("findBlockedDomainsWithoutProfile", () => {
+    it("returns blocked domains with no stored mail servers, newest block first", async () => {
+      const { repository, blockedEmailDomainRepository, saveProfile } = setup();
+      const [older, newer, profiled, allowed] = Array.from({ length: 4 }, () => `${faker.string.alphanumeric(12).toLowerCase()}.help`);
+      await blockedEmailDomainRepository.create({ domain: older, status: "blocked", createdAt: new Date("2026-01-01T00:00:00Z") });
+      await blockedEmailDomainRepository.create({ domain: newer, status: "blocked", createdAt: new Date("2026-02-01T00:00:00Z") });
+      await blockedEmailDomainRepository.create({ domain: profiled, status: "blocked", createdAt: new Date("2026-03-01T00:00:00Z") });
+      await blockedEmailDomainRepository.create({ domain: allowed, status: "allowed", createdAt: new Date("2026-04-01T00:00:00Z") });
+      await saveProfile(profiled, []);
+
+      const domains = await repository.findBlockedDomainsWithoutProfile(1000);
+
+      expect(domains).toContain(older);
+      expect(domains).toContain(newer);
+      expect(domains).not.toContain(profiled);
+      expect(domains).not.toContain(allowed);
+      expect(domains.indexOf(newer)).toBeLessThan(domains.indexOf(older));
+    });
+
+    it("returns at most the requested number of domains", async () => {
+      const { repository, blockedEmailDomainRepository } = setup();
+      for (const index of [1, 2, 3]) {
+        await blockedEmailDomainRepository.create({ domain: `${faker.string.alphanumeric(12).toLowerCase()}${index}.mom`, status: "blocked" });
+      }
+
+      await expect(repository.findBlockedDomainsWithoutProfile(2)).resolves.toHaveLength(2);
+    });
+  });
+
   function setup() {
     const repository = container.resolve(EmailDomainMailHostRepository);
     const blockedEmailDomainRepository = container.resolve(BlockedEmailDomainRepository);

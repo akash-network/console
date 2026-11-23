@@ -184,13 +184,133 @@ describe(EmailDomainMailProfileService.name, () => {
     expect(logger.error).toHaveBeenCalledWith({ event: "EMAIL_DOMAIN_MAIL_PROFILE_SAVE_FAILED", domain: "example-corp.com", error });
   });
 
-  function setup(input: { mx?: Record<string, MxRecord[]>; a?: Record<string, string[]>; aaaa?: Record<string, string[]> } = {}) {
+  it("looks a domain up and saves it again on the next lookup after its save failed", async () => {
+    const { service, resolver, repository } = setup({ a: { "example-corp.com": ["45.10.0.3"] } });
+    repository.upsertProfile.mockRejectedValueOnce(new Error("database unavailable"));
+    await service.findProfile("example-corp.com");
+
+    const profile = await service.findProfile("example-corp.com");
+
+    expect(profile).toMatchObject({ domain: "example-corp.com" });
+    expect(resolver.resolveMx).toHaveBeenCalledTimes(2);
+    expect(repository.upsertProfile).toHaveBeenCalledTimes(2);
+  });
+
+  describe("recordProfile", () => {
+    it("looks up and stores the domain's mail servers", async () => {
+      const { service, repository } = setup({ mx: { "step-sis.help": [{ exchange: "mail.step-sis.help", priority: 10 }] }, a: { "mail.step-sis.help": ["23.88.114.19"] } });
+
+      const recorded = await service.recordProfile("step-sis.help");
+
+      expect(recorded).toBe(true);
+      expect(repository.upsertProfile).toHaveBeenCalledWith({
+        domain: "step-sis.help",
+        mxHosts: ["mail.step-sis.help"],
+        selfHostedMxIps: ["23.88.114.19"],
+        hasWebsite: false
+      });
+    });
+
+    it("looks the domain up and saves it even when a cached profile exists", async () => {
+      const { service, resolver, repository } = setup({ a: { "example-corp.com": ["45.10.0.3"] } });
+      await service.findProfile("example-corp.com");
+
+      const recorded = await service.recordProfile("example-corp.com");
+
+      expect(recorded).toBe(true);
+      expect(resolver.resolveMx).toHaveBeenCalledTimes(2);
+      expect(repository.upsertProfile).toHaveBeenCalledTimes(2);
+    });
+
+    it("caches the profile it records for later lookups", async () => {
+      const { service, resolver } = setup({ a: { "example-corp.com": ["45.10.0.3"] } });
+      await service.recordProfile("example-corp.com");
+
+      const profile = await service.findProfile("example-corp.com");
+
+      expect(profile).toMatchObject({ domain: "example-corp.com", hasWebsite: true });
+      expect(resolver.resolveMx).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports nothing recorded when DNS fails", async () => {
+      const { service, resolver, repository } = setup();
+      resolver.resolveMx.mockRejectedValue(Object.assign(new Error("queryMx ETIMEOUT"), { code: "ETIMEOUT" }));
+
+      expect(await service.recordProfile("slow-dns.dev")).toBe(false);
+      expect(repository.upsertProfile).not.toHaveBeenCalled();
+    });
+
+    it("reports nothing recorded and logs when the profile cannot be saved", async () => {
+      const { service, repository, logger } = setup({ a: { "example-corp.com": ["45.10.0.3"] } });
+      const error = new Error("database unavailable");
+      repository.upsertProfile.mockRejectedValue(error);
+
+      expect(await service.recordProfile("example-corp.com")).toBe(false);
+      expect(logger.error).toHaveBeenCalledWith({ event: "EMAIL_DOMAIN_MAIL_PROFILE_SAVE_FAILED", domain: "example-corp.com", error });
+    });
+  });
+
+  describe("recordMissingBlockedDomainProfiles", () => {
+    it("stores the mail servers of every blocked domain that has none, asking for a bounded batch", async () => {
+      const { service, repository } = setup({
+        blockedWithoutProfile: ["step-sis.help", "afronewz.com"],
+        a: { "step-sis.help": ["23.88.114.19"], "afronewz.com": ["138.197.228.18"] }
+      });
+
+      const summary = await service.recordMissingBlockedDomainProfiles();
+
+      expect(repository.findBlockedDomainsWithoutProfile).toHaveBeenCalledWith(500);
+      expect(repository.upsertProfile).toHaveBeenCalledWith(expect.objectContaining({ domain: "step-sis.help" }));
+      expect(repository.upsertProfile).toHaveBeenCalledWith(expect.objectContaining({ domain: "afronewz.com" }));
+      expect(summary).toEqual({ found: 2, recorded: 2 });
+    });
+
+    it("counts a domain whose DNS fails as not recorded, so the next run retries it", async () => {
+      const { service, resolver, repository, logger } = setup({ blockedWithoutProfile: ["slow-dns.dev", "example-corp.com"], a: { "example-corp.com": ["45.10.0.3"] } });
+      resolver.resolveMx.mockImplementation(async host => {
+        if (host === "slow-dns.dev") throw Object.assign(new Error("queryMx ETIMEOUT"), { code: "ETIMEOUT" });
+        throw Object.assign(new Error("queryMx ENODATA"), { code: "ENODATA" });
+      });
+
+      const summary = await service.recordMissingBlockedDomainProfiles();
+
+      expect(summary).toEqual({ found: 2, recorded: 1 });
+      expect(repository.upsertProfile).toHaveBeenCalledTimes(1);
+      expect(logger.info).toHaveBeenCalledWith({ event: "BLOCKED_EMAIL_DOMAIN_PROFILES_RECORDED", found: 2, recorded: 1 });
+    });
+
+    it("counts a domain whose profile cannot be saved as not recorded", async () => {
+      const { service, repository } = setup({
+        blockedWithoutProfile: ["step-sis.help", "afronewz.com"],
+        a: { "step-sis.help": ["23.88.114.19"], "afronewz.com": ["138.197.228.18"] }
+      });
+      repository.upsertProfile.mockImplementation(async profile => {
+        if (profile.domain === "afronewz.com") throw new Error("database unavailable");
+      });
+
+      expect(await service.recordMissingBlockedDomainProfiles()).toEqual({ found: 2, recorded: 1 });
+    });
+
+    it("does nothing when every blocked domain already has its mail servers", async () => {
+      const { service, resolver } = setup({ blockedWithoutProfile: [] });
+
+      expect(await service.recordMissingBlockedDomainProfiles()).toEqual({ found: 0, recorded: 0 });
+      expect(resolver.resolveMx).not.toHaveBeenCalled();
+    });
+  });
+
+  function setup(
+    input: { mx?: Record<string, MxRecord[]>; a?: Record<string, string[]>; aaaa?: Record<string, string[]>; blockedWithoutProfile?: string[] } = {}
+  ) {
     const resolver = mock<DnsResolver>({
       resolveMx: vi.fn(async (host: string) => answerOrNoData(input.mx, host)),
       resolve4: vi.fn(async (host: string) => answerOrNoData(input.a, host)),
       resolve6: vi.fn(async (host: string) => answerOrNoData(input.aaaa, host))
     });
-    const repository = mock<EmailDomainMailHostRepository>({ upsertProfile: vi.fn().mockResolvedValue(undefined) });
+    const repository = mock<EmailDomainMailHostRepository>({
+      upsertProfile: vi.fn().mockResolvedValue(undefined),
+      findBlockedDomainsWithoutProfile: vi.fn().mockResolvedValue(input.blockedWithoutProfile ?? [])
+    });
     const txService = mock<TxService>({ outsideTransaction: vi.fn(async cb => await cb()) });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);

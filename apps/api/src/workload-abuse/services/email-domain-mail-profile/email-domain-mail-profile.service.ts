@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { LRUCache } from "lru-cache";
 import type { MxRecord } from "node:dns";
 import { inject, singleton } from "tsyringe";
@@ -19,6 +20,10 @@ const PROFILE_TTL_MS = 60 * 60 * 1000;
 /** The domain owner decides how many records it publishes, so these bound the lookups and the row a hostile domain can cost us. */
 const MAX_MX_HOSTS = 10;
 const MAX_SELF_HOSTED_MX_IPS = 16;
+
+/** Bounds one sweep run so a mass block is worked off over several runs instead of outliving the CronJob's deadline. */
+const MAX_BLOCKED_DOMAINS_PER_SWEEP = 500;
+const BLOCKED_DOMAIN_SWEEP_CONCURRENCY = 8;
 
 const ABSENT_RECORD_CODES: ReadonlySet<string> = new Set(["ENODATA", "ENOTFOUND"]);
 
@@ -44,12 +49,29 @@ export class EmailDomainMailProfileService {
     if (cached) return cached;
 
     const profile = await this.#resolveProfile(domain);
-    if (!profile) return null;
-
-    this.#profiles.set(domain, profile);
-    await this.#saveProfile(profile);
+    if (profile) await this.#storeProfile(profile);
 
     return profile;
+  }
+
+  /** Skips the cache, so a block always writes the domain's current mail servers. */
+  async recordProfile(domain: string): Promise<boolean> {
+    const profile = await this.#resolveProfile(domain);
+
+    return !!profile && (await this.#storeProfile(profile));
+  }
+
+  /** The admin console writes blocks straight into the table, and a blocked domain's own sign-ups are refused before the hold looks it up, so nothing else records its mail servers. */
+  async recordMissingBlockedDomainProfiles(): Promise<{ found: number; recorded: number }> {
+    const domains = await this.emailDomainMailHostRepository.findBlockedDomainsWithoutProfile(MAX_BLOCKED_DOMAINS_PER_SWEEP);
+    const { results } = await PromisePool.withConcurrency(BLOCKED_DOMAIN_SWEEP_CONCURRENCY)
+      .for(domains)
+      .process(async domain => await this.recordProfile(domain));
+    const summary = { found: domains.length, recorded: results.filter(Boolean).length };
+
+    this.logger.info({ event: "BLOCKED_EMAIL_DOMAIN_PROFILES_RECORDED", ...summary });
+
+    return summary;
   }
 
   async #resolveProfile(domain: string): Promise<EmailDomainMailProfile | null> {
@@ -90,11 +112,14 @@ export class EmailDomainMailProfileService {
   }
 
   /** Written outside the activation's transaction, which a hold rolls back by throwing. */
-  async #saveProfile(profile: EmailDomainMailProfile): Promise<void> {
+  async #storeProfile(profile: EmailDomainMailProfile): Promise<boolean> {
     try {
       await this.txService.outsideTransaction(async () => await this.emailDomainMailHostRepository.upsertProfile(profile));
+      this.#profiles.set(profile.domain, profile);
+      return true;
     } catch (error) {
       this.logger.error({ event: "EMAIL_DOMAIN_MAIL_PROFILE_SAVE_FAILED", domain: profile.domain, error });
+      return false;
     }
   }
 }

@@ -161,6 +161,15 @@ program
   });
 
 program
+  .command("record-blocked-domain-mail-servers")
+  .description("Look up and store the mail servers of every blocked email domain that has none recorded")
+  .action(async (_options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(WorkloadAbuseController).recordBlockedDomainMailServers();
+    });
+  });
+
+program
   .command("cleanup-provider-deployments")
   .description("Close trial deployments for a provider")
   .option("-c, --concurrency <number>", "How many wallets are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
