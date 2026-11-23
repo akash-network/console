@@ -90,7 +90,7 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - detect-lease-gpus
-  - name: record-blocked-domain-mail-servers
+  - name: blocked-domain-mail-servers
     schedule: "29 * * * *" # hourly
     concurrencyPolicy: Forbid
     activeDeadlineSeconds: 1500
