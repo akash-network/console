@@ -72,6 +72,7 @@ import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account
 import { CloseAccountDeploymentsHandler } from "@src/user/services/close-account-deployments/close-account-deployments.handler";
 import { NotifyAccountStatusChangeHandler } from "@src/user/services/notify-account-status-change/notify-account-status-change.handler";
 import { PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
+import { BlockEmailDomainOfHeldSignupHandler } from "@src/workload-abuse/services/block-email-domain-of-held-signup/block-email-domain-of-held-signup.handler";
 import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { DailySignupSummaryHandler } from "@src/workload-abuse/services/daily-signup-summary/daily-signup-summary.handler";
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
@@ -149,6 +150,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),
+    container.resolve(BlockEmailDomainOfHeldSignupHandler),
     container.resolve(ReviewTrialSignupHandler),
     container.resolve(ReviewRefusedTrialHandler),
     container.resolve(DailySignupSummaryHandler),

@@ -1,9 +1,9 @@
 import { inject, singleton } from "tsyringe";
 
-import { type PersonalWallet, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
+import { type PersonalWallet, UserWalletRepository } from "@src/billing/repositories";
 import { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
-import { UserRepository } from "@src/user/repositories";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { extractEmailDomain, getRegistrableDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { isPublicEmailProvider } from "@src/workload-abuse/lib/email-domain/public-email-providers";
 import {
@@ -13,6 +13,7 @@ import {
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { EmailDomainMailProfileService } from "@src/workload-abuse/services/email-domain-mail-profile/email-domain-mail-profile.service";
+import type { EmailDomainSignal } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
 import {
   LockBlockedDomainWallet,
   lockBlockedDomainWalletKeyFor
@@ -21,6 +22,19 @@ import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workloa
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 
 export const DOMAIN_BLOCK_REASON = "workload_abuse";
+
+export const HELD_SIGNUP_BLOCK_REASON = "held_signup";
+
+export type HeldSignupBlockEvidence = Extract<EmailDomainSignal, { blockedDomain: string }>;
+
+type BlockRequest = {
+  userId: UserOutput["id"];
+  context: Record<string, unknown>;
+  excludeWalletId?: number;
+  reason: string;
+  isEnforcing: boolean;
+  hasSecondAccount: (domain: string) => Promise<boolean>;
+};
 
 type SkipReason =
   | "no_domain"
@@ -33,7 +47,7 @@ type SkipReason =
   | "awaiting_second_account";
 
 /**
- * Turns a second mailbox caught mining on an email domain into a block on its whole registrable domain, so the next
+ * Turns a second mailbox caught mining on an email domain, or a held sign-up tied to an already blocked domain, into a block on its whole registrable domain, so the next
  * account on it never gets a trial. Blunt by design, so three guardrails stand in front of it:
  * a public provider, a domain anybody has ever paid from, and a domain older than the attack are all
  * left alone and merely recorded. The first caught mailbox only locks its own wallet.
@@ -60,16 +74,42 @@ export class EmailDomainBlockService {
 
   /** Throws: it runs on the queue, where a transient failure is worth a retry rather than a lost block. */
   async blockDomainOf(wallet: PersonalWallet): Promise<void> {
-    const user = await this.userRepository.findById(wallet.userId);
+    await this.#block({
+      userId: wallet.userId,
+      context: { walletId: wallet.id },
+      excludeWalletId: wallet.id,
+      reason: DOMAIN_BLOCK_REASON,
+      isEnforcing: this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MODE") === "enforce",
+      hasSecondAccount: async domain => await this.detectionRepository.hasEnforcedSignatureMatchByAnotherMailbox(domain, wallet.userId)
+    });
+  }
+
+  /** The hold already tied the domain to a blocked one, which stands in for the second mining mailbox the workload path waits for. */
+  async blockDomainOfHeldSignup(userId: UserOutput["id"], evidence: HeldSignupBlockEvidence): Promise<void> {
+    const mode = this.config.get("WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE");
+    if (mode === "off") return;
+
+    await this.#block({
+      userId,
+      context: { trigger: "held_signup", signal: evidence.signal, blockedDomain: evidence.blockedDomain },
+      reason: HELD_SIGNUP_BLOCK_REASON,
+      isEnforcing: mode === "enforce",
+      hasSecondAccount: async () => true
+    });
+  }
+
+  async #block(request: BlockRequest): Promise<void> {
+    const { userId } = request;
+    const user = await this.userRepository.findById(userId);
     const emailDomain = extractEmailDomain(user?.email);
 
-    if (!emailDomain) return this.#skip("no_domain", { walletId: wallet.id, userId: wallet.userId });
+    if (!emailDomain) return this.#skip("no_domain", { ...request.context, userId });
 
     const domain = getRegistrableDomain(emailDomain);
 
-    if (!domain) return this.#skip("public_suffix", { walletId: wallet.id, userId: wallet.userId, emailDomain });
+    if (!domain) return this.#skip("public_suffix", { ...request.context, userId, emailDomain });
 
-    const context = { walletId: wallet.id, userId: wallet.userId, domain, emailDomain };
+    const context = { ...request.context, userId, domain, emailDomain };
 
     if (isPublicEmailProvider(domain)) return this.#skip("public_provider", context);
 
@@ -79,30 +119,24 @@ export class EmailDomainBlockService {
 
     if (existing?.status === "blocked") {
       this.#skip("already_blocked", context);
-      await this.#sweepSiblings(domain, wallet);
+      if (request.isEnforcing) await this.#sweepSiblings(domain, request.excludeWalletId);
       return;
     }
 
     if (await this.stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)) return this.#skip("domain_has_paid_user", context);
 
     const minAccountAgeDays = this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS");
-    if (await this.userRepository.hasEstablishedUserWithEmailDomain(domain, minAccountAgeDays, wallet.userId))
-      return this.#skip("domain_predates_attack", context);
+    if (await this.userRepository.hasEstablishedUserWithEmailDomain(domain, minAccountAgeDays, userId)) return this.#skip("domain_predates_attack", context);
 
-    if (!(await this.detectionRepository.hasEnforcedSignatureMatchByAnotherMailbox(domain, wallet.userId)))
-      return this.#skip("awaiting_second_account", context);
+    if (!(await request.hasSecondAccount(domain))) return this.#skip("awaiting_second_account", context);
 
-    if (!this.#isEnforcing) {
+    if (!request.isEnforcing) {
       this.instrumentation.recordDomainBlock("dry_run");
       this.logger.info({ event: "EMAIL_DOMAIN_AUTO_BLOCK_DRY_RUN", ...context });
       return;
     }
 
-    const blocked = await this.blockedEmailDomainRepository.blockIfAbsent({
-      domain,
-      reason: DOMAIN_BLOCK_REASON,
-      triggeredByUserId: wallet.userId
-    });
+    const blocked = await this.blockedEmailDomainRepository.blockIfAbsent({ domain, reason: request.reason, triggeredByUserId: userId });
 
     if (blocked) {
       this.blockedEmailDomainService.rememberBlocked(domain);
@@ -113,7 +147,7 @@ export class EmailDomainBlockService {
       return;
     }
 
-    await this.#sweepSiblings(domain, wallet);
+    await this.#sweepSiblings(domain, request.excludeWalletId);
   }
 
   /** The address's own nearest allow stops the block, while a block only counts once it covers the whole registrable domain. */
@@ -141,11 +175,9 @@ export class EmailDomainBlockService {
   }
 
   /** Nothing else requeues a sibling this sweep drops, so every sibling is attempted and the first enqueue failure is rethrown onto the job's retry budget. */
-  async #sweepSiblings(domain: string, wallet: WalletInitialized): Promise<void> {
-    if (!this.#isEnforcing) return;
-
+  async #sweepSiblings(domain: string, excludeWalletId: number | undefined): Promise<void> {
     const limit = this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MAX_SIBLINGS");
-    const overfetched = await this.userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: wallet.id, limit: limit + 1 });
+    const overfetched = await this.userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId, limit: limit + 1 });
 
     if (overfetched.length === 0) return;
 
@@ -185,10 +217,6 @@ export class EmailDomainBlockService {
     this.logger.info({ event: "BLOCKED_DOMAIN_SIBLINGS_SWEPT", domain, found: siblings.length, enqueued, alreadyQueued, failed });
 
     if (firstError) throw firstError;
-  }
-
-  get #isEnforcing(): boolean {
-    return this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MODE") === "enforce";
   }
 
   #skip(reason: SkipReason, context: Record<string, unknown>): void {

@@ -425,6 +425,22 @@ describe(UserWalletRepository.name, () => {
       expect(lockable).toEqual([{ walletId: target.id, userId: target.userId }]);
     });
 
+    it("returns every lockable wallet on the domain when no wallet is excluded", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      const first = await createWalletOnDomain({});
+      const second = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { limit: 10 });
+
+      expect(lockable).toEqual(
+        expect.arrayContaining([
+          { walletId: first.id, userId: first.userId },
+          { walletId: second.id, userId: second.userId }
+        ])
+      );
+      expect(lockable).toHaveLength(2);
+    });
+
     it.each([
       { label: "already locked", overrides: { abuseLockedAt: new Date(), abuseLockedReason: "workload_abuse" } },
       { label: "no longer trialing", overrides: { isTrialing: false } }

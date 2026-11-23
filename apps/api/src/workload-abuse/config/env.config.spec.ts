@@ -268,6 +268,17 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: "detect" })).toThrow(/WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE/);
   });
 
+  it("defaults the held sign-up domain block to report when unset or blank", () => {
+    expect(setup().WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE).toBe("report");
+    expect(setup({ WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: " " }).WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE).toBe("report");
+  });
+
+  it("reads the held sign-up domain block mode and rejects an unknown one", () => {
+    expect(setup({ WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: "enforce" }).WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE).toBe("enforce");
+    expect(setup({ WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: "off" }).WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE).toBe("off");
+    expect(() => setup({ WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: "detect" })).toThrow(/WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE/);
+  });
+
   it("defaults the email domain burst to 5 sign-ups within 24 hours when unset or blank", () => {
     const blank = setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: " ", WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: " " });
 
