@@ -377,17 +377,17 @@ describe("Organization billing", () => {
   });
 
   describe("POST /v1/wallet-settings", () => {
-    it("saves auto reload for the team's wallet when its billing member sets it up", async () => {
+    it.each(["billing", "admin"] satisfies OrganizationRole[])("saves auto reload for the team's wallet when a %s sets it up", async role => {
       const { team, headersOf, memberWith } = await setup();
-      const billingMember = await memberWith("billing");
+      const caller = await memberWith(role);
       const teamWallet = await seedTeamWallet(team.id);
 
-      const response = await saveWalletSettings(headersOf(billingMember));
+      const response = await saveWalletSettings(headersOf(caller));
 
       expect(response.status).toBe(200);
       const settings = resolveTable("WalletSetting");
       expect(await db.query.WalletSetting.findMany({ where: eq(settings.walletId, teamWallet.id) })).toEqual([
-        expect.objectContaining({ organizationId: team.id, userId: billingMember.id })
+        expect.objectContaining({ organizationId: team.id, userId: caller.id })
       ]);
     });
 
