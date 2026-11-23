@@ -6,9 +6,9 @@ export type InAppBrowser = "X" | "Instagram" | "Facebook" | "LinkedIn" | "TikTok
 const IN_APP_BROWSER_SIGNATURES: ReadonlyArray<{ browser: InAppBrowser; pattern: RegExp }> = [
   { browser: "X", pattern: /TwitterAndroid|Twitter for iP/ },
   { browser: "Instagram", pattern: /Instagram/ },
-  { browser: "Facebook", pattern: /FBAN|FBAV/ },
+  { browser: "Facebook", pattern: /FBAN|FBAV|MetaIAB/ },
   { browser: "LinkedIn", pattern: /LinkedInApp/ },
-  { browser: "TikTok", pattern: /musical_ly/ },
+  { browser: "TikTok", pattern: /musical_ly|BytedanceWebview/ },
   { browser: "Snapchat", pattern: /Snapchat/ },
   { browser: "LINE", pattern: / Line\// },
   { browser: UNNAMED_ANDROID_WEBVIEW, pattern: /; wv\)/ }

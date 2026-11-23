@@ -34,6 +34,11 @@ describe(detectInAppBrowser.name, () => {
         "Mozilla/5.0 (Linux; Android 14; SM-S918B Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.6613.146 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/470.0.0.37.109;]"
     },
     {
+      browser: "Facebook",
+      platform: "iOS with the Meta in-app browser",
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22G100 Safari/604.1 MetaIAB Facebook"
+    },
+    {
       browser: "LinkedIn",
       platform: "iOS",
       userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [LinkedInApp]/9.30.1840"
@@ -43,6 +48,12 @@ describe(detectInAppBrowser.name, () => {
       platform: "iOS",
       userAgent:
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 musical_ly_34.5.0 JsSdk/2.0 NetType/WIFI Channel/App Store ByteLocale/en Region/US"
+    },
+    {
+      browser: "TikTok",
+      platform: "iOS with the app store build",
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari/604.1 trill_43.0.0 BytedanceWebview/d8a21c6"
     },
     {
       browser: "Snapchat",

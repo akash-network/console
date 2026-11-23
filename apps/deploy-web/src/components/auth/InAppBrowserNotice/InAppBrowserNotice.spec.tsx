@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { InAppBrowser } from "@src/lib/in-app-browser/detectInAppBrowser";
 import { UNNAMED_ANDROID_WEBVIEW } from "@src/lib/in-app-browser/detectInAppBrowser";
@@ -38,7 +38,12 @@ describe(InAppBrowserNotice.name, () => {
 
   function setup(input: { browser: InAppBrowser; isClipboardWriteRejected?: boolean }) {
     const writeText = input.isClipboardWriteRejected ? vi.fn().mockRejectedValue(new Error("denied")) : vi.fn().mockResolvedValue(undefined);
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    onTestFinished(() => {
+      if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    });
 
     render(<InAppBrowserNotice browser={input.browser} />);
 

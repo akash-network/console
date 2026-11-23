@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { useInAppBrowser } from "./useInAppBrowser";
 
@@ -18,7 +18,8 @@ describe(useInAppBrowser.name, () => {
   });
 
   function setup(input: { userAgent: string }) {
-    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(input.userAgent);
+    const userAgentSpy = vi.spyOn(navigator, "userAgent", "get").mockReturnValue(input.userAgent);
+    onTestFinished(() => userAgentSpy.mockRestore());
     return renderHook(() => useInAppBrowser());
   }
 });
