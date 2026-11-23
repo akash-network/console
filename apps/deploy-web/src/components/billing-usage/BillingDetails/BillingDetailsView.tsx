@@ -88,7 +88,7 @@ const BillingDetailsCard: FC<Required<Props>> = ({ dependencies: d }) => {
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted px-5 py-3 text-[13px] text-muted-foreground sm:pl-6 sm:pr-4">
-          <span>{canEdit ? "Printed on your invoices." : "Only owners and billing members can change these details."}</span>
+          <span>{canEdit ? "Printed on your invoices." : "Only owners, admins and billing members can change these details."}</span>
           {canEdit && (
             <Button onClick={() => setIsEditing(true)} size="sm" variant="outline" disabled={isLoading || isError} className="ml-auto gap-1.5 bg-background">
               <Pencil className="h-3.5 w-3.5" />

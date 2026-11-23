@@ -66,7 +66,7 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "manage", subject: "ProjectBudget", conditions: inScope },
     { action: "manage", subject: "ProjectMember", conditions: grantsOfAdministeredProjects },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
-    { action: "read", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
+    { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
     ...projectResourceRules({ inScope, writableInScope })
   ],
   member: conditions => [

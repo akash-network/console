@@ -94,18 +94,18 @@ describe("BillingDetailsView", () => {
     expect(screen.queryByText("Billing details dialog")).not.toBeInTheDocument();
   });
 
-  it.each(["owner", "billing"] as const)("lets a team %s edit the details", role => {
+  it.each(["owner", "admin", "billing"] as const)("lets a team %s edit the details", role => {
     setup({ billingDetails: SAVED, role });
 
     expect(screen.getByRole("button", { name: "Edit details" })).toBeInTheDocument();
     expect(screen.getByText("Printed on your invoices.")).toBeInTheDocument();
   });
 
-  it("shows a team admin the details without letting them edit", () => {
-    setup({ billingDetails: SAVED, role: "admin" });
+  it("shows a team member the details without letting them edit", () => {
+    setup({ billingDetails: SAVED, role: "member" });
 
     expect(screen.queryByRole("button", { name: "Edit details" })).not.toBeInTheDocument();
-    expect(screen.getByText("Only owners and billing members can change these details.")).toBeInTheDocument();
+    expect(screen.getByText("Only owners, admins and billing members can change these details.")).toBeInTheDocument();
   });
 
   it("lets anyone edit when no organization is active", () => {

@@ -8,7 +8,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(TeamPaymentMethodBanner.name, () => {
-  it.each(["owner", "billing"] satisfies OrganizationRole[])("asks a %s to set up the team's billing", role => {
+  it.each(["owner", "admin", "billing"] satisfies OrganizationRole[])("asks a %s to set up the team's billing", role => {
     setup({ role });
 
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -25,10 +25,12 @@ describe(TeamPaymentMethodBanner.name, () => {
     expect(openAddPaymentMethod).toHaveBeenCalledOnce();
   });
 
-  it.each(["admin", "member", "viewer"] satisfies OrganizationRole[])("tells a %s that nobody can deploy yet, without offering to set up billing", role => {
+  it.each(["member", "viewer"] satisfies OrganizationRole[])("tells a %s that nobody can deploy yet, without offering to set up billing", role => {
     setup({ role });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Acme Corp has no payment method. No one can deploy until an owner or a billing member adds one.");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Acme Corp has no payment method. No one can deploy until an owner, an admin or a billing member adds one."
+    );
     expect(screen.queryByRole("button", { name: "Set up billing" })).not.toBeInTheDocument();
   });
 

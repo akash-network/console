@@ -195,10 +195,10 @@ const ROUTE_ACCESS: RouteAccess[] = [
   {
     route: "POST /v1/stripe/payment-methods/default",
     request: team => post("/v1/stripe/payment-methods/default", { id: team.paymentMethodId }),
-    statusFor: access(200, 403, 403, 200, 403, 403)
+    statusFor: access(200, 200, 403, 200, 403, 403)
   },
   { route: "GET /v1/wallet-settings", request: () => get("/v1/wallet-settings"), statusFor: access(200, 200, 200, 200, 200, 403) },
-  { route: "DELETE /v1/wallet-settings", request: () => remove("/v1/wallet-settings"), statusFor: access(204, 403, 403, 204, 403, 403) },
+  { route: "DELETE /v1/wallet-settings", request: () => remove("/v1/wallet-settings"), statusFor: access(204, 204, 403, 204, 403, 403) },
   { route: "GET /v1/stripe/transactions", request: () => get("/v1/stripe/transactions"), statusFor: access(200, 200, 403, 200, 403, 403) },
   {
     route: "POST /v1/stripe/transactions/{id}/invoice",

@@ -10,8 +10,7 @@ export const ORGANIZATION_ROLE_LABELS: Record<OrganizationRole, string> = {
 
 export const canViewBillingAndUsage = (role: OrganizationRole): boolean => role !== "member" && role !== "viewer";
 
-/** Admins read the billing of an organization but only owners and billing members change it; the api refuses everyone else. */
-export const canManageBilling = (role: OrganizationRole): boolean => role === "owner" || role === "billing";
+export const canManageBilling = (role: OrganizationRole): boolean => role === "owner" || role === "admin" || role === "billing";
 
 /** The api scopes everyone in a team below owner and admin to the projects they were granted, which for billing is none. */
 export const isLimitedToProjects = (organization: OrganizationOutput): boolean =>

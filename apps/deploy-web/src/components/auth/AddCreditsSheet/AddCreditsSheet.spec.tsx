@@ -34,7 +34,7 @@ describe(AddCreditsSheet.name, () => {
     const { dependencies } = setup({ open: true, canManageBilling: false });
 
     expect(dependencies.AddCreditsTabs).not.toHaveBeenCalled();
-    expect(screen.getByRole("status")).toHaveTextContent("Only owners and billing members can add credits");
+    expect(screen.getByRole("status")).toHaveTextContent("Only owners, admins and billing members can add credits");
     expect(screen.getByRole("status")).toHaveTextContent("Ask one of them to top up your team's balance or add a payment method.");
   });
 

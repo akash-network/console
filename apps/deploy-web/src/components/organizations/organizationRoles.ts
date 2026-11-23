@@ -10,7 +10,7 @@ export const ASSIGNABLE_ROLE_DESCRIPTIONS: Record<AssignableRole, string> = {
   member: "Deploys in the projects they can access, but can't create projects.",
   viewer: "Sees deployments and logs in the projects they can access, but can't change them.",
   billing: "Adds credits, manages payment methods and sees usage, but not deployments.",
-  admin: "Creates projects, manages members and sees billing and usage."
+  admin: "Creates projects, manages members and billing, and sees usage."
 };
 
 export function describeRoleWithArticle(role: OrganizationRole): string {
