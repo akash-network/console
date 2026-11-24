@@ -4,7 +4,10 @@ const AffiliateTermsSchema = z.object({
   commissionPercent: z.number(),
   commissionMonths: z.number(),
   referralTrialCreditsUsd: z.number(),
-  commissionHoldDays: z.number().openapi({ description: "How many days each commission stays on hold before it is credited." })
+  commissionHoldDays: z.number().openapi({ description: "How many days each commission stays on hold before it is credited." }),
+  firstPurchaseBonusUsd: z.number().openapi({ description: "The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off." }),
+  firstPurchaseBonusMinPaymentUsd: z.number().openapi({ description: "The smallest first payment that earns the bonus." }),
+  firstPurchaseBonusMinUsageUsd: z.number().openapi({ description: "How much the referred user must have used on deployments before the bonus is paid." })
 });
 
 const AffiliateStatsSchema = z.object({
@@ -26,6 +29,7 @@ const AffiliateCommissionSchema = z.object({
   amountUsd: z.number(),
   reversedUsd: z.number(),
   status: z.enum(["on_hold", "credited", "canceled", "reversed"]),
+  kind: z.enum(["commission", "first_payment_bonus"]),
   releasesAt: z
     .string()
     .nullable()

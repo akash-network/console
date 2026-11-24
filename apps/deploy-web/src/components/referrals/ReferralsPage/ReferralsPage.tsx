@@ -210,6 +210,7 @@ function ShareCard({ profile, dependencies: d }: { profile: AffiliateProfile; de
             icon={<Sparkles className="h-4 w-4" />}
             title="They pay by card"
             text={`you earn ${profile.terms.commissionPercent}% of every payment for ${profile.terms.commissionMonths} months`}
+            extraText={describeFirstPaymentBonus(profile.terms)}
           />
           <Step
             icon={<Wallet className="h-4 w-4" />}
@@ -222,7 +223,7 @@ function ShareCard({ profile, dependencies: d }: { profile: AffiliateProfile; de
   );
 }
 
-function Step({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
+function Step({ icon, title, text, extraText }: { icon: ReactNode; title: string; text: string; extraText?: string }) {
   return (
     <li className="flex items-start gap-3">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden>
@@ -231,6 +232,7 @@ function Step({ icon, title, text }: { icon: ReactNode; title: string; text: str
       <span>
         <span className="block font-medium">{title}</span>
         <span className="block text-[13px] text-muted-foreground">{text}</span>
+        {extraText && <span className="block text-[13px] text-muted-foreground">{extraText}</span>}
       </span>
     </li>
   );
@@ -329,6 +331,7 @@ function CommissionRow({ commission, usd }: { commission: Commission; usd: Usd }
           {!isCanceled && "+"}
           {usd(isOnHold ? commission.amountUsd - commission.reversedUsd : commission.amountUsd)}
         </span>
+        {commission.kind === "first_payment_bonus" && <span className="block text-xs font-medium text-muted-foreground">First-payment bonus</span>}
         {commission.reversedUsd > 0 && !isCanceled && !isOnHold && (
           <span className="block text-xs font-medium text-muted-foreground">-{usd(commission.reversedUsd)} taken back</span>
         )}
@@ -352,6 +355,20 @@ function describeCommissionStatus({ status, releasesAt, creditedAt }: Commission
   if (status === "credited" && creditedAt) return `${label} on ${formatShortDate(creditedAt)}`;
 
   return label;
+}
+
+function describeFirstPaymentBonus({
+  firstPurchaseBonusUsd,
+  firstPurchaseBonusMinPaymentUsd,
+  firstPurchaseBonusMinUsageUsd
+}: AffiliateProfile["terms"]): string | undefined {
+  if (firstPurchaseBonusUsd <= 0) return undefined;
+
+  return `plus ${formatWholeOrCents(firstPurchaseBonusUsd)} on their first payment of ${formatWholeOrCents(firstPurchaseBonusMinPaymentUsd)} or more, once they've used ${formatWholeOrCents(firstPurchaseBonusMinUsageUsd)} on deployments`;
+}
+
+function formatWholeOrCents(amountUsd: number): string {
+  return Number.isInteger(amountUsd) ? `$${amountUsd}` : `$${amountUsd.toFixed(2)}`;
 }
 
 function formatShortDate(isoDate: string): string {

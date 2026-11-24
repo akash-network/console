@@ -32461,13 +32461,28 @@
                             "commissionHoldDays": {
                               "type": "number",
                               "description": "How many days each commission stays on hold before it is credited."
+                            },
+                            "firstPurchaseBonusUsd": {
+                              "type": "number",
+                              "description": "The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off."
+                            },
+                            "firstPurchaseBonusMinPaymentUsd": {
+                              "type": "number",
+                              "description": "The smallest first payment that earns the bonus."
+                            },
+                            "firstPurchaseBonusMinUsageUsd": {
+                              "type": "number",
+                              "description": "How much the referred user must have used on deployments before the bonus is paid."
                             }
                           },
                           "required": [
                             "commissionPercent",
                             "commissionMonths",
                             "referralTrialCreditsUsd",
-                            "commissionHoldDays"
+                            "commissionHoldDays",
+                            "firstPurchaseBonusUsd",
+                            "firstPurchaseBonusMinPaymentUsd",
+                            "firstPurchaseBonusMinUsageUsd"
                           ]
                         },
                         "stats": {
@@ -32547,6 +32562,13 @@
                                   "reversed"
                                 ]
                               },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "commission",
+                                  "first_payment_bonus"
+                                ]
+                              },
                               "releasesAt": {
                                 "type": "string",
                                 "nullable": true,
@@ -32569,6 +32591,7 @@
                               "amountUsd",
                               "reversedUsd",
                               "status",
+                              "kind",
                               "releasesAt",
                               "creditedAt",
                               "paymentUsd"

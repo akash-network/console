@@ -490,6 +490,39 @@ describe(AffiliateService.name, () => {
       expect(profile?.terms.commissionHoldDays).toBe(2);
     });
 
+    it("converts the first-payment bonus terms from cents to usd", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository } = setup({
+        billingConfig: {
+          AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT: 550,
+          AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT: 2500,
+          AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT: 3000
+        }
+      });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.terms).toMatchObject({ firstPurchaseBonusUsd: 5.5, firstPurchaseBonusMinPaymentUsd: 25, firstPurchaseBonusMinUsageUsd: 30 });
+    });
+
+    it("marks a bonus commission as a first-payment bonus and the others as commission", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([
+        createCommissionEntry({ id: "bonus", status: "succeeded", affiliateBonus: true }),
+        createCommissionEntry({ id: "regular", status: "succeeded", affiliateBonus: false })
+      ]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.commissions.map(({ id, kind }) => ({ id, kind }))).toEqual([
+        { id: "bonus", kind: "first_payment_bonus" },
+        { id: "regular", kind: "commission" }
+      ]);
+    });
+
     it("counts signups and paying users from the referral repository for the affiliate's own id", async () => {
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, referralRepository } = setup();
@@ -553,6 +586,7 @@ describe(AffiliateService.name, () => {
       expect(profile?.commissions).toEqual([
         {
           id: "commission-1",
+          kind: "commission",
           createdAt: "2024-06-10T12:00:00.000Z",
           amountUsd: 5,
           reversedUsd: 1.5,
@@ -733,6 +767,9 @@ describe(AffiliateService.name, () => {
     const billingConfig = mock<BillingConfig>({
       REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000,
       AFFILIATE_COMMISSION_HOLD_SECONDS: 2_592_000,
+      AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT: 500,
+      AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT: 2000,
+      AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT: 2000,
       ...input.billingConfig
     });
     const logger = mock<ReturnType<CreateLogger>>();

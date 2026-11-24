@@ -2976,6 +2976,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "id": {
                                 "type": "string",
                               },
+                              "kind": {
+                                "enum": [
+                                  "commission",
+                                  "first_payment_bonus",
+                                ],
+                                "type": "string",
+                              },
                               "paymentUsd": {
                                 "description": "The card payment the commission was earned on.",
                                 "nullable": true,
@@ -3005,6 +3012,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "amountUsd",
                               "reversedUsd",
                               "status",
+                              "kind",
                               "releasesAt",
                               "creditedAt",
                               "paymentUsd",
@@ -3076,6 +3084,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "commissionPercent": {
                               "type": "number",
                             },
+                            "firstPurchaseBonusMinPaymentUsd": {
+                              "description": "The smallest first payment that earns the bonus.",
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusMinUsageUsd": {
+                              "description": "How much the referred user must have used on deployments before the bonus is paid.",
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusUsd": {
+                              "description": "The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off.",
+                              "type": "number",
+                            },
                             "referralTrialCreditsUsd": {
                               "type": "number",
                             },
@@ -3085,6 +3105,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "commissionMonths",
                             "referralTrialCreditsUsd",
                             "commissionHoldDays",
+                            "firstPurchaseBonusUsd",
+                            "firstPurchaseBonusMinPaymentUsd",
+                            "firstPurchaseBonusMinUsageUsd",
                           ],
                           "type": "object",
                         },

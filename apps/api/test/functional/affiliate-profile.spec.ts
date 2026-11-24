@@ -76,7 +76,15 @@ describe("GET /v1/affiliates/me", () => {
     expect(body).toEqual({
       data: {
         code: "friendcode",
-        terms: { commissionPercent: 5, commissionMonths: 3, referralTrialCreditsUsd: expect.any(Number), commissionHoldDays: 30 },
+        terms: {
+          commissionPercent: 5,
+          commissionMonths: 3,
+          referralTrialCreditsUsd: expect.any(Number),
+          commissionHoldDays: 30,
+          firstPurchaseBonusUsd: 5,
+          firstPurchaseBonusMinPaymentUsd: 20,
+          firstPurchaseBonusMinUsageUsd: 20
+        },
         stats: { signups: 0, payingUsers: 0, totalCommissionUsd: 0, monthCommissionUsd: 0, creditedUsd: 0, onHoldUsd: 0, nextRelease: null },
         commissions: []
       }
@@ -166,7 +174,7 @@ describe("GET /v1/affiliates/me", () => {
     expect(body.data).toMatchObject({
       stats: { creditedUsd: 2.5, onHoldUsd: 10, nextRelease: { releasesAt, amountUsd: 10 } },
       commissions: [
-        { status: "on_hold", releasesAt, creditedAt: null, amountUsd: 10, paymentUsd: 200 },
+        { status: "on_hold", kind: "commission", releasesAt, creditedAt: null, amountUsd: 10, paymentUsd: 200 },
         { status: "credited", releasesAt: null, creditedAt: credit.createdAt.toISOString(), amountUsd: 2.5, paymentUsd: null }
       ]
     });
