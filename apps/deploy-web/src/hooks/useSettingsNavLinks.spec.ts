@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AffiliateEnrollmentEligibility } from "@src/queries/useAffiliateEligibilityQuery";
 import type { AffiliateProfile } from "@src/queries/useAffiliateProfileQuery";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./useSettingsNavLinks";
@@ -143,6 +144,51 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.filter(link => link.isActive).map(link => link.title)).toEqual(["Billing"]);
   });
 
+  it("includes Referrals for an eligible non-affiliate while open enrollment is on", () => {
+    const { links } = setup({ isAffiliateProgramEnabled: true, isOpenEnrollmentEnabled: true, affiliateProfile: null, isEligibleToJoin: true });
+
+    expect(links.map(link => link.title)).toContain("Referrals");
+  });
+
+  it("excludes Referrals for an eligible non-affiliate while open enrollment is off", () => {
+    const { links } = setup({ isAffiliateProgramEnabled: true, isOpenEnrollmentEnabled: false, affiliateProfile: null, isEligibleToJoin: true });
+
+    expect(links.map(link => link.title)).not.toContain("Referrals");
+  });
+
+  it("excludes Referrals for an ineligible non-affiliate while open enrollment is on", () => {
+    const { links } = setup({ isAffiliateProgramEnabled: true, isOpenEnrollmentEnabled: true, affiliateProfile: null, isEligibleToJoin: false });
+
+    expect(links.map(link => link.title)).not.toContain("Referrals");
+  });
+
+  it("excludes Referrals for an eligible non-affiliate when the affiliate program itself is off", () => {
+    const { links } = setup({ isAffiliateProgramEnabled: false, isOpenEnrollmentEnabled: true, affiliateProfile: null, isEligibleToJoin: true });
+
+    expect(links.map(link => link.title)).not.toContain("Referrals");
+  });
+
+  it.each([
+    { name: "the profile is still loading", hasProfile: undefined, enabled: false },
+    { name: "the caller has a profile", hasProfile: true, enabled: false },
+    { name: "the profile came back empty", hasProfile: false, enabled: true }
+  ])("enables the eligibility query only when the profile is empty: $name", ({ hasProfile, enabled }) => {
+    const { useAffiliateEligibilityQuery } = setup({
+      isAffiliateProgramEnabled: true,
+      isOpenEnrollmentEnabled: true,
+      affiliateProfile: hasProfile ? buildAffiliateProfile() : null,
+      isSignedIn: hasProfile !== undefined
+    });
+
+    expect(useAffiliateEligibilityQuery).toHaveBeenCalledWith({ enabled });
+  });
+
+  it("never enables the eligibility query while open enrollment is off", () => {
+    const { useAffiliateEligibilityQuery } = setup({ isAffiliateProgramEnabled: true, isOpenEnrollmentEnabled: false, affiliateProfile: null });
+
+    expect(useAffiliateEligibilityQuery).toHaveBeenCalledWith({ enabled: false });
+  });
+
   it("checks the affiliate_program flag and enables the profile query only when it is on", () => {
     const { useFlag, useAffiliateProfileQuery } = setup({ isAffiliateProgramEnabled: true, affiliateProfile: buildAffiliateProfile() });
 
@@ -180,15 +226,23 @@ describe(useSettingsNavLinks.name, () => {
     organization?: Pick<OrganizationOutput, "type" | "role">;
     affiliateProfile?: AffiliateProfile | null;
     isSignedIn?: boolean;
+    isOpenEnrollmentEnabled?: boolean;
+    isEligibleToJoin?: boolean;
   }) {
     const enabledFlags = {
       affiliate_program: input.isAffiliateProgramEnabled ?? false,
-      gpu_quote_requests: input.isGpuQuoteRequestsEnabled ?? false
+      gpu_quote_requests: input.isGpuQuoteRequestsEnabled ?? false,
+      affiliate_open_enrollment: input.isOpenEnrollmentEnabled ?? false
     };
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
     const useAffiliateProfileQuery = vi.fn<typeof DEPENDENCIES.useAffiliateProfileQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
         data: input.isSignedIn === false ? undefined : input.affiliateProfile ?? null
+      })
+    );
+    const useAffiliateEligibilityQuery = vi.fn<typeof DEPENDENCIES.useAffiliateEligibilityQuery>(() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateEligibilityQuery>>(), {
+        data: input.isEligibleToJoin === undefined ? undefined : mock<AffiliateEnrollmentEligibility>({ eligible: input.isEligibleToJoin })
       })
     );
     const dependencies: typeof DEPENDENCIES = {
@@ -198,11 +252,12 @@ describe(useSettingsNavLinks.name, () => {
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: input.organization ? mock<OrganizationOutput>({ id: "org-1", ...input.organization }) : undefined
         }),
-      useAffiliateProfileQuery
+      useAffiliateProfileQuery,
+      useAffiliateEligibilityQuery
     };
 
     const links = renderHook(() => useSettingsNavLinks({ dependencies })).result.current;
 
-    return { links, useFlag, useAffiliateProfileQuery };
+    return { links, useFlag, useAffiliateProfileQuery, useAffiliateEligibilityQuery };
   }
 });

@@ -27,9 +27,12 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { describeFirstPaymentBonus } from "@src/components/referrals/affiliateTermsCopy";
+import { JoinReferralProgram } from "@src/components/referrals/JoinReferralProgram/JoinReferralProgram";
 import { ReferredPeopleList } from "@src/components/referrals/ReferredPeopleList/ReferredPeopleList";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useAffiliateEligibilityQuery } from "@src/queries/useAffiliateEligibilityQuery";
 import type { AffiliateProfile } from "@src/queries/useAffiliateProfileQuery";
 import { useAffiliateProfileQuery } from "@src/queries/useAffiliateProfileQuery";
 import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
@@ -40,10 +43,12 @@ export const DEPENDENCIES = {
   SettingsLayout,
   SettingsSection,
   ReferredPeopleList,
+  JoinReferralProgram,
   Card,
   FormattedNumber,
   useFlag,
   useAffiliateProfileQuery,
+  useAffiliateEligibilityQuery,
   useActiveOrganization,
   useRouter,
   useSnackbar,
@@ -85,7 +90,14 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const isAffiliateProgramEnabled = d.useFlag("affiliate_program");
   const { data: profile, isSuccess, errorUpdatedAt, isFetching, refetch } = d.useAffiliateProfileQuery({ enabled: isAffiliateProgramEnabled });
   const { activeOrganization } = d.useActiveOrganization();
-  const isNotAnAffiliate = !isAffiliateProgramEnabled || (isSuccess && !profile);
+  const isOpenEnrollmentEnabled = d.useFlag("affiliate_open_enrollment");
+  const hasNoProfile = isAffiliateProgramEnabled && isSuccess && !profile;
+  const { data: eligibility, isLoading: isEligibilityLoading } = d.useAffiliateEligibilityQuery({
+    enabled: hasNoProfile && isOpenEnrollmentEnabled
+  });
+  const canJoin = hasNoProfile && isOpenEnrollmentEnabled && !!eligibility?.eligible;
+  const isCheckingEligibility = hasNoProfile && isOpenEnrollmentEnabled && isEligibilityLoading;
+  const isNotAnAffiliate = !isAffiliateProgramEnabled || (hasNoProfile && !canJoin && !isCheckingEligibility);
   const hasProfileLoadFailed = errorUpdatedAt > 0;
 
   useEffect(
@@ -95,7 +107,7 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     [isNotAnAffiliate, router]
   );
 
-  if (isNotAnAffiliate || (!profile && !hasProfileLoadFailed)) return null;
+  if (isNotAnAffiliate || isCheckingEligibility || (!profile && !canJoin && !hasProfileLoadFailed)) return null;
 
   const usd: Usd = value => <d.FormattedNumber value={value} style="currency" currency="usd" currencyDisplay="narrowSymbol" />;
 
@@ -114,7 +126,9 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           )
         }
       >
-        {profile ? (
+        {canJoin && eligibility ? (
+          <d.JoinReferralProgram terms={eligibility.terms} />
+        ) : profile ? (
           <>
             {activeOrganization?.type === "team" && (
               <Alert className="flex items-start gap-3 rounded-xl">
@@ -355,21 +369,6 @@ function describeCommissionStatus({ status, releasesAt, creditedAt }: Commission
   if (status === "credited" && creditedAt) return `${label} on ${formatShortDate(creditedAt)}`;
 
   return label;
-}
-
-function describeFirstPaymentBonus({
-  commissionMonths,
-  firstPurchaseBonusUsd,
-  firstPurchaseBonusMinPaymentUsd,
-  firstPurchaseBonusMinUsageUsd
-}: AffiliateProfile["terms"]): string | undefined {
-  if (firstPurchaseBonusUsd <= 0) return undefined;
-
-  return `plus ${formatWholeOrCents(firstPurchaseBonusUsd)} if their first payment is ${formatWholeOrCents(firstPurchaseBonusMinPaymentUsd)} or more, once they've used ${formatWholeOrCents(firstPurchaseBonusMinUsageUsd)} on deployments beyond their trial credit within those ${commissionMonths} months`;
-}
-
-function formatWholeOrCents(amountUsd: number): string {
-  return Number.isInteger(amountUsd) ? `$${amountUsd}` : `$${amountUsd.toFixed(2)}`;
 }
 
 function formatShortDate(isoDate: string): string {

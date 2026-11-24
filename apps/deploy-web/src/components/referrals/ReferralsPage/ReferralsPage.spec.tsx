@@ -34,6 +34,53 @@ describe(ReferralsPage.name, () => {
     expect(screen.queryByLabelText("Referral link")).not.toBeInTheDocument();
   });
 
+  describe("when the caller is not an affiliate and open enrollment is on", () => {
+    it("renders the join view with the eligibility terms when the caller is eligible", () => {
+      const terms = buildProfile().terms;
+      const { mockRouter, JoinReferralProgram, useAffiliateEligibilityQuery } = setup({
+        profile: null,
+        isOpenEnrollmentEnabled: true,
+        eligibility: { eligible: true, terms }
+      });
+
+      expect(screen.getByRole("button", { name: "Join the referral program" })).toBeInTheDocument();
+      expect(JoinReferralProgram.mock.lastCall?.[0].terms).toEqual(terms);
+      expect(useAffiliateEligibilityQuery).toHaveBeenCalledWith({ enabled: true });
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
+    it("redirects to billing when the caller is not eligible", () => {
+      const { mockRouter } = setup({ profile: null, isOpenEnrollmentEnabled: true, eligibility: { eligible: false, terms: buildProfile().terms } });
+
+      expect(mockRouter.replace).toHaveBeenCalledWith(UrlService.billing());
+      expect(screen.queryByRole("button", { name: "Join the referral program" })).not.toBeInTheDocument();
+    });
+
+    it("neither redirects nor renders while eligibility is loading", () => {
+      const { mockRouter } = setup({ profile: null, isOpenEnrollmentEnabled: true, isEligibilityLoading: true });
+
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      expect(screen.queryByRole("button", { name: "Join the referral program" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("redirects an eligible non-affiliate to billing while open enrollment is off", () => {
+    const { mockRouter, useAffiliateEligibilityQuery } = setup({
+      profile: null,
+      isOpenEnrollmentEnabled: false,
+      eligibility: { eligible: true, terms: buildProfile().terms }
+    });
+
+    expect(mockRouter.replace).toHaveBeenCalledWith(UrlService.billing());
+    expect(useAffiliateEligibilityQuery).toHaveBeenCalledWith({ enabled: false });
+  });
+
+  it("does not check eligibility for an affiliate", () => {
+    const { useAffiliateEligibilityQuery } = setup({ profile: buildProfile(), isOpenEnrollmentEnabled: true });
+
+    expect(useAffiliateEligibilityQuery).toHaveBeenCalledWith({ enabled: false });
+  });
+
   it("neither redirects nor renders while the profile is still loading", () => {
     const { mockRouter } = setup({ profile: null, isSuccess: false });
 
@@ -424,6 +471,9 @@ describe(ReferralsPage.name, () => {
       errorUpdatedAt?: number;
       isFetching?: boolean;
       activeOrganization?: OrganizationOutput;
+      isOpenEnrollmentEnabled?: boolean;
+      eligibility?: { eligible: boolean; terms: AffiliateProfile["terms"] };
+      isEligibilityLoading?: boolean;
     } = {}
   ) {
     const user = userEvent.setup();
@@ -440,7 +490,15 @@ describe(ReferralsPage.name, () => {
       </>
     ));
     const Layout = vi.fn<typeof DEPENDENCIES.Layout>(({ children }) => <>{children}</>);
-    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(() => isAffiliateProgramEnabled);
+    const enabledFlags = { affiliate_program: isAffiliateProgramEnabled, affiliate_open_enrollment: input.isOpenEnrollmentEnabled ?? false };
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
+    const useAffiliateEligibilityQuery = vi.fn<typeof DEPENDENCIES.useAffiliateEligibilityQuery>(() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateEligibilityQuery>>(), {
+        data: input.eligibility,
+        isLoading: input.isEligibilityLoading ?? false
+      })
+    );
+    const JoinReferralProgram = vi.fn<typeof DEPENDENCIES.JoinReferralProgram>(() => <button type="button">Join the referral program</button>);
     const useAffiliateProfileQuery = vi.fn<typeof DEPENDENCIES.useAffiliateProfileQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
         data: input.profile === undefined ? buildProfile() : input.profile,
@@ -465,6 +523,8 @@ describe(ReferralsPage.name, () => {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useFlag,
       useAffiliateProfileQuery,
+      useAffiliateEligibilityQuery,
+      JoinReferralProgram,
       useActiveOrganization,
       copyTextToClipboard,
       FormattedNumber
@@ -472,6 +532,19 @@ describe(ReferralsPage.name, () => {
 
     render(<ReferralsPage dependencies={dependencies} />);
 
-    return { user, mockRouter, enqueueSnackbar, refetch, copyTextToClipboard, SettingsLayout, Layout, ReferredPeopleList, useFlag, useAffiliateProfileQuery };
+    return {
+      user,
+      mockRouter,
+      enqueueSnackbar,
+      refetch,
+      copyTextToClipboard,
+      SettingsLayout,
+      Layout,
+      ReferredPeopleList,
+      useFlag,
+      useAffiliateProfileQuery,
+      useAffiliateEligibilityQuery,
+      JoinReferralProgram
+    };
   }
 });

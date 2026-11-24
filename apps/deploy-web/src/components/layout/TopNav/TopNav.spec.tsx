@@ -312,6 +312,22 @@ describe(TopNav.name, () => {
     expect(await screen.findByRole("menuitem", { name: "Referrals" })).toHaveAttribute("href", "/referrals");
   });
 
+  it("shows Referrals to an eligible non-affiliate while open enrollment is on", async () => {
+    setup({ isAuthenticated: true, isAffiliateProgramEnabled: true, isOpenEnrollmentEnabled: true, isEligibleToJoin: true });
+
+    await userEvent.click(screen.getByRole("button", { name: /settings/i }));
+
+    expect(await screen.findByRole("menuitem", { name: "Referrals" })).toHaveAttribute("href", "/referrals");
+  });
+
+  it("hides Referrals from an eligible non-affiliate while open enrollment is off", async () => {
+    setup({ isAuthenticated: true, isAffiliateProgramEnabled: true, isOpenEnrollmentEnabled: false, isEligibleToJoin: true });
+
+    await userEvent.click(screen.getByRole("button", { name: /settings/i }));
+
+    expect(screen.queryByRole("menuitem", { name: "Referrals" })).not.toBeInTheDocument();
+  });
+
   function setup(input: {
     isAuthenticated?: boolean;
     minimal?: boolean;
@@ -321,6 +337,8 @@ describe(TopNav.name, () => {
     isFeedbackLoopEnabled?: boolean;
     isAffiliateProgramEnabled?: boolean;
     hasAffiliateProfile?: boolean;
+    isOpenEnrollmentEnabled?: boolean;
+    isEligibleToJoin?: boolean;
   }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
     const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
@@ -328,7 +346,8 @@ describe(TopNav.name, () => {
     const enabledFlags = {
       ui_command_menu: input.isCommandMenuEnabled ?? false,
       user_feedback_loop: input.isFeedbackLoopEnabled ?? false,
-      affiliate_program: input.isAffiliateProgramEnabled ?? false
+      affiliate_program: input.isAffiliateProgramEnabled ?? false,
+      affiliate_open_enrollment: input.isOpenEnrollmentEnabled ?? false
     };
     const openAssistant = vi.fn();
     const commandMenu = vi.fn<typeof DEPENDENCIES.CommandMenu>(() => <button type="button">Search or run a command</button>);
@@ -369,6 +388,10 @@ describe(TopNav.name, () => {
       useAffiliateProfileQuery: () =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
           data: input.hasAffiliateProfile ? { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 } } : null
+        }),
+      useAffiliateEligibilityQuery: () =>
+        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateEligibilityQuery>>(), {
+          data: input.isEligibleToJoin === undefined ? undefined : { eligible: input.isEligibleToJoin }
         }),
       TopNavAccountMenu: accountMenu,
       ActivityBell: () => <button type="button">Activity</button>,

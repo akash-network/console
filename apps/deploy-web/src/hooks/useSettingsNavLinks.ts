@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { canViewBillingAndUsage, hasGeneralSettingsPage, hasMembersPage } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useAffiliateEligibilityQuery } from "@src/queries/useAffiliateEligibilityQuery";
 import { useAffiliateProfileQuery } from "@src/queries/useAffiliateProfileQuery";
 import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
@@ -17,7 +18,7 @@ export type SettingsNavLink = {
   icon: ComponentType<{ className?: string }>;
 };
 
-export const DEPENDENCIES = { usePathname, useFlag, useActiveOrganization, useAffiliateProfileQuery };
+export const DEPENDENCIES = { usePathname, useFlag, useActiveOrganization, useAffiliateProfileQuery, useAffiliateEligibilityQuery };
 
 /**
  * Single source of truth for the settings navigation items, shared by the top-nav Settings dropdown
@@ -27,12 +28,17 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
   const pathname = d.usePathname();
   const isAffiliateProgramEnabled = d.useFlag("affiliate_program");
   const { activeOrganization } = d.useActiveOrganization();
+  const isOpenEnrollmentEnabled = d.useFlag("affiliate_open_enrollment");
   const { data: affiliateProfile } = d.useAffiliateProfileQuery({ enabled: isAffiliateProgramEnabled });
+  const { data: eligibility } = d.useAffiliateEligibilityQuery({
+    enabled: isAffiliateProgramEnabled && isOpenEnrollmentEnabled && affiliateProfile === null
+  });
   const showsGeneral = !!activeOrganization && hasGeneralSettingsPage(activeOrganization.type);
   const showsMembers = !!activeOrganization && hasMembersPage(activeOrganization.type);
   const showsBillingAndUsage = !activeOrganization || canViewBillingAndUsage(activeOrganization.role);
   const showsGpuRequests = d.useFlag("gpu_quote_requests");
-  const showsReferrals = isAffiliateProgramEnabled && !!affiliateProfile;
+  const canJoinAffiliateProgram = isOpenEnrollmentEnabled && !!eligibility?.eligible;
+  const showsReferrals = isAffiliateProgramEnabled && (!!affiliateProfile || canJoinAffiliateProgram);
 
   return [
     ...(showsGeneral ? [{ title: "General", url: UrlService.organizationSettings(), isActive: isRouteActive(pathname, "/organization"), icon: Settings }] : []),
