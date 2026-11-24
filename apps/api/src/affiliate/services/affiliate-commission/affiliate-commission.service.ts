@@ -229,10 +229,10 @@ export class AffiliateCommissionService {
     return { commissionId: bonus.id, hasConsumedMinimum, isWindowOpen };
   }
 
-  /** Checked before the usage read, since a chain index still behind the window's close may not hold the usage that met the minimum, so the bonus waits for it rather than cancel. */
+  /** Checked before the usage read, since a chain index that has not processed the window's closing day may not hold the usage that met the minimum, so the bonus waits for it rather than cancel. */
   async #isUsageIndexedThrough(bonus: StripeTransactionOutput, windowEndsAt: Date): Promise<boolean> {
     try {
-      return await this.referredUsageService.isIndexedThrough(windowEndsAt);
+      return await this.referredUsageService.isIndexedThroughUtcDayOf(windowEndsAt);
     } catch (error) {
       this.#logger.error({ event: "AFFILIATE_BONUS_USAGE_READ_FAILED", commissionId: bonus.id, sourceTransactionId: bonus.sourceTransactionId, error });
       return false;

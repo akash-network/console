@@ -1728,7 +1728,7 @@ describe(AffiliateCommissionService.name, () => {
     });
 
     it.each([
-      { case: "has not indexed past the window's close", isUsageIndexed: false as const },
+      { case: "has not processed the whole UTC day the window closes on", isUsageIndexed: false as const },
       { case: "cannot tell how far it has indexed", isUsageIndexed: "error" as const }
     ])("rechecks the bonus instead of canceling it below the minimum usage while the chain index $case", async ({ isUsageIndexed }) => {
       const now = new Date("2026-07-15T10:00:00.000Z");
@@ -1742,7 +1742,7 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id, "bonus_usage");
 
-      expect(referredUsageService.isIndexedThrough).toHaveBeenCalledWith(new Date("2026-07-15T10:00:00.000Z"));
+      expect(referredUsageService.isIndexedThroughUtcDayOf).toHaveBeenCalledWith(new Date("2026-07-15T10:00:00.000Z"));
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), {
         startAfter: addDays(now, 1)
@@ -1781,10 +1781,10 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id, "bonus_usage");
 
-      expect(referredUsageService.isIndexedThrough).not.toHaveBeenCalled();
+      expect(referredUsageService.isIndexedThroughUtcDayOf).not.toHaveBeenCalled();
     });
 
-    it("confirms the chain index reached the window's close before reading the usage that decides a cancel", async () => {
+    it("confirms the chain index processed the window's closing day before reading the usage that decides a cancel", async () => {
       const { service, payment, bonus, stripeTransactionRepository, referredUsageService } = setup({
         hasBonus: true,
         hasConsumedBonusUsage: false,
@@ -1794,7 +1794,7 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id, "bonus_usage");
 
-      expect(referredUsageService.isIndexedThrough.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(referredUsageService.isIndexedThroughUtcDayOf.mock.invocationCallOrder[0]).toBeLessThan(
         referredUsageService.hasConsumedAtLeast.mock.invocationCallOrder[0]
       );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "canceled", amountRefunded: 500 });
@@ -2827,7 +2827,7 @@ describe(AffiliateCommissionService.name, () => {
     referredUsageService.hasConsumedAtLeast.mockImplementation(async (_referredUserId, _window, minCents) =>
       input.referredUserConsumedCents === undefined ? input.hasConsumedBonusUsage ?? true : input.referredUserConsumedCents >= minCents
     );
-    referredUsageService.isIndexedThrough.mockImplementation(async () => {
+    referredUsageService.isIndexedThroughUtcDayOf.mockImplementation(async () => {
       if (input.isUsageIndexed === "error") throw new Error("chain index unavailable");
       return input.isUsageIndexed ?? true;
     });

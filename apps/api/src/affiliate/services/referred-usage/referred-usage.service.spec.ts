@@ -72,17 +72,29 @@ describe(ReferredUsageService.name, () => {
     });
   });
 
-  describe("isIndexedThrough", () => {
+  describe("isIndexedThroughUtcDayOf", () => {
     it.each([
-      { case: "the latest indexed block is after the time", latestBlockTime: new Date("2026-07-15T10:00:01.000Z"), isIndexed: true },
-      { case: "the latest indexed block is at the time", latestBlockTime: new Date("2026-07-15T10:00:00.000Z"), isIndexed: true },
-      { case: "the latest indexed block is before the time", latestBlockTime: new Date("2026-07-15T09:59:59.999Z"), isIndexed: false },
-      { case: "no block is indexed", latestBlockTime: undefined, isIndexed: false }
-    ])("returns $isIndexed when $case", async ({ latestBlockTime, isIndexed }) => {
+      { case: "a block of the next UTC day is processed", latestProcessedBlockTime: new Date("2026-07-16T00:00:00.000Z"), isIndexed: true },
+      { case: "only the day's last block is processed", latestProcessedBlockTime: new Date("2026-07-15T23:59:59.999Z"), isIndexed: false },
+      {
+        case: "the index is processed just past the time but not the rest of its day",
+        latestProcessedBlockTime: new Date("2026-07-15T10:00:06.000Z"),
+        isIndexed: false
+      },
+      { case: "no block is processed", latestProcessedBlockTime: undefined, isIndexed: false }
+    ])("returns $isIndexed when $case", async ({ latestProcessedBlockTime, isIndexed }) => {
       const { service, deploymentSpendRepository } = setup({ organizationCount: 0, consumption: [] });
-      deploymentSpendRepository.findLatestBlockTime.mockResolvedValue(latestBlockTime);
+      deploymentSpendRepository.findLatestProcessedBlockTime.mockResolvedValue(latestProcessedBlockTime);
 
-      await expect(service.isIndexedThrough(new Date("2026-07-15T10:00:00.000Z"))).resolves.toBe(isIndexed);
+      await expect(service.isIndexedThroughUtcDayOf(new Date("2026-07-15T10:00:00.000Z"))).resolves.toBe(isIndexed);
+    });
+
+    it("returns false while a block of the next day is stored but not yet processed", async () => {
+      const { service, deploymentSpendRepository } = setup({ organizationCount: 0, consumption: [] });
+      deploymentSpendRepository.findLatestBlockTime.mockResolvedValue(new Date("2026-07-16T00:00:06.000Z"));
+      deploymentSpendRepository.findLatestProcessedBlockTime.mockResolvedValue(new Date("2026-07-15T23:59:54.000Z"));
+
+      await expect(service.isIndexedThroughUtcDayOf(new Date("2026-07-15T10:00:00.000Z"))).resolves.toBe(false);
     });
   });
 

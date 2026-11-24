@@ -8,6 +8,7 @@ import { DeploymentSpendRepository } from "./deployment-spend.repository";
 
 import {
   createAkashAddress,
+  createAkashBlock,
   createDay,
   createDeployment,
   createDeploymentGroup,
@@ -135,8 +136,26 @@ describe(DeploymentSpendRepository.name, () => {
     });
   });
 
+  describe("findLatestProcessedBlockTime", () => {
+    it("skips a later block that is stored but not yet processed", async () => {
+      const { repository, seedBlock } = setup();
+      const height = faker.number.int({ min: 50_000_000, max: 60_000_000 });
+      await seedBlock({ height, datetime: new Date("2031-07-15T09:59:54.000Z"), isProcessed: true });
+      await seedBlock({ height: height + 1, datetime: new Date("2031-07-15T10:00:00.000Z"), isProcessed: false });
+
+      await expect(repository.findLatestProcessedBlockTime()).resolves.toEqual(new Date("2031-07-15T09:59:54.000Z"));
+    });
+  });
+
   function setup() {
     const chainDb = container.resolve(CHAIN_DB);
+
+    const seedBlock = async (input: { height: number; datetime: Date; isProcessed: boolean }) => {
+      const block = await createAkashBlock(input);
+      onTestFinished(async () => {
+        await block.destroy();
+      });
+    };
 
     const seedDay = async (input: { date: string; firstBlockHeight: number; lastBlockHeightYet: number; aktPrice: number }) => {
       const day = await createDay({ ...input, date: new Date(`${input.date}T00:00:00.000Z`), lastBlockHeight: input.lastBlockHeightYet });
@@ -191,6 +210,6 @@ describe(DeploymentSpendRepository.name, () => {
       return dseq;
     };
 
-    return { repository: new DeploymentSpendRepository(chainDb), owner: createAkashAddress(), seedDay, seedLeases };
+    return { repository: new DeploymentSpendRepository(chainDb), owner: createAkashAddress(), seedDay, seedLeases, seedBlock };
   }
 });

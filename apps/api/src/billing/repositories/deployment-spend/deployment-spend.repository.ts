@@ -246,6 +246,16 @@ export class DeploymentSpendRepository {
     return row ? new Date(row.datetime) : undefined;
   }
 
+  /** Lease rows are written only when a block is processed, so only a processed block tells how far usage is indexed. */
+  async findLatestProcessedBlockTime(): Promise<Date | undefined> {
+    const [row] = await this.#chainDb.query<{ datetime: Date }>(
+      `/* deployment-spend:latest-processed-block */ SELECT datetime FROM block WHERE "isProcessed" = true ORDER BY height DESC LIMIT 1`,
+      { type: QueryTypes.SELECT }
+    );
+
+    return row ? new Date(row.datetime) : undefined;
+  }
+
   /** A create's own deposit is what the deployment holds beyond its top-ups, dated by the block that created it; top-ups are dated by theirs. */
   async findDeposits({ owners, from, to }: { owners: string[]; from: Date; to: Date }): Promise<DeploymentDeposited[]> {
     if (!owners.length || from >= to) return [];

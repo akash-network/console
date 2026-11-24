@@ -30,9 +30,10 @@ export class ReferredUsageService {
     return consumedMicroUsd / MICRO_USD_PER_CENT >= minCents;
   }
 
-  async isIndexedThrough(at: Date): Promise<boolean> {
-    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
-    return !!latestBlockTime && !isBefore(latestBlockTime, at);
+  /** Usage counts in whole UTC days, so only a processed block from the next day shows the day of `at` is fully counted. */
+  async isIndexedThroughUtcDayOf(at: Date): Promise<boolean> {
+    const latestProcessedBlockTime = await this.deploymentSpendRepository.findLatestProcessedBlockTime();
+    return !!latestProcessedBlockTime && !isBefore(latestProcessedBlockTime, startOfNextUtcDay(at));
   }
 
   /** The same payers commission counts: the referred user's personal organization and the teams they created. */
@@ -42,6 +43,10 @@ export class ReferredUsageService {
 
     return wallets.flatMap(wallet => (wallet?.address ? [wallet.address] : []));
   }
+}
+
+function startOfNextUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1));
 }
 
 function toUtcDay(date: Date): string {
