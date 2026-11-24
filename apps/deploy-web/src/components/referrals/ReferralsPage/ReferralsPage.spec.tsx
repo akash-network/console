@@ -161,19 +161,21 @@ describe(ReferralsPage.name, () => {
     const [, payStep] = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
 
     expect(payStep.textContent).toBe(
-      "They pay by cardyou earn 5% of every payment for 3 monthsplus $5 if their first payment is $20 or more, once they've used $20 on deployments beyond their trial credit"
+      "They pay by cardyou earn 5% of every payment for 3 monthsplus $5 if their first payment is $20 or more, once they've used $20 on deployments beyond their trial credit within those 3 months"
     );
   });
 
   it("shows two decimals for a bonus amount that is not whole", () => {
     setup({
       profile: buildProfile({
-        terms: buildTerms({ firstPurchaseBonusUsd: 2.5, firstPurchaseBonusMinPaymentUsd: 10, firstPurchaseBonusMinUsageUsd: 7.25 })
+        terms: buildTerms({ commissionMonths: 6, firstPurchaseBonusUsd: 2.5, firstPurchaseBonusMinPaymentUsd: 10, firstPurchaseBonusMinUsageUsd: 7.25 })
       })
     });
     const [, payStep] = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
 
-    expect(payStep).toHaveTextContent("plus $2.50 if their first payment is $10 or more, once they've used $7.25 on deployments beyond their trial credit");
+    expect(payStep).toHaveTextContent(
+      "plus $2.50 if their first payment is $10 or more, once they've used $7.25 on deployments beyond their trial credit within those 6 months"
+    );
   });
 
   it("leaves out the bonus line when no bonus is offered", () => {
