@@ -7659,6 +7659,24 @@ export interface paths {
     /** Get the caller's affiliate profile */
     get: operations["getAffiliateProfile"];
     put?: never;
+    /** Join the referral program */
+    post: operations["joinAffiliateProgram"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/affiliates/me/eligibility": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Check whether the caller can join the referral program */
+    get: operations["getAffiliateEnrollmentEligibility"];
+    put?: never;
     post?: never;
     delete?: never;
     options?: never;
@@ -18204,6 +18222,143 @@ export interface operations {
                 paymentUsd: number | null;
               }[];
             } | null;
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  joinAffiliateProgram: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The caller's affiliate profile, also returned when they already are an approved affiliate */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              code: string;
+              terms: {
+                commissionPercent: number;
+                commissionMonths: number;
+                referralTrialCreditsUsd: number;
+                /** @description How many days each commission stays on hold before it is credited. */
+                commissionHoldDays: number;
+                /** @description The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off. */
+                firstPurchaseBonusUsd: number;
+                /** @description The smallest first payment that earns the bonus. */
+                firstPurchaseBonusMinPaymentUsd: number;
+                /** @description How much the referred user must have used on deployments before the bonus is paid. */
+                firstPurchaseBonusMinUsageUsd: number;
+              };
+              stats: {
+                signups: number;
+                payingUsers: number;
+                totalCommissionUsd: number;
+                monthCommissionUsd: number;
+                /** @description Commission credited to the personal balance, net of what was taken back. */
+                creditedUsd: number;
+                /** @description Commission still on hold, net of refunds during the hold. */
+                onHoldUsd: number;
+                /** @description The next held commission due for release, null when none has a release date ahead. */
+                nextRelease: {
+                  releasesAt: string;
+                  amountUsd: number;
+                } | null;
+              };
+              commissions: {
+                id: string;
+                createdAt: string;
+                amountUsd: number;
+                reversedUsd: number;
+                /** @enum {string} */
+                status: "on_hold" | "credited" | "canceled" | "reversed";
+                /** @enum {string} */
+                kind: "commission" | "first_payment_bonus";
+                /** @description When a held commission is due for release, null once that date has passed or when it is not on hold. */
+                releasesAt: string | null;
+                /** @description When the commission was credited to the personal balance. */
+                creditedAt: string | null;
+                /** @description The card payment the commission was earned on. */
+                paymentUsd: number | null;
+              }[];
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not eligible to join the referral program */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getAffiliateEnrollmentEligibility: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Whether the caller can join the referral program, with the terms they would join on */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Whether the caller can join the referral program on their own. */
+              eligible: boolean;
+              terms: {
+                commissionPercent: number;
+                commissionMonths: number;
+                referralTrialCreditsUsd: number;
+                /** @description How many days each commission stays on hold before it is credited. */
+                commissionHoldDays: number;
+                /** @description The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off. */
+                firstPurchaseBonusUsd: number;
+                /** @description The smallest first payment that earns the bonus. */
+                firstPurchaseBonusMinPaymentUsd: number;
+                /** @description How much the referred user must have used on deployments before the bonus is paid. */
+                firstPurchaseBonusMinUsageUsd: number;
+              };
+            };
           };
         };
       };

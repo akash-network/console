@@ -295,6 +295,27 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return !!item;
   }
 
+  /** In cents, net of partial refunds; a payment refunded in full is no longer `succeeded` and one lost to a dispute is left out. */
+  async sumNetCardPaymentsByOrganizations(organizationIds: string[]): Promise<number> {
+    if (organizationIds.length === 0) return 0;
+
+    const [{ total }] = await this.cursor
+      .select({ total: sql<number>`coalesce(sum(${this.table.amount} - ${this.table.amountRefunded}), 0)`.mapWith(Number) })
+      .from(this.table)
+      .where(
+        this.unscoped("affiliate-enrollment").whereAccessibleBy(
+          and(
+            inArray(this.table.organizationId, organizationIds),
+            eq(this.table.type, "payment_intent"),
+            eq(this.table.status, "succeeded"),
+            isNull(this.table.disputeLostAt)
+          )
+        )
+      );
+
+    return total;
+  }
+
   #completedPaidBy(owner: BillingOwner): SQL | undefined {
     return and(ownedBy(this.table, owner), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]));
   }

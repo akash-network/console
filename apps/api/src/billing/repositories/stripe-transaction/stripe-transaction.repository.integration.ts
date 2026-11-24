@@ -1492,6 +1492,74 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("sumNetCardPaymentsByOrganizations", () => {
+    it("sums the succeeded card payments of every given organization net of partial refunds", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      const personalOrganizationId = await seedPersonalOrganizationIdOf(payer.id);
+      const team = await seedOrganization({ type: "team", createdByUserId: payer.id });
+      await createTestTransaction({ userId: payer.id, organizationId: personalOrganizationId, amount: 6000 });
+      await createTestTransaction({ userId: payer.id, organizationId: team.id, amount: 5000, amountRefunded: 1500 });
+
+      await expect(stripeTransactionRepository.sumNetCardPaymentsByOrganizations([personalOrganizationId, team.id])).resolves.toBe(9500);
+    });
+
+    it.each([
+      { type: "payment_intent" as const, status: "refunded" as const },
+      { type: "payment_intent" as const, status: "pending" as const },
+      { type: "payment_intent" as const, status: "failed" as const },
+      { type: "coupon_claim" as const, status: "succeeded" as const },
+      { type: "manual_credit" as const, status: "succeeded" as const },
+      { type: "affiliate_commission" as const, status: "succeeded" as const }
+    ])("leaves out a $status $type", async ({ type, status }) => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const counted = await createTestTransaction({ amount: 2000 });
+      await createTestTransaction({ type, status, amount: 7000 });
+
+      await expect(stripeTransactionRepository.sumNetCardPaymentsByOrganizations([counted.organizationId])).resolves.toBe(2000);
+    });
+
+    it("leaves out a payment lost to a dispute", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const counted = await createTestTransaction({ amount: 2000 });
+      const disputed = await createTestTransaction({ amount: 7000 });
+      await stripeTransactionRepository.updateById(disputed.id, { disputeClosedAt: new Date(), disputeLostAt: new Date() });
+
+      await expect(stripeTransactionRepository.sumNetCardPaymentsByOrganizations([counted.organizationId])).resolves.toBe(2000);
+    });
+
+    it("leaves out the payments of organizations that are not given", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const counted = await createTestTransaction({ amount: 2000 });
+      const other = await createTestUser();
+      await createTestTransaction({ userId: other.id, amount: 7000 });
+
+      await expect(stripeTransactionRepository.sumNetCardPaymentsByOrganizations([counted.organizationId])).resolves.toBe(2000);
+    });
+
+    it("returns 0 for no organizations and for organizations that paid nothing", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const payer = await createTestUser();
+
+      await expect(stripeTransactionRepository.sumNetCardPaymentsByOrganizations([])).resolves.toBe(0);
+      await expect(stripeTransactionRepository.sumNetCardPaymentsByOrganizations([await seedPersonalOrganizationIdOf(payer.id)])).resolves.toBe(0);
+    });
+
+    it("sums the payments of the personal organization while one of the payer's teams is active", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      const personalOrganizationId = await seedPersonalOrganizationIdOf(payer.id);
+      const team = await seedOrganization({ type: "team", createdByUserId: payer.id });
+      await createTestTransaction({ userId: payer.id, organizationId: personalOrganizationId, amount: 6000 });
+
+      await expect(
+        inOrganization({ user: payer, organizationId: team.id }, () =>
+          stripeTransactionRepository.sumNetCardPaymentsByOrganizations([personalOrganizationId, team.id])
+        )
+      ).resolves.toBe(6000);
+    });
+  });
+
   describe("hasCompletedPaidTransactionOfAtLeast", () => {
     it.each([
       { amount: 10000, expected: true },

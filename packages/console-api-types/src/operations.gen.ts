@@ -470,6 +470,15 @@ export const operations = {
       hasBody: false
     },
     getAffiliateProfile: { path: "/v1/affiliates/me", method: "get", operationId: "getAffiliateProfile", pathParams: [], queryParams: [], hasBody: false },
+    joinAffiliateProgram: { path: "/v1/affiliates/me", method: "post", operationId: "joinAffiliateProgram", pathParams: [], queryParams: [], hasBody: false },
+    getAffiliateEnrollmentEligibility: {
+      path: "/v1/affiliates/me/eligibility",
+      method: "get",
+      operationId: "getAffiliateEnrollmentEligibility",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     listAffiliateReferrals: {
       path: "/v1/affiliates/me/referrals",
       method: "get",
