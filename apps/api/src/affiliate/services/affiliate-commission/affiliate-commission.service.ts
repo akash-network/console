@@ -220,16 +220,16 @@ export class AffiliateCommissionService {
 
     const now = new Date();
     const windowEndsAt = addMonths(new Date(attribution.referral.createdAt), AFFILIATE_COMMISSION_MONTHS);
+    const isWindowOpen = isBefore(now, windowEndsAt);
+    const isIndexedThroughClose = isWindowOpen || (await this.#isUsageIndexedThrough(bonus, windowEndsAt));
     const hasConsumedMinimum = await this.#hasConsumedBonusMinimum(bonus, referredUserId, attribution.referral, min([now, windowEndsAt]));
     if (hasConsumedMinimum === undefined) return undefined;
-
-    const isWindowOpen = isBefore(now, windowEndsAt);
-    if (!hasConsumedMinimum && !isWindowOpen && !(await this.#isUsageIndexedThrough(bonus, windowEndsAt))) return undefined;
+    if (!hasConsumedMinimum && !isIndexedThroughClose) return undefined;
 
     return { commissionId: bonus.id, hasConsumedMinimum, isWindowOpen };
   }
 
-  /** A chain index still behind the window's close may not hold the usage that met the minimum, so the bonus waits for it rather than cancel. */
+  /** Checked before the usage read, since a chain index still behind the window's close may not hold the usage that met the minimum, so the bonus waits for it rather than cancel. */
   async #isUsageIndexedThrough(bonus: StripeTransactionOutput, windowEndsAt: Date): Promise<boolean> {
     try {
       return await this.referredUsageService.isIndexedThrough(windowEndsAt);

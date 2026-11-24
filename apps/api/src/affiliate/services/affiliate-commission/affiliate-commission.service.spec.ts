@@ -1771,15 +1771,48 @@ describe(AffiliateCommissionService.name, () => {
       });
     });
 
-    it.each([
-      { case: "while the commission window is open", now: new Date("2026-07-15T09:59:59.999Z"), hasConsumedBonusUsage: false },
-      { case: "once the minimum usage is met", now: new Date("2026-07-15T10:00:00.000Z"), hasConsumedBonusUsage: true }
-    ])("does not check how far the chain index has indexed $case", async ({ now, hasConsumedBonusUsage }) => {
-      const { service, payment, referredUsageService } = setup({ hasBonus: true, hasConsumedBonusUsage, referredAt: "2026-04-15T10:00:00.000Z", now });
+    it("does not check how far the chain index has indexed while the commission window is open", async () => {
+      const { service, payment, referredUsageService } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-15T09:59:59.999Z")
+      });
 
       await service.syncCommission(payment.id, "bonus_usage");
 
       expect(referredUsageService.isIndexedThrough).not.toHaveBeenCalled();
+    });
+
+    it("confirms the chain index reached the window's close before reading the usage that decides a cancel", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, referredUsageService } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-15T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.isIndexedThrough.mock.invocationCallOrder[0]).toBeLessThan(
+        referredUsageService.hasConsumedAtLeast.mock.invocationCallOrder[0]
+      );
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "canceled", amountRefunded: 500 });
+    });
+
+    it("credits a bonus whose minimum usage was met by the window's close while the chain index is still behind it", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, refillService } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: true,
+        isUsageIndexed: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-15T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "succeeded", amountRefunded: 0 });
+      expect(refillService.topUpWallet).toHaveBeenCalledOnce();
     });
 
     it("reports a released bonus apart from the commission", async () => {
