@@ -22,7 +22,7 @@ describe(AffiliateInvitationCatchUpService.name, () => {
       const userIds = [faker.string.uuid(), faker.string.uuid()];
       const { service, jobQueueService } = setup({ userIds });
 
-      await expect(service.run({ dryRun: false })).resolves.toEqual({ invited: 2 });
+      await expect(service.run({ dryRun: false })).resolves.toEqual({ candidates: 2, enqueued: 2 });
 
       expect(jobQueueService.enqueue.mock.calls).toEqual([
         [new InviteAffiliate({ userId: userIds[0] }), { singletonKey: `invite-affiliate:${userIds[0]}` }],
@@ -34,23 +34,26 @@ describe(AffiliateInvitationCatchUpService.name, () => {
       const { service, jobQueueService } = setup({ userIds: [faker.string.uuid(), faker.string.uuid()] });
       jobQueueService.enqueue.mockResolvedValueOnce(null);
 
-      await expect(service.run({ dryRun: false })).resolves.toEqual({ invited: 1 });
+      await expect(service.run({ dryRun: false })).resolves.toEqual({ candidates: 2, enqueued: 1 });
     });
 
-    it("counts the people it would invite without enqueuing anything on a dry run", async () => {
+    it("counts the candidates without enqueuing anything on a dry run", async () => {
       const { service, jobQueueService } = setup({ userIds: [faker.string.uuid(), faker.string.uuid(), faker.string.uuid()] });
 
-      await expect(service.run({ dryRun: true })).resolves.toEqual({ invited: 3 });
+      await expect(service.run({ dryRun: true })).resolves.toEqual({ candidates: 3, enqueued: 0 });
 
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it.each([{ dryRun: true }, { dryRun: false }])("logs how many people it invited when dryRun is $dryRun", async ({ dryRun }) => {
+    it.each([
+      { dryRun: true, enqueued: 0 },
+      { dryRun: false, enqueued: 1 }
+    ])("logs the candidates and the jobs it enqueued when dryRun is $dryRun", async ({ dryRun, enqueued }) => {
       const { service, logger } = setup({ userIds: [faker.string.uuid()] });
 
       await service.run({ dryRun });
 
-      expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_INVITATION_CATCH_UP", invited: 1, dryRun });
+      expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_INVITATION_CATCH_UP", candidates: 1, enqueued, dryRun });
     });
   });
 

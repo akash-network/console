@@ -34,12 +34,35 @@ describe(AffiliateInvitationRepository.name, () => {
 
       await expect(
         container.resolve(TxService).transaction(async () => {
-          await repository.claim(userId, SENT_AT);
+          await expect(repository.claim(userId, SENT_AT)).resolves.toBe(true);
           throw new Error("rolled back");
         })
       ).rejects.toThrow("rolled back");
 
       await expect(repository.findByUserId(userId)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("release", () => {
+    it("gives the claim back so the person can be claimed again", async () => {
+      const { repository, userId } = await setup();
+      await repository.claim(userId, SENT_AT);
+
+      await repository.release(userId);
+
+      await expect(repository.findByUserId(userId)).resolves.toBeUndefined();
+      await expect(repository.claim(userId, SENT_AT)).resolves.toBe(true);
+    });
+
+    it("keeps the invitations of other people", async () => {
+      const { repository, userId } = await setup();
+      const other = await seedUser({ userId: faker.string.uuid() });
+      await repository.claim(userId, SENT_AT);
+      await repository.claim(other.id, SENT_AT);
+
+      await repository.release(userId);
+
+      await expect(repository.findByUserId(other.id)).resolves.toEqual({ userId: other.id, sentAt: SENT_AT });
     });
   });
 

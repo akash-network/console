@@ -13,7 +13,7 @@ import { InviteAffiliateHandler } from "./invite-affiliate.handler";
 import { InviteAffiliate, inviteAffiliateKeyFor } from "./invite-affiliate.job";
 
 import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
-import { deleteCompletedJobs, expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+import { deleteCompletedJobs, expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
 const JOB = InviteAffiliate[JOB_NAME];
@@ -87,20 +87,36 @@ describe(InviteAffiliateHandler.name, () => {
     await expect(container.resolve(AffiliateInvitationRepository).findByUserId(person.id)).resolves.toEqual({ userId: person.id, sentAt: expect.any(Date) });
   });
 
-  it("releases the claim when the email fails, so the retry can send it", async () => {
-    const { person, payOnPersonalAccount, invite } = await setup();
+  it("releases the claim when the email fails, so the retry of the same job sends it once and records the invitation", async () => {
+    const { person, payOnPersonalAccount, answerNotifications, invite } = await setup();
     await payOnPersonalAccount(100_00);
     const notificationsBaseUrl = container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string;
-    nock(notificationsBaseUrl).persist().post(NOTIFICATION_PATH).reply(500);
+    let failedRequests = 0;
+    nock(notificationsBaseUrl)
+      .persist()
+      .post(NOTIFICATION_PATH)
+      .reply(() => {
+        failedRequests += 1;
+        return [500];
+      });
 
     await invite({ expectState: "retry" });
 
+    expect(failedRequests).toBeGreaterThan(0);
     await expect(container.resolve(AffiliateInvitationRepository).findByUserId(person.id)).resolves.toBeUndefined();
+
+    nock.cleanAll();
+    const notifications = answerNotifications();
+    await makeJobDue(JOB, { singletonKey: inviteAffiliateKeyFor(person.id) });
+    await expectJobCompleted(JOB, { singletonKey: inviteAffiliateKeyFor(person.id) });
+
+    expect(notifications).toEqual([expect.objectContaining({ userId: person.id })]);
+    await expect(container.resolve(AffiliateInvitationRepository).findByUserId(person.id)).resolves.toEqual({ userId: person.id, sentAt: expect.any(Date) });
   });
 
   async function setup(input: { productUpdatesUnsubscribedAt?: Date } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(true);
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabledForSubject").mockReturnValue(true);
     const notificationsBaseUrl = container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string;
     const person = await seedUser({ email: faker.internet.email(), productUpdatesUnsubscribedAt: input.productUpdatesUnsubscribedAt ?? null });
 

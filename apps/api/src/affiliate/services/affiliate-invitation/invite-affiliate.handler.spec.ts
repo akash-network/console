@@ -5,7 +5,6 @@ import type { AffiliateInvitationRepository } from "@src/affiliate/repositories/
 import type { AffiliateEnrollmentEligibility, AffiliateEnrollmentService } from "@src/affiliate/services/affiliate-enrollment/affiliate-enrollment.service";
 import type { BillingConfig } from "@src/billing/providers";
 import type { CreateLogger } from "@src/core";
-import type { TxService } from "@src/core/services";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type {
   PromotionalNotificationOutcome,
@@ -50,28 +49,24 @@ describe(InviteAffiliateHandler.name, () => {
     expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_INVITATION_HANDLED", userId: user.id, outcome: "sent" });
   });
 
-  it("claims and sends inside one transaction", async () => {
-    const { handler, user, txService, affiliateInvitationRepository, promotionalNotificationService } = setup();
-    let inTransaction = false;
-    txService.transaction.mockImplementation(async callback => {
-      inTransaction = true;
-      const result = await callback();
-      inTransaction = false;
-      return result;
-    });
-    const calledInTransaction: boolean[] = [];
-    affiliateInvitationRepository.claim.mockImplementation(async () => {
-      calledInTransaction.push(inTransaction);
-      return true;
-    });
-    promotionalNotificationService.send.mockImplementation(async () => {
-      calledInTransaction.push(inTransaction);
-      return "sent";
-    });
+  it("claims the invitation before sending the email and keeps the claim once it is sent", async () => {
+    const { handler, user, affiliateInvitationRepository, promotionalNotificationService } = setup();
 
     await handler.handle({ userId: user.id, version: 1 });
 
-    expect(calledInTransaction).toEqual([true, true]);
+    expect(affiliateInvitationRepository.claim.mock.invocationCallOrder[0]).toBeLessThan(promotionalNotificationService.send.mock.invocationCallOrder[0]);
+    expect(affiliateInvitationRepository.release).not.toHaveBeenCalled();
+  });
+
+  it("gives the claim back and fails so the job retries when the email cannot be sent", async () => {
+    const { handler, user, affiliateInvitationRepository, promotionalNotificationService, logger } = setup();
+    const failure = new Error("Failed to create notification");
+    promotionalNotificationService.send.mockRejectedValue(failure);
+
+    await expect(handler.handle({ userId: user.id, version: 1 })).rejects.toBe(failure);
+
+    expect(affiliateInvitationRepository.release).toHaveBeenCalledWith(user.id);
+    expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_INVITATION_HANDLED" }));
   });
 
   it("neither claims nor sends to a person who is not eligible", async () => {
@@ -108,20 +103,22 @@ describe(InviteAffiliateHandler.name, () => {
   });
 
   it.each(["unsubscribed", "no_email"] as const)("keeps the claim when the email ends %s, so the person is never asked again", async outcome => {
-    const { handler, user, promotionalNotificationService, logger } = setup();
+    const { handler, user, affiliateInvitationRepository, promotionalNotificationService, logger } = setup();
     promotionalNotificationService.send.mockResolvedValue(outcome);
 
     await expect(handler.handle({ userId: user.id, version: 1 })).resolves.toBeUndefined();
 
+    expect(affiliateInvitationRepository.release).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_INVITATION_HANDLED", userId: user.id, outcome });
   });
 
-  it("fails so the claim rolls back and the job retries when no unsubscribe link can be made", async () => {
-    const { handler, user, promotionalNotificationService, logger } = setup();
+  it("gives the claim back and fails so the job retries when no unsubscribe link can be made", async () => {
+    const { handler, user, affiliateInvitationRepository, promotionalNotificationService, logger } = setup();
     promotionalNotificationService.send.mockResolvedValue("unsubscribe_unavailable" satisfies PromotionalNotificationOutcome);
 
     await expect(handler.handle({ userId: user.id, version: 1 })).rejects.toThrow("Affiliate invitation cannot be sent without an unsubscribe link");
 
+    expect(affiliateInvitationRepository.release).toHaveBeenCalledWith(user.id);
     expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_INVITATION_HANDLED" }));
   });
 
@@ -142,7 +139,6 @@ describe(InviteAffiliateHandler.name, () => {
     const promotionalNotificationService = mock<PromotionalNotificationService>();
     promotionalNotificationService.send.mockResolvedValue("sent");
     const deploymentConfigService = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL });
-    const txService = mock<TxService>({ transaction: vi.fn(callback => callback()) });
     const billingConfig = mock<BillingConfig>({
       REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000,
       AFFILIATE_COMMISSION_HOLD_SECONDS: 2_592_000,
@@ -159,7 +155,6 @@ describe(InviteAffiliateHandler.name, () => {
       userRepository,
       promotionalNotificationService,
       deploymentConfigService,
-      txService,
       billingConfig,
       createLogger
     );
@@ -171,7 +166,6 @@ describe(InviteAffiliateHandler.name, () => {
       affiliateInvitationRepository,
       userRepository,
       promotionalNotificationService,
-      txService,
       logger,
       createLogger
     };

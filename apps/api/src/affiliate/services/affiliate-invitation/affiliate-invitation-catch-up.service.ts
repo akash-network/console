@@ -19,13 +19,13 @@ export class AffiliateInvitationCatchUpService {
     this.#logger = createLogger({ context: AffiliateInvitationCatchUpService.name });
   }
 
-  async run({ dryRun }: { dryRun: boolean }): Promise<{ invited: number }> {
+  async run({ dryRun }: { dryRun: boolean }): Promise<{ candidates: number; enqueued: number }> {
     const userIds = await this.stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(this.billingConfig.AFFILIATE_SELF_JOIN_MIN_SPEND_AMOUNT);
-    const invited = dryRun ? userIds.length : await this.#enqueueInvitations(userIds);
+    const result = { candidates: userIds.length, enqueued: dryRun ? 0 : await this.#enqueueInvitations(userIds) };
 
-    this.#logger.info({ event: "AFFILIATE_INVITATION_CATCH_UP", invited, dryRun });
+    this.#logger.info({ event: "AFFILIATE_INVITATION_CATCH_UP", ...result, dryRun });
 
-    return { invited };
+    return result;
   }
 
   async #enqueueInvitations(userIds: string[]): Promise<number> {
