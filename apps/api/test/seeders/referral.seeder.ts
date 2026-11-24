@@ -7,7 +7,8 @@ export function createReferral({
   referredUserId = faker.string.uuid(),
   affiliateId = faker.string.uuid(),
   trialCreditsCents = null,
+  firstCommissionAt = null,
   createdAt = faker.date.recent().toISOString()
 }: Partial<ReferralOutput> = {}): ReferralOutput {
-  return { id, referredUserId, affiliateId, trialCreditsCents, createdAt };
+  return { id, referredUserId, affiliateId, trialCreditsCents, firstCommissionAt, createdAt };
 }

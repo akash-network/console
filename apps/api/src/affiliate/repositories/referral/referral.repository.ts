@@ -29,7 +29,7 @@ export type ReferralSummary = {
 type Table = ApiPgTables["Referrals"];
 export type ReferralInput = Partial<Table["$inferInsert"]>;
 export type ReferralDbOutput = Table["$inferSelect"];
-export type ReferralOutput = Omit<ReferralDbOutput, "createdAt"> & { createdAt: string };
+export type ReferralOutput = Omit<ReferralDbOutput, "createdAt" | "firstCommissionAt"> & { createdAt: string; firstCommissionAt: string | null };
 export type ReferralWithAffiliate = { referral: ReferralOutput; affiliate: AffiliateOutput };
 
 @singleton()
@@ -54,6 +54,34 @@ export class ReferralRepository extends BaseRepository<Table, ReferralInput, Ref
 
   async findByReferredUserId(referredUserId: string): Promise<ReferralOutput | undefined> {
     return this.findOneBy({ referredUserId } as Partial<ReferralOutput>);
+  }
+
+  /** Throws outside a transaction, because it is meant to re-read the referral once its affiliate is locked. */
+  async findByIdFresh(id: string): Promise<ReferralOutput | undefined> {
+    const tx = this.txManager.getPgTx();
+
+    if (!tx) {
+      throw new Error(`Referral ${id} can only be re-read inside a transaction`);
+    }
+
+    const [row] = await tx
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(eq(this.table.id, id)))
+      .limit(1);
+
+    return row ? this.toOutput(row) : undefined;
+  }
+
+  /** Answers false once the first commission is already recorded, so it is claimed only once. */
+  async markFirstCommission(id: string, at: Date): Promise<boolean> {
+    const rows = await this.cursor
+      .update(this.table)
+      .set({ firstCommissionAt: at })
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.firstCommissionAt))))
+      .returning({ id: this.table.id });
+
+    return rows.length > 0;
   }
 
   async countByAffiliate(affiliateId: string): Promise<number> {
@@ -166,7 +194,8 @@ export class ReferralRepository extends BaseRepository<Table, ReferralInput, Ref
   protected toOutput(payload: ReferralDbOutput): ReferralOutput {
     return {
       ...payload,
-      createdAt: payload.createdAt.toISOString()
+      createdAt: payload.createdAt.toISOString(),
+      firstCommissionAt: payload.firstCommissionAt ? payload.firstCommissionAt.toISOString() : null
     };
   }
 

@@ -47,7 +47,7 @@ describe(AffiliateReferralService.name, () => {
       {
         code: createHash("sha256").update("referral-1").digest("hex").slice(0, 6).toUpperCase(),
         joinedAt: "2024-06-10T12:00:00.000Z",
-        commissionEndsAt: "2025-06-10T12:00:00.000Z",
+        commissionEndsAt: "2024-09-10T12:00:00.000Z",
         paidUsd: 580,
         earnedUsd: 29
       }
@@ -57,29 +57,29 @@ describe(AffiliateReferralService.name, () => {
 
   it("rounds a partial month left in the commission window up", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2024-08-20T00:00:00Z"));
+    vi.setSystemTime(new Date("2024-07-20T00:00:00Z"));
     const { service, affiliate, referralRepository } = setup();
     referralRepository.findSummariesByAffiliate.mockResolvedValue([buildSummary({ createdAt: new Date("2024-06-10T12:00:00Z") })]);
 
     const { referrals } = await service.listReferrals(affiliate.userId, { limit: 20, offset: 0 });
 
-    expect(referrals[0].commissionMonthsLeft).toBe(10);
+    expect(referrals[0].commissionMonthsLeft).toBe(2);
   });
 
   it("counts exact months left without rounding them up", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2024-08-10T12:00:00Z"));
+    vi.setSystemTime(new Date("2024-07-10T12:00:00Z"));
     const { service, affiliate, referralRepository } = setup();
     referralRepository.findSummariesByAffiliate.mockResolvedValue([buildSummary({ createdAt: new Date("2024-06-10T12:00:00Z") })]);
 
     const { referrals } = await service.listReferrals(affiliate.userId, { limit: 20, offset: 0 });
 
-    expect(referrals[0].commissionMonthsLeft).toBe(10);
+    expect(referrals[0].commissionMonthsLeft).toBe(2);
   });
 
   it("shows one month left in the last days of the window", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2025-06-01T00:00:00Z"));
+    vi.setSystemTime(new Date("2024-09-01T00:00:00Z"));
     const { service, affiliate, referralRepository } = setup();
     referralRepository.findSummariesByAffiliate.mockResolvedValue([buildSummary({ createdAt: new Date("2024-06-10T12:00:00Z") })]);
 
@@ -90,7 +90,7 @@ describe(AffiliateReferralService.name, () => {
 
   it("shows no months left once the window has closed", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2025-06-10T12:00:00Z"));
+    vi.setSystemTime(new Date("2024-09-10T12:00:00Z"));
     const { service, affiliate, referralRepository } = setup();
     referralRepository.findSummariesByAffiliate.mockResolvedValue([buildSummary({ createdAt: new Date("2024-06-10T12:00:00Z") })]);
 

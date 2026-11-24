@@ -41,6 +41,17 @@ export class AffiliateRepository extends BaseRepository<Table, AffiliateInput, A
     return this.updateBy({ id, revokedAt: null } as Partial<AffiliateOutput>, revocation, { returning: true });
   }
 
+  /** Row-locks the affiliate until the ambient transaction ends, so its referrals' first commissions and monthly bonuses are decided one at a time. */
+  async lockById(id: string): Promise<void> {
+    const tx = this.txManager.getPgTx();
+
+    if (!tx) {
+      throw new Error(`Affiliate ${id} can only be locked inside a transaction`);
+    }
+
+    await tx.select({ id: this.table.id }).from(this.table).where(eq(this.table.id, id)).for("no key update");
+  }
+
   async reapproveIfRevoked(id: string, approval: { code: string; approvedAt: Date; approvedBy: string }): Promise<AffiliateOutput | undefined> {
     const [row] = await this.updateWhere(
       this.whereAccessibleBy(and(eq(this.table.id, id), isNotNull(this.table.revokedAt))),

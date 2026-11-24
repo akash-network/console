@@ -82,7 +82,7 @@ export class AffiliateCommissionService {
       const payment = await this.stripeTransactionRepository.findOneByAndLock({ id: transactionId });
       if (!payment || payment.type !== "payment_intent" || !SETTLED_TRANSACTION_STATUSES.has(payment.status)) return;
 
-      const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id);
+      const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id, { bonus: false });
       if (!commission) {
         if (trigger === "settlement") await this.#hold(payment);
       } else if (releaseCredit?.transactionId === commission.id && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
@@ -160,7 +160,7 @@ export class AffiliateCommissionService {
 
   /** Reads before taking the payment row lock, like `#isCreditLanded`, so the credit may belong to a commission another sync has replaced by the time the lock is held. */
   async #findReleaseCredit(transactionId: string): Promise<PaymentCreditOutput | undefined> {
-    const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySource(transactionId);
+    const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySource(transactionId, { bonus: false });
     return commission ? this.paymentCreditRepository.findByTransactionId(commission.id) : undefined;
   }
 

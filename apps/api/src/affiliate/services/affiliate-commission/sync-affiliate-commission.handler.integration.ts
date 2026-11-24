@@ -29,7 +29,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id);
 
-    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id);
+    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false });
     expect(commission).toMatchObject({
       userId: affiliateUser.id,
       type: "affiliate_commission",
@@ -48,7 +48,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await releaseCommissionOf(payment.id);
 
-    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id);
+    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false });
     expect(commission).toMatchObject({ status: "succeeded", amount: 61, amountRefunded: 0 });
     expect(topUpWallet).toHaveBeenCalledExactlyOnceWith(
       61,
@@ -68,7 +68,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     await syncCommissionOf(payment.id);
     await releaseCommissionOf(payment.id);
 
-    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id);
+    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false });
     expect(commission).toMatchObject({ userId: affiliateUser.id, organizationId: personalOrganizationId });
     expect(topUpWallet).toHaveBeenCalledWith(500, { userId: affiliateUser.id, organizationId: personalOrganizationId }, expect.anything());
   });
@@ -82,7 +82,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     await syncCommissionOf(payment.id);
     await releaseCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toMatchObject({
       userId: affiliateUser.id,
       amount: 500
     });
@@ -97,7 +97,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toBeUndefined();
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
@@ -122,7 +122,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toBeUndefined();
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
@@ -145,7 +145,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toBeUndefined();
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
@@ -155,7 +155,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toBeUndefined();
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
@@ -165,7 +165,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toBeUndefined();
     await expect(findJobRows(SyncAffiliateCommission[JOB_NAME], { data: { transactionId: payment.id, trigger: "release" } })).resolves.toEqual([]);
     expect(topUpWallet).not.toHaveBeenCalled();
   });
@@ -177,7 +177,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await releaseCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toMatchObject({
       status: "canceled",
       amount: 500,
       amountRefunded: 500
@@ -197,7 +197,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     await abuseLock.committed;
     await release;
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toMatchObject({
       status: "canceled",
       amount: 500,
       amountRefunded: 500
@@ -212,7 +212,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id, "refund");
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toMatchObject({
       status: "pending",
       amountRefunded: 200
     });
@@ -227,7 +227,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const { payment, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     await syncCommissionOf(payment.id);
-    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
     await stripeTransactionRepository.updateById(held!.id, { createdAt: subDays(new Date(), 31) });
     await stripeTransactionRepository.updateById(payment.id, { disputeOpenedAt: subDays(new Date(), 2) });
 
@@ -247,7 +247,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const { payment, topUpWallet, reduceWalletBalance, syncCommissionOf, releaseCommissionOf } = await setup();
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     await syncCommissionOf(payment.id);
-    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
     await stripeTransactionRepository.updateById(held!.id, { createdAt: subDays(new Date(), 31) });
     await stripeTransactionRepository.updateById(payment.id, { disputeOpenedAt: subDays(new Date(), 2) });
     await releaseCommissionOf(payment.id);
@@ -275,7 +275,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
       { userId: affiliateUser.id, organizationId: affiliateWallet.organizationId },
       { currency: "usd", transactionId: credited.id, refundedBefore: 0, refundedAfter: 500 }
     );
-    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
     expect(held).toMatchObject({ userId: affiliateUser.id, status: "pending", amount: 500, amountRefunded: 0, createdAt: credited.createdAt });
     expect(held?.id).not.toBe(credited.id);
 
@@ -300,7 +300,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const credited = await creditCommissionOf(payment.id);
     await stripeTransactionRepository.updateById(payment.id, { disputeFundsWithdrawnAt: subDays(new Date(), 2) });
     await syncCommissionOf(payment.id, "dispute");
-    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
 
     await deleteCompletedJobs(SyncAffiliateCommission[JOB_NAME]);
     await syncCommissionOf(payment.id, "dispute");
@@ -323,7 +323,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const { affiliateWallet, payment, affiliateUser, reduceWalletBalance, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     await syncCommissionOf(payment.id);
-    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
     await seedPaymentCredit({ transactionId: held!.id, status: "landed", amount: 500, bonusAmount: 0 });
     await stripeTransactionRepository.updateById(payment.id, { amountRefunded: 10000 });
 
@@ -345,7 +345,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const { affiliateWallet, payment, affiliateUser, reduceWalletBalance, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     await syncCommissionOf(payment.id);
-    const { id } = (await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id))!;
+    const { id } = (await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false }))!;
     await stripeTransactionRepository.updateById(id, { status: "canceled", amountRefunded: 500 });
     await seedPaymentCredit({ transactionId: id, status: "landed", amount: 500, bonusAmount: 0 });
     await stripeTransactionRepository.updateById(payment.id, { amountRefunded: 10000 });
@@ -390,7 +390,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id, "refund");
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toBeUndefined();
     expect(topUpWallet).not.toHaveBeenCalled();
     expect(reduceWalletBalance).not.toHaveBeenCalled();
   });
@@ -404,7 +404,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     await syncCommissionOf(payment.id);
     await releaseCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toMatchObject({
       userId: affiliateUser.id,
       status: "succeeded",
       amount: 500,
@@ -419,7 +419,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
 
     await syncCommissionOf(payment.id);
 
-    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toBeUndefined();
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
@@ -459,7 +459,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     async function creditCommissionOf(transactionId: string) {
       const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
       await syncCommissionOf(transactionId);
-      const held = await stripeTransactionRepository.findAffiliateCommissionBySource(transactionId);
+      const held = await stripeTransactionRepository.findAffiliateCommissionBySource(transactionId, { bonus: false });
       await stripeTransactionRepository.updateById(held!.id, { createdAt: subDays(new Date(), 31) });
       await releaseCommissionOf(transactionId);
 

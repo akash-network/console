@@ -669,6 +669,7 @@ describe(StripeTransactionService.name, () => {
       errorMessage: input.errorMessage ?? null,
       sourceTransactionId: input.sourceTransactionId ?? null,
       sourceStripeChargeId: input.sourceStripeChargeId ?? null,
+      affiliateBonus: input.affiliateBonus ?? false,
       disputeOpenedAt: input.disputeOpenedAt ?? null,
       disputeClosedAt: input.disputeClosedAt ?? null,
       disputeFundsWithdrawnAt: input.disputeFundsWithdrawnAt ?? null,

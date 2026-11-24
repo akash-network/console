@@ -1086,6 +1086,13 @@
       "when": 1795302203415,
       "tag": "0154_user_organization_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 155,
+      "version": "7",
+      "when": 1795488039096,
+      "tag": "0155_affiliate_bonus_lane",
+      "breakpoints": true
     }
   ]
 }

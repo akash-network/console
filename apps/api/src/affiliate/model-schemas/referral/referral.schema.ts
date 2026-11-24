@@ -19,6 +19,7 @@ export const Referrals = pgTable(
       .references(() => Affiliates.id, { onDelete: "cascade" })
       .notNull(),
     trialCreditsCents: integer("trial_credits_cents"),
+    firstCommissionAt: timestamp("first_commission_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   table => ({

@@ -214,10 +214,10 @@ describe(AffiliateCommissionService.name, () => {
       expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "not_referred" });
     });
 
-    it("holds a payment made exactly 12 months after the referral", async () => {
+    it("holds a payment made exactly 3 months after the referral", async () => {
       const { service, payment, stripeTransactionRepository } = setup({
-        referredAt: "2025-01-15T10:00:00.000Z",
-        paymentCreatedAt: new Date("2026-01-15T10:00:00.000Z")
+        referredAt: "2025-04-15T10:00:00.000Z",
+        paymentCreatedAt: new Date("2025-07-15T10:00:00.000Z")
       });
 
       await service.syncCommission(payment.id, "settlement");
@@ -225,10 +225,10 @@ describe(AffiliateCommissionService.name, () => {
       expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalled();
     });
 
-    it("holds nothing for a payment made more than 12 months after the referral", async () => {
+    it("holds nothing for a payment made more than 3 months after the referral", async () => {
       const { service, payment, stripeTransactionRepository, logger } = setup({
-        referredAt: "2025-01-15T10:00:00.000Z",
-        paymentCreatedAt: new Date("2026-01-16T10:00:00.000Z")
+        referredAt: "2025-04-15T10:00:00.000Z",
+        paymentCreatedAt: new Date("2025-07-16T10:00:00.000Z")
       });
 
       await service.syncCommission(payment.id, "settlement");
@@ -334,7 +334,7 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id, "settlement");
 
-      expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).toHaveBeenCalledWith(payment.id);
+      expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).toHaveBeenCalledWith(payment.id, { bonus: false });
       expect(referralRepository.findWithAffiliateByReferredUserId).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
@@ -1575,6 +1575,18 @@ describe(AffiliateCommissionService.name, () => {
       expect(paymentCreditRepository.findByTransactionId.mock.invocationCallOrder[0]).toBeLessThan(
         stripeTransactionRepository.findOneByAndLock.mock.invocationCallOrder[0]
       );
+    });
+
+    it("looks for the release credit of the percentage commission", async () => {
+      const { service, payment, stripeTransactionRepository } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        releaseCredit: { status: "landed", amount: 500 }
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(stripeTransactionRepository.findAffiliateCommissionBySource).toHaveBeenCalledWith(payment.id, { bonus: false });
     });
 
     it("does not look for a release credit when settling a payment", async () => {

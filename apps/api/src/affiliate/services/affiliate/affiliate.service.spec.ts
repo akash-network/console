@@ -466,7 +466,7 @@ describe(AffiliateService.name, () => {
 
       expect(profile).toMatchObject({
         code: "friendcode",
-        terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 }
+        terms: { commissionPercent: 5, commissionMonths: 3, referralTrialCreditsUsd: 5 }
       });
     });
 

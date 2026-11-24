@@ -76,7 +76,7 @@ describe("GET /v1/affiliates/me", () => {
     expect(body).toEqual({
       data: {
         code: "friendcode",
-        terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: expect.any(Number), commissionHoldDays: 30 },
+        terms: { commissionPercent: 5, commissionMonths: 3, referralTrialCreditsUsd: expect.any(Number), commissionHoldDays: 30 },
         stats: { signups: 0, payingUsers: 0, totalCommissionUsd: 0, monthCommissionUsd: 0, creditedUsd: 0, onHoldUsd: 0, nextRelease: null },
         commissions: []
       }

@@ -31,6 +31,11 @@ export const envSchema = z.object({
     .int()
     .min(0)
     .default(30 * 24 * 60 * 60),
+  AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT: z.number({ coerce: true }).int().min(0).default(500),
+  AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT: z.number({ coerce: true }).int().min(0).default(2000),
+  AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT: z.number({ coerce: true }).int().min(0).default(2000),
+  AFFILIATE_FIRST_PURCHASE_BONUS_MONTHLY_CAP: z.number({ coerce: true }).int().min(0).default(10),
+  AFFILIATE_SELF_JOIN_MIN_SPEND_AMOUNT: z.number({ coerce: true }).int().min(0).default(10000),
   TRIAL_FEES_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   TRIAL_DEPLOYMENT_CLEANUP_HOURS: z.number({ coerce: true }).default(24),
   DEPLOYMENT_GRANT_DENOM: z.enum(["uakt", "uact"]),

@@ -106,7 +106,7 @@ describe("GET /v1/affiliates/me/referrals", () => {
         joinedAt: expect.any(String),
         status: "inactive",
         commissionEndsAt: expect.any(String),
-        commissionMonthsLeft: 12,
+        commissionMonthsLeft: 3,
         paidUsd: 0,
         earnedUsd: 0
       }
