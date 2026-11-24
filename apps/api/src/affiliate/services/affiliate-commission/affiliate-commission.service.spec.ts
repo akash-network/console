@@ -479,14 +479,16 @@ describe(AffiliateCommissionService.name, () => {
         expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_released", {
           amount_cents: 500,
           source_transaction_id: payment.id,
-          referred_user_id: payment.userId
+          referred_user_id: payment.userId,
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_RELEASED",
           commissionId: commission.id,
           affiliateUserId: affiliate.userId,
           sourceTransactionId: payment.id,
-          amountCents: 500
+          amountCents: 500,
+          affiliateBonus: false
         });
       });
 
@@ -589,13 +591,15 @@ describe(AffiliateCommissionService.name, () => {
         expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_canceled", {
           amount_cents: 500,
           source_transaction_id: payment.id,
-          reason
+          reason,
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_CANCELED",
           commissionId: commission.id,
           sourceTransactionId: payment.id,
-          reason
+          reason,
+          affiliateBonus: false
         });
       });
 
@@ -615,7 +619,8 @@ describe(AffiliateCommissionService.name, () => {
           event: "AFFILIATE_COMMISSION_CANCELED",
           commissionId: commission.id,
           sourceTransactionId: payment.id,
-          reason: "affiliate_abuse_locked"
+          reason: "affiliate_abuse_locked",
+          affiliateBonus: false
         });
       });
 
@@ -895,7 +900,8 @@ describe(AffiliateCommissionService.name, () => {
           amount_cents: 200,
           source_transaction_id: payment.id,
           referred_user_id: payment.userId,
-          reason: "refund"
+          reason: "refund",
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_REVERSED",
@@ -905,7 +911,8 @@ describe(AffiliateCommissionService.name, () => {
           amountCents: 200,
           totalReversedCents: 200,
           shortfallCents: 0,
-          reason: "refund"
+          reason: "refund",
+          affiliateBonus: false
         });
       });
 
@@ -1187,7 +1194,8 @@ describe(AffiliateCommissionService.name, () => {
           amount_cents: 500,
           source_transaction_id: payment.id,
           referred_user_id: payment.userId,
-          reason: "dispute_funds_withdrawn"
+          reason: "dispute_funds_withdrawn",
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE",
@@ -1655,7 +1663,7 @@ describe(AffiliateCommissionService.name, () => {
     });
 
     it("cancels the bonus without touching the commission once the commission window closes below the minimum usage", async () => {
-      const { service, payment, affiliate, bonus, stripeTransactionRepository, refillService, jobQueueService, analyticsService } = setup({
+      const { service, payment, affiliate, bonus, stripeTransactionRepository, refillService, jobQueueService, analyticsService, logger } = setup({
         hasCommission: true,
         commissionStatus: "pending",
         hasBonus: true,
@@ -1672,8 +1680,83 @@ describe(AffiliateCommissionService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_canceled", {
         amount_cents: 500,
         source_transaction_id: payment.id,
-        reason: "bonus_usage_not_met"
+        reason: "bonus_usage_not_met",
+        affiliate_bonus: true
       });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_COMMISSION_CANCELED",
+        commissionId: bonus.id,
+        sourceTransactionId: payment.id,
+        reason: "bonus_usage_not_met",
+        affiliateBonus: true
+      });
+    });
+
+    it("reports a released bonus apart from the commission", async () => {
+      const { service, payment, affiliate, bonus, analyticsService, logger } = setup({ hasBonus: true });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_released", {
+        amount_cents: 500,
+        source_transaction_id: payment.id,
+        referred_user_id: payment.userId,
+        affiliate_bonus: true
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_COMMISSION_RELEASED",
+        commissionId: bonus.id,
+        affiliateUserId: affiliate.userId,
+        sourceTransactionId: payment.id,
+        amountCents: 500,
+        affiliateBonus: true
+      });
+    });
+
+    it("credits the commission and rechecks the bonus a day later when the chain index cannot be read", async () => {
+      const now = new Date("2026-07-15T09:00:00.000Z");
+      const { service, payment, commission, bonus, refillService, referredUsageService, jobQueueService, logger } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        hasBonus: true,
+        now
+      });
+      const error = new Error("chain index unavailable");
+      referredUsageService.hasConsumedAtLeast.mockRejectedValue(error);
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(refillService.topUpWallet).toHaveBeenCalledExactlyOnceWith(
+        500,
+        expect.anything(),
+        expect.objectContaining({ payment: expect.objectContaining({ transactionId: commission.id }) })
+      );
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), {
+        startAfter: addDays(now, 1)
+      });
+      expect(logger.error).toHaveBeenCalledWith({ event: "AFFILIATE_BONUS_USAGE_READ_FAILED", commissionId: bonus.id, sourceTransactionId: payment.id, error });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_BONUS_RELEASE_DEFERRED", commissionId: bonus.id, reason: "usage_unchecked" })
+      );
+    });
+
+    it.each([
+      { case: "on a dispute sync during the hold", input: { paymentDisputeOpenedAt: subSeconds(new Date(), 600) } },
+      {
+        case: "once the dispute is lost after the hold",
+        input: {
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentDisputeOpenedAt: subSeconds(new Date(), 600),
+          paymentDisputeClosedAt: subSeconds(new Date(), 60),
+          paymentDisputeLostAt: subSeconds(new Date(), 60)
+        }
+      }
+    ])("does not read the referred user's usage $case", async ({ input }) => {
+      const { service, payment, referredUsageService } = setup({ hasBonus: true, ...input });
+
+      await service.syncCommission(payment.id, "dispute");
+
+      expect(referredUsageService.hasConsumedAtLeast).not.toHaveBeenCalled();
     });
 
     it("syncs only the bonus on a usage recheck", async () => {
@@ -1796,6 +1879,28 @@ describe(AffiliateCommissionService.name, () => {
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 200 });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(bonus.id, { amountRefunded: 200 });
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("reports a bonus taken back after its release apart from the commission", async () => {
+      const { service, payment, affiliate, bonus, analyticsService, logger } = setup({
+        hasBonus: true,
+        bonusStatus: "succeeded",
+        paymentAmount: 10000,
+        paymentAmountRefunded: 4000
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_reversed", {
+        amount_cents: 200,
+        source_transaction_id: payment.id,
+        referred_user_id: payment.userId,
+        reason: "refund",
+        affiliate_bonus: true
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED", commissionId: bonus.id, affiliateBonus: true })
+      );
     });
 
     it("cancels both the held commission and the held bonus when the dispute is lost", async () => {
@@ -2093,7 +2198,8 @@ describe(AffiliateCommissionService.name, () => {
         amount_cents: 200,
         source_transaction_id: null,
         referred_user_id: null,
-        reason: "refund"
+        reason: "refund",
+        affiliate_bonus: false
       });
       expect(logger.info).toHaveBeenCalledWith({
         event: "AFFILIATE_COMMISSION_REVERSED",
@@ -2103,7 +2209,8 @@ describe(AffiliateCommissionService.name, () => {
         amountCents: 200,
         totalReversedCents: 200,
         shortfallCents: 0,
-        reason: "refund"
+        reason: "refund",
+        affiliateBonus: false
       });
     });
 
@@ -2202,13 +2309,15 @@ describe(AffiliateCommissionService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(affiliate.userId, "affiliate_commission_canceled", {
         amount_cents: 500,
         source_transaction_id: null,
-        reason: "dispute_lost"
+        reason: "dispute_lost",
+        affiliate_bonus: false
       });
       expect(logger.info).toHaveBeenCalledWith({
         event: "AFFILIATE_COMMISSION_CANCELED",
         commissionId: commission.id,
         sourceTransactionId: null,
-        reason: "dispute_lost"
+        reason: "dispute_lost",
+        affiliateBonus: false
       });
     });
 
