@@ -3,6 +3,8 @@ import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
+import { AffiliateInvitationRepository } from "@src/affiliate/repositories/affiliate-invitation/affiliate-invitation.repository";
 import { PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import { RefundDebitRepository } from "@src/billing/repositories/refund-debit/refund-debit.repository";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
@@ -1557,6 +1559,102 @@ describe(StripeTransactionRepository.name, () => {
           stripeTransactionRepository.sumNetCardPaymentsByOrganizations([personalOrganizationId, team.id])
         )
       ).resolves.toBe(6000);
+    });
+  });
+
+  describe("findUserIdsWithNetCardSpendAtLeast", () => {
+    it("finds a person whose personal and team card payments, net of partial refunds, reach the minimum", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      const team = await seedOrganization({ type: "team", createdByUserId: payer.id });
+      await createTestTransaction({ userId: payer.id, amount: 6000 });
+      await createTestTransaction({ userId: payer.id, organizationId: team.id, amount: 5500, amountRefunded: 1500 });
+
+      await expect(stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000)).resolves.toContain(payer.id);
+      await expect(stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_001)).resolves.not.toContain(payer.id);
+    });
+
+    it("credits a team's payments to whoever created the team, not to the member who paid", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const creator = await createTestUser();
+      const member = await createTestUser();
+      const team = await seedOrganization({ type: "team", createdByUserId: creator.id });
+      await createTestTransaction({ userId: member.id, organizationId: team.id, amount: 10_000 });
+
+      const userIds = await stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000);
+
+      expect(userIds).toContain(creator.id);
+      expect(userIds).not.toContain(member.id);
+    });
+
+    it.each([
+      { type: "payment_intent" as const, status: "refunded" as const },
+      { type: "payment_intent" as const, status: "pending" as const },
+      { type: "coupon_claim" as const, status: "succeeded" as const },
+      { type: "manual_credit" as const, status: "succeeded" as const }
+    ])("leaves out a $status $type", async ({ type, status }) => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      await createTestTransaction({ userId: payer.id, amount: 5000 });
+      await createTestTransaction({ userId: payer.id, type, status, amount: 5000 });
+
+      await expect(stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000)).resolves.not.toContain(payer.id);
+    });
+
+    it("leaves out a payment lost to a dispute", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      await createTestTransaction({ userId: payer.id, amount: 5000 });
+      const disputed = await createTestTransaction({ userId: payer.id, amount: 5000 });
+      await stripeTransactionRepository.updateById(disputed.id, { disputeClosedAt: new Date(), disputeLostAt: new Date() });
+
+      await expect(stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000)).resolves.not.toContain(payer.id);
+    });
+
+    it.each([{ revoked: false }, { revoked: true }])("leaves out an affiliate when revoked is $revoked", async ({ revoked }) => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      await createTestTransaction({ userId: payer.id, amount: 10_000 });
+      await container.resolve(AffiliateRepository).create({
+        userId: payer.id,
+        code: faker.string.alpha({ length: 8, casing: "lower" }),
+        approvedAt: new Date(),
+        approvedBy: "ops@akash.network",
+        ...(revoked && { revokedAt: new Date(), revokedBy: "ops@akash.network" })
+      });
+
+      await expect(stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000)).resolves.not.toContain(payer.id);
+    });
+
+    it("leaves out a person already invited", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      await createTestTransaction({ userId: payer.id, amount: 10_000 });
+      await container.resolve(AffiliateInvitationRepository).claim(payer.id, new Date());
+
+      await expect(stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000)).resolves.not.toContain(payer.id);
+    });
+
+    it("finds a person once whatever the number of payments", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      await createTestTransaction({ userId: payer.id, amount: 6000 });
+      await createTestTransaction({ userId: payer.id, amount: 6000 });
+
+      const userIds = await stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000);
+
+      expect(userIds.filter(userId => userId === payer.id)).toEqual([payer.id]);
+    });
+
+    it("finds people while one of their teams is the active organization", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const payer = await createTestUser();
+      const team = await seedOrganization({ type: "team", createdByUserId: payer.id });
+      await createTestTransaction({ userId: payer.id, amount: 10_000 });
+
+      await expect(
+        inOrganization({ user: payer, organizationId: team.id }, () => stripeTransactionRepository.findUserIdsWithNetCardSpendAtLeast(10_000))
+      ).resolves.toContain(payer.id);
     });
   });
 

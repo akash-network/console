@@ -1093,6 +1093,13 @@
       "when": 1795488039096,
       "tag": "0155_affiliate_bonus_lane",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1795493352951,
+      "tag": "0156_affiliate_invitations",
+      "breakpoints": true
     }
   ]
 }

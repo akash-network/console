@@ -7,6 +7,7 @@ import { Err } from "ts-results";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { AffiliateInvitationCatchUpService } from "@src/affiliate/services/affiliate-invitation/affiliate-invitation-catch-up.service";
 import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
@@ -135,6 +136,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(GpuWinBackCatchUpService).run({ dryRun: options.dryRun, now: new Date() });
+    });
+  });
+
+program
+  .command("invite-affiliates")
+  .description("Enqueue the referral program invitation email of every person who spent enough on cards to join and was not invited yet")
+  .option("-d, --dry-run", "Count the people who would be invited without enqueuing their invitations", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(AffiliateInvitationCatchUpService).run({ dryRun: options.dryRun });
     });
   });
 

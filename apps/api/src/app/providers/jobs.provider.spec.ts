@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
+import { InviteAffiliate } from "@src/affiliate/services/affiliate-invitation/invite-affiliate.job";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
@@ -53,6 +54,15 @@ describe("jobs.provider", () => {
 
     const [handlers] = jobQueue.registerHandlers.mock.calls[0];
     expect(handlers.map(handler => handler.accepts)).toContain(SyncAffiliateCommission);
+  });
+
+  it("creates a queue for the referral program invitations the catch-up command enqueues", async () => {
+    const { jobQueue } = setup();
+
+    await startJobQueues();
+
+    const [handlers] = jobQueue.registerHandlers.mock.calls[0];
+    expect(handlers.map(handler => handler.accepts)).toContain(InviteAffiliate);
   });
 
   it("creates the queues of the gpu waitlist watch and the confirmation it enqueues", async () => {
