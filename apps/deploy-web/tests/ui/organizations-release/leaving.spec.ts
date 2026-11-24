@@ -13,6 +13,7 @@ import {
   openApiKeyClient,
   PROXY_API_URL
 } from "../actions/organization";
+import { allowAccountOnSandboxProvider } from "../actions/sandbox-provider-access";
 import { buyMinimumCredits, createTeam, TEST_CARD_LAST4 } from "../actions/team";
 import { expect, openSignedOutPage, test } from "../fixture/base-test";
 import { testEnvConfig } from "../fixture/test-env.config";
@@ -641,6 +642,7 @@ test.describe("The personal account and the trial", () => {
       });
 
       await test.step("the personal key deploys on the trial and leases the deployment", async () => {
+        await allowAccountOnSandboxProvider(page.request);
         const created = await createDeployment(personalApi, "v1/deployments", { name: deployment });
         activeDseq = created.dseq;
         await leaseFirstBid(personalApi, created);

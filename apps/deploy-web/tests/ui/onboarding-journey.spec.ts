@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 
+import { allowAccountOnSandboxProvider } from "./actions/sandbox-provider-access";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
@@ -28,6 +29,10 @@ test.describe("Onboarding journey — new user's first deployment", () => {
       await visit(page, "/");
       await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
       await expect(picker.getHeading()).toBeVisible({ timeout: 30_000 });
+    });
+
+    await test.step("the new account is allowed to deploy on the sandbox provider", async () => {
+      await allowAccountOnSandboxProvider(page.request);
     });
 
     await test.step("picking the Hello world template starts an automatic deployment", async () => {
@@ -64,6 +69,10 @@ test.describe("Onboarding journey — new user's first deployment", () => {
       await visit(page, "/");
       await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
       await expect(picker.getHeading()).toBeVisible({ timeout: 30_000 });
+    });
+
+    await test.step("the new account is allowed to deploy on the sandbox provider", async () => {
+      await allowAccountOnSandboxProvider(page.request);
     });
 
     await test.step("choosing 'Deploy image' opens the configure screen", async () => {

@@ -15,6 +15,7 @@ import {
   type OrganizationList,
   PROXY_API_URL
 } from "../actions/organization";
+import { allowTeamOnSandboxProvider } from "../actions/sandbox-provider-access";
 import { buyMinimumCredits, createTeam } from "../actions/team";
 import { expect, openSignedOutPage, test } from "../fixture/base-test";
 import { testEnvConfig } from "../fixture/test-env.config";
@@ -128,6 +129,7 @@ test.describe("Projects and organization boundaries", () => {
         await createTeam(page, team);
         await createProjects(page, [grantedProject, hiddenProject]);
         await buyMinimumCredits(page);
+        await allowTeamOnSandboxProvider(page, team);
       });
 
       await test.step("the owner invites a member to one of the projects, and they join as a plain member", async () => {
@@ -226,6 +228,7 @@ test.describe("Projects and organization boundaries", () => {
         await createTeam(page, team);
         await createProjects(page, [grantedProject, hiddenProject]);
         await buyMinimumCredits(page);
+        await allowTeamOnSandboxProvider(page, team);
       });
 
       await test.step("the owner invites a member to one of the projects, and they join as a plain member", async () => {

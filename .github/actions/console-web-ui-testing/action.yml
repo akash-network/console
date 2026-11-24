@@ -42,6 +42,9 @@ inputs:
   test-user-password:
     description: Pre-registered test user password for authenticated tests
     required: false
+  sandbox-provider-granter-mnemonic:
+    description: Mnemonic of the wallet whose fee grants let fresh test accounts deploy on the sandbox E2E provider
+    required: false
 
 runs:
   using: "composite"
@@ -69,6 +72,7 @@ runs:
         E2E_INBOX_EMAIL_DOMAIN: ${{ inputs.e2e-inbox-email-domain }}
         TEST_USER_EMAIL: ${{ inputs.test-user-email }}
         TEST_USER_PASSWORD: ${{ inputs.test-user-password }}
+        E2E_SANDBOX_PROVIDER_GRANTER_MNEMONIC: ${{ inputs.sandbox-provider-granter-mnemonic }}
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}
         CI: "true"
       shell: bash

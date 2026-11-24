@@ -10,6 +10,7 @@ import {
   openApiKeyClient,
   PROXY_API_URL
 } from "../actions/organization";
+import { allowTeamOnSandboxProvider } from "../actions/sandbox-provider-access";
 import { buyMinimumCredits, createTeam, TEST_CARD_LAST4, TEST_CARD_NUMBER } from "../actions/team";
 import { expect, test } from "../fixture/base-test";
 import { AddCreditsSheetPage } from "../pages/AddCreditsSheetPage";
@@ -366,6 +367,7 @@ test.describe("Team money", () => {
       const { api, me } = await test.step("the owner creates a team, pays for it with a card, and creates a team key", async () => {
         await createTeam(page, team);
         await buyMinimumCredits(page);
+        await allowTeamOnSandboxProvider(page, team);
         const key = await createApiKey(page.request, { name: `e2e-money-reload-${suffix}` });
         client = await openApiKeyClient(playwright, key.apiKey);
         const keyApiClient = keyApi(client);
@@ -509,6 +511,7 @@ test.describe("Team money", () => {
       const { me, keyClient } = await test.step("the owner creates a funded team and a team key", async () => {
         await createTeam(page, team);
         await buyMinimumCredits(page);
+        await allowTeamOnSandboxProvider(page, team);
         const key = await createApiKey(page.request, { name: `e2e-money-budget-${suffix}` });
         client = await openApiKeyClient(playwright, key.apiKey);
         const api = keyApi(client);

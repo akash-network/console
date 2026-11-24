@@ -115,3 +115,4 @@ jobs:
           e2e-inbox-email-domain: ${{ vars.E2E_INBOX_EMAIL_DOMAIN }}
           test-user-email: ${{ secrets.CONSOLE_WEB_E2E_TEST_USER_EMAIL }}
           test-user-password: ${{ secrets.CONSOLE_WEB_E2E_TEST_USER_PASSWORD }}
+          sandbox-provider-granter-mnemonic: ${{ secrets.E2E_SANDBOX_PROVIDER_GRANTER_MNEMONIC }}

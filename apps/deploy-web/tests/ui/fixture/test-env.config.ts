@@ -21,7 +21,13 @@ export const testEnvSchema = z.object({
   E2E_INBOX_API_TOKEN: z.string({ required_error: "Bearer token for the e2e inbox worker HTTP endpoint" }).trim().min(1),
   E2E_INBOX_EMAIL_DOMAIN: z.string({ required_error: "Email domain routed to the e2e inbox worker (dedicated domain, e.g. 'e2e.example.com')" }).trim().min(1),
   TEST_USER_EMAIL: z.string().optional(),
-  TEST_USER_PASSWORD: z.string().optional()
+  TEST_USER_PASSWORD: z.string().optional(),
+  E2E_SANDBOX_PROVIDER_GRANTER_MNEMONIC: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe("Mnemonic of the wallet whose fee grants let fresh accounts deploy on the sandbox E2E provider; unset skips granting")
 });
 
 export const testEnvConfig = testEnvSchema.parse({
@@ -36,7 +42,8 @@ export const testEnvConfig = testEnvSchema.parse({
   E2E_INBOX_API_TOKEN: process.env.E2E_INBOX_API_TOKEN,
   E2E_INBOX_EMAIL_DOMAIN: process.env.E2E_INBOX_EMAIL_DOMAIN,
   TEST_USER_EMAIL: process.env.TEST_USER_EMAIL,
-  TEST_USER_PASSWORD: process.env.TEST_USER_PASSWORD
+  TEST_USER_PASSWORD: process.env.TEST_USER_PASSWORD,
+  E2E_SANDBOX_PROVIDER_GRANTER_MNEMONIC: process.env.E2E_SANDBOX_PROVIDER_GRANTER_MNEMONIC || undefined
 });
 
 export const PROVIDERS_WHITELIST = {
