@@ -51,6 +51,7 @@ export class AffiliateEnrollmentService {
     if (existingProfile) return existingProfile;
 
     const { reason } = await this.checkEligibility(userId);
+    if (reason === "already_affiliate") return this.#requireProfile(userId);
     if (reason) {
       this.#logger.info({ event: "AFFILIATE_ENROLLMENT_INELIGIBLE", userId, reason });
       throw this.#ineligibleError();

@@ -169,6 +169,17 @@ describe(AffiliateEnrollmentService.name, () => {
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_SELF_JOINED" }));
     });
 
+    it("returns the profile when a concurrent join inserted the affiliate between the profile read and the eligibility check", async () => {
+      const { service, affiliateService, affiliateRepository, logger } = setup({ spentCents: 10_000 });
+      const profile = mock<AffiliateProfile>({ code: "racecode" });
+      affiliateService.getProfile.mockResolvedValueOnce(null).mockResolvedValueOnce(profile);
+      affiliateRepository.findByUserId.mockResolvedValue(createAffiliate({ userId: "user-1", revokedAt: null }));
+
+      await expect(service.join("user-1")).resolves.toBe(profile);
+      expect(affiliateService.approve).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_ENROLLMENT_INELIGIBLE" }));
+    });
+
     it("rethrows another conflict from the approval", async () => {
       const { service, affiliateService } = setup({ spentCents: 10_000 });
       const codeTaken = createError(409, "This code is already used by another affiliate", { errorCode: "affiliate_code_taken" });
