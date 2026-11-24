@@ -3,7 +3,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { Hono } from "hono";
 import { container } from "tsyringe";
 
-import { CORE_CONFIG, JobQueueService, startServer } from "@src/core";
+import { CORE_CONFIG, JobQueueService, migratePG, startServer } from "@src/core";
 import { WatchGpuWaitlistsHandler } from "@src/gpu-waitlist/services/watch-gpu-waitlists/watch-gpu-waitlists.handler";
 import { healthzRouter } from "@src/healthz/routes/healthz.router";
 import { RecomputeTemplateScoresHandler } from "@src/template-marketplace/services/recompute-template-scores/recompute-template-scores.handler";
@@ -20,6 +20,7 @@ export async function bootstrap(): Promise<void> {
 
   const server = await startServer(app, createOtelLogger({ context: "BACKGROUND_JOBS" }), process, {
     port: container.resolve(CORE_CONFIG).PORT,
+    beforeStart: migratePG,
     beforeDispose: () => container.resolve(JobQueueService).dispose()
   });
   if (server) {
