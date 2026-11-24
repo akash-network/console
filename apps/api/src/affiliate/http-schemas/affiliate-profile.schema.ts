@@ -6,8 +6,10 @@ const AffiliateTermsSchema = z.object({
   referralTrialCreditsUsd: z.number(),
   commissionHoldDays: z.number().openapi({ description: "How many days each commission stays on hold before it is credited." }),
   firstPurchaseBonusUsd: z.number().openapi({ description: "The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off." }),
-  firstPurchaseBonusMinPaymentUsd: z.number().openapi({ description: "The smallest first payment that earns the bonus." }),
-  firstPurchaseBonusMinUsageUsd: z.number().openapi({ description: "How much the referred user must have used on deployments before the bonus is paid." })
+  firstPurchaseBonusMinPaymentUsd: z.number().openapi({ description: "The bonus applies only if the referred user's first payment is at least this amount." }),
+  firstPurchaseBonusMinUsageUsd: z
+    .number()
+    .openapi({ description: "How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid." })
 });
 
 const AffiliateStatsSchema = z.object({

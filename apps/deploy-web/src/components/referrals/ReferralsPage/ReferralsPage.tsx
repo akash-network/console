@@ -364,7 +364,7 @@ function describeFirstPaymentBonus({
 }: AffiliateProfile["terms"]): string | undefined {
   if (firstPurchaseBonusUsd <= 0) return undefined;
 
-  return `plus ${formatWholeOrCents(firstPurchaseBonusUsd)} on their first payment of ${formatWholeOrCents(firstPurchaseBonusMinPaymentUsd)} or more, once they've used ${formatWholeOrCents(firstPurchaseBonusMinUsageUsd)} on deployments`;
+  return `plus ${formatWholeOrCents(firstPurchaseBonusUsd)} if their first payment is ${formatWholeOrCents(firstPurchaseBonusMinPaymentUsd)} or more, once they've used ${formatWholeOrCents(firstPurchaseBonusMinUsageUsd)} on deployments beyond their trial credit`;
 }
 
 function formatWholeOrCents(amountUsd: number): string {
