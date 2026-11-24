@@ -18,6 +18,7 @@
     "dev-nodc": "npm run start",
     "eval:assistant": "tsup scripts/evalAssistant.ts -d dist/scripts && node dist/scripts/evalAssistant.js",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
+    "invite:affiliates": "tsup scripts/inviteAffiliates.ts -d dist/scripts && node dist/scripts/inviteAffiliates.js",
     "knowledge:refresh": "tsup scripts/refreshAssistantKnowledge.ts -d dist/scripts && node dist/scripts/refreshAssistantKnowledge.js",
     "lint": "eslint .",
     "migration:gen": "drizzle-kit generate",
