@@ -10,22 +10,24 @@ import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client"
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
 
 describe(useJoinAffiliateProgramMutation.name, () => {
-  it("joins the program and refetches the profile and the eligibility", async () => {
-    const { result, joinAffiliateProgram, invalidateQueries, api } = setup({});
+  it("stores the returned profile in the profile cache and refetches it, leaving eligibility alone", async () => {
+    const { result, joinAffiliateProgram, invalidateQueries, queryClient, api } = setup({});
 
     await act(() => result.current.mutateAsync(undefined));
 
     expect(joinAffiliateProgram).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryData(api.v1.getAffiliateProfile.getKey())).toEqual({ data: { code: "friendcode" } });
+    expect(invalidateQueries).toHaveBeenCalledTimes(1);
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getAffiliateProfile.getKey() });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getAffiliateEnrollmentEligibility.getKey() });
   });
 
-  it("leaves both queries alone when joining fails", async () => {
-    const { result, invalidateQueries } = setup({ failure: new Error("forbidden") });
+  it("leaves the profile cache alone when joining fails", async () => {
+    const { result, invalidateQueries, queryClient, api } = setup({ failure: new Error("forbidden") });
 
     await act(() => result.current.mutateAsync(undefined).catch(() => undefined));
 
     expect(invalidateQueries).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(api.v1.getAffiliateProfile.getKey())).toBeUndefined();
     await vi.waitFor(() => expect(result.current.isError).toBe(true));
   });
 
@@ -41,6 +43,6 @@ describe(useJoinAffiliateProgramMutation.name, () => {
 
     const { result } = setupQuery(() => useJoinAffiliateProgramMutation(), { services: { api: () => api, queryClient: () => queryClient } });
 
-    return { result, joinAffiliateProgram, invalidateQueries, api };
+    return { result, joinAffiliateProgram, invalidateQueries, queryClient, api };
   }
 });

@@ -49,6 +49,18 @@ describe(ReferralsPage.name, () => {
       expect(mockRouter.replace).not.toHaveBeenCalled();
     });
 
+    it("renders the normal page for a joined caller whose eligibility now reads false", () => {
+      const { mockRouter, JoinReferralProgram } = setup({
+        profile: buildProfile(),
+        isOpenEnrollmentEnabled: true,
+        eligibility: { eligible: false, terms: buildProfile().terms }
+      });
+
+      expect(screen.getByLabelText("Referral link")).toBeInTheDocument();
+      expect(JoinReferralProgram).not.toHaveBeenCalled();
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
     it("redirects to billing when the caller is not eligible", () => {
       const { mockRouter } = setup({ profile: null, isOpenEnrollmentEnabled: true, eligibility: { eligible: false, terms: buildProfile().terms } });
 
