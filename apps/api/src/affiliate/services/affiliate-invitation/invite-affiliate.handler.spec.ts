@@ -41,7 +41,7 @@ describe(InviteAffiliateHandler.name, () => {
       payload: {
         summary: "Earn Console credit by referring friends",
         description: expect.stringContaining(
-          "gets a $5 trial. You earn $5 if their first payment is $20 or more, once they've used $20 on deployments beyond their trial credit"
+          "gets a $5 trial. You earn 5% of every card payment they make for 3 months, plus $5 if their first payment is $20 or more"
         ),
         actions: [{ label: "Join the referral program", url: `${DEPLOY_WEB_BASE_URL}/referrals` }]
       },

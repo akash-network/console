@@ -19,10 +19,12 @@ describe(JoinReferralProgram.name, () => {
   });
 
   it("describes the first-payment bonus when there is one", () => {
-    setup({ terms: { firstPurchaseBonusUsd: 10, firstPurchaseBonusMinPaymentUsd: 20, firstPurchaseBonusMinUsageUsd: 2.5 } });
+    setup({ terms: { commissionMonths: 3, firstPurchaseBonusUsd: 10, firstPurchaseBonusMinPaymentUsd: 20, firstPurchaseBonusMinUsageUsd: 2.5 } });
 
     expect(
-      screen.getByText("Plus $10 if their first payment is $20 or more, once they've used $2.50 on deployments beyond their trial credit.")
+      screen.getByText(
+        "Plus $10 if their first payment is $20 or more, once they've used $2.50 on deployments beyond their trial credit within those 3 months."
+      )
     ).toBeInTheDocument();
   });
 

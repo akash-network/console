@@ -12,8 +12,8 @@ function describeEarnings(terms: AffiliateTerms): string {
   if (terms.firstPurchaseBonusUsd <= 0) return `You earn ${commission}.`;
 
   return (
-    `You earn ${wholeDollars(terms.firstPurchaseBonusUsd)} if their first payment is ${wholeDollars(terms.firstPurchaseBonusMinPaymentUsd)} or more, ` +
-    `once they've used ${wholeDollars(terms.firstPurchaseBonusMinUsageUsd)} on deployments beyond their trial credit, plus ${commission}.`
+    `You earn ${commission}, plus ${wholeDollars(terms.firstPurchaseBonusUsd)} if their first payment is ${wholeDollars(terms.firstPurchaseBonusMinPaymentUsd)} or more, ` +
+    `once they've used ${wholeDollars(terms.firstPurchaseBonusMinUsageUsd)} on deployments beyond their trial credit within those ${terms.commissionMonths} months.`
   );
 }
 
