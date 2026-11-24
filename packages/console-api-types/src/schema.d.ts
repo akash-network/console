@@ -18265,9 +18265,9 @@ export interface operations {
                 commissionHoldDays: number;
                 /** @description The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off. */
                 firstPurchaseBonusUsd: number;
-                /** @description The smallest first payment that earns the bonus. */
+                /** @description The bonus applies only if the referred user's first payment is at least this amount. */
                 firstPurchaseBonusMinPaymentUsd: number;
-                /** @description How much the referred user must have used on deployments before the bonus is paid. */
+                /** @description How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid. */
                 firstPurchaseBonusMinUsageUsd: number;
               };
               stats: {
@@ -18353,9 +18353,9 @@ export interface operations {
                 commissionHoldDays: number;
                 /** @description The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off. */
                 firstPurchaseBonusUsd: number;
-                /** @description The smallest first payment that earns the bonus. */
+                /** @description The bonus applies only if the referred user's first payment is at least this amount. */
                 firstPurchaseBonusMinPaymentUsd: number;
-                /** @description How much the referred user must have used on deployments before the bonus is paid. */
+                /** @description How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid. */
                 firstPurchaseBonusMinUsageUsd: number;
               };
             };

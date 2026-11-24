@@ -27,7 +27,7 @@ describe(affiliateInvitationNotification.name, () => {
         summary: "Earn Console credit by referring friends",
         description:
           "You can now refer people to Akash Console. Anyone who signs up with your link gets a $5 trial. " +
-          "You earn $5 once they make a first payment of $20 or more and have used $20 on deployments, " +
+          "You earn $5 if their first payment is $20 or more, once they've used $20 on deployments beyond their trial credit, " +
           "plus 5% of every card payment they make for 3 months. " +
           "Your earnings arrive as Console credit after a 30-day hold, and you can't withdraw them.",
         actions: [{ label: "Join the referral program", url: "https://console.akash.network/referrals" }]
@@ -54,9 +54,24 @@ describe(affiliateInvitationNotification.name, () => {
 
     expect(payload.description).toBe(
       "You can now refer people to Akash Console. Anyone who signs up with your link gets a $8 trial. " +
-        "You earn $10 once they make a first payment of $25 or more and have used $30 on deployments, " +
+        "You earn $10 if their first payment is $25 or more, once they've used $30 on deployments beyond their trial credit, " +
         "plus 7% of every card payment they make for 6 months. " +
         "Your earnings arrive as Console credit after a 14-day hold, and you can't withdraw them."
+    );
+  });
+
+  it("leaves the first-payment bonus out when there is none", () => {
+    const user = createUser();
+
+    const { payload } = affiliateInvitationNotification(user, {
+      terms: { ...TERMS, firstPurchaseBonusUsd: 0 },
+      referralsUrl: "https://console.akash.network/referrals"
+    });
+
+    expect(payload.description).toBe(
+      "You can now refer people to Akash Console. Anyone who signs up with your link gets a $5 trial. " +
+        "You earn 5% of every card payment they make for 3 months. " +
+        "Your earnings arrive as Console credit after a 30-day hold, and you can't withdraw them."
     );
   });
 });

@@ -3294,11 +3294,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "type": "number",
                             },
                             "firstPurchaseBonusMinPaymentUsd": {
-                              "description": "The smallest first payment that earns the bonus.",
+                              "description": "The bonus applies only if the referred user's first payment is at least this amount.",
                               "type": "number",
                             },
                             "firstPurchaseBonusMinUsageUsd": {
-                              "description": "How much the referred user must have used on deployments before the bonus is paid.",
+                              "description": "How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid.",
                               "type": "number",
                             },
                             "firstPurchaseBonusUsd": {
@@ -3396,11 +3396,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "type": "number",
                             },
                             "firstPurchaseBonusMinPaymentUsd": {
-                              "description": "The smallest first payment that earns the bonus.",
+                              "description": "The bonus applies only if the referred user's first payment is at least this amount.",
                               "type": "number",
                             },
                             "firstPurchaseBonusMinUsageUsd": {
-                              "description": "How much the referred user must have used on deployments before the bonus is paid.",
+                              "description": "How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid.",
                               "type": "number",
                             },
                             "firstPurchaseBonusUsd": {
