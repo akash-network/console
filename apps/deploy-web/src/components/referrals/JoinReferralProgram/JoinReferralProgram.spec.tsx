@@ -18,6 +18,12 @@ describe(JoinReferralProgram.name, () => {
     expect(screen.getByText("Earnings are Console credit, held for 30 days, and can't be withdrawn.")).toBeInTheDocument();
   });
 
+  it("states a trial credit that is not whole to the cent", () => {
+    setup({ terms: { referralTrialCreditsUsd: 7.5 } });
+
+    expect(screen.getByText("People you refer start with $7.50 in free credits.")).toBeInTheDocument();
+  });
+
   it("describes the first-payment bonus when there is one", () => {
     setup({ terms: { commissionMonths: 3, firstPurchaseBonusUsd: 10, firstPurchaseBonusMinPaymentUsd: 20, firstPurchaseBonusMinUsageUsd: 2.5 } });
 

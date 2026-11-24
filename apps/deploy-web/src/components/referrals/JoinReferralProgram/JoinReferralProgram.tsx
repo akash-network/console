@@ -1,7 +1,7 @@
 "use client";
 import { Card, LoadingButton } from "@akashnetwork/ui/components";
 
-import { describeFirstPaymentBonus } from "@src/components/referrals/affiliateTermsCopy";
+import { describeFirstPaymentBonus, formatWholeOrCents } from "@src/components/referrals/affiliateTermsCopy";
 import type { AffiliateProfile } from "@src/queries/useAffiliateProfileQuery";
 import { useJoinAffiliateProgramMutation } from "@src/queries/useJoinAffiliateProgramMutation";
 
@@ -26,7 +26,7 @@ export function JoinReferralProgram({ terms, dependencies: d = DEPENDENCIES }: P
         <p className="text-sm text-muted-foreground">Share your link. When the people you refer pay by card, you earn Console credit.</p>
       </div>
       <ul className="list-disc space-y-1.5 pl-5 text-sm">
-        <li>People you refer start with ${terms.referralTrialCreditsUsd} in free credits.</li>
+        <li>People you refer start with {formatWholeOrCents(terms.referralTrialCreditsUsd)} in free credits.</li>
         <li>
           You earn {terms.commissionPercent}% of every card payment they make for {terms.commissionMonths} months.
         </li>

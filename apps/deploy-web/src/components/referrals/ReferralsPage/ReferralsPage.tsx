@@ -92,12 +92,19 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { activeOrganization } = d.useActiveOrganization();
   const isOpenEnrollmentEnabled = d.useFlag("affiliate_open_enrollment");
   const hasNoProfile = isAffiliateProgramEnabled && isSuccess && !profile;
-  const { data: eligibility, isLoading: isEligibilityLoading } = d.useAffiliateEligibilityQuery({
+  const {
+    data: eligibility,
+    isLoading: isEligibilityLoading,
+    isError: isEligibilityError,
+    isFetching: isFetchingEligibility,
+    refetch: refetchEligibility
+  } = d.useAffiliateEligibilityQuery({
     enabled: hasNoProfile && isOpenEnrollmentEnabled
   });
   const canJoin = hasNoProfile && isOpenEnrollmentEnabled && !!eligibility?.eligible;
   const isCheckingEligibility = hasNoProfile && isOpenEnrollmentEnabled && isEligibilityLoading;
-  const isNotAnAffiliate = !isAffiliateProgramEnabled || (hasNoProfile && !canJoin && !isCheckingEligibility);
+  const hasEligibilityLoadFailed = hasNoProfile && isOpenEnrollmentEnabled && isEligibilityError && !eligibility;
+  const isNotAnAffiliate = !isAffiliateProgramEnabled || (hasNoProfile && !canJoin && !isCheckingEligibility && !hasEligibilityLoadFailed);
   const hasProfileLoadFailed = errorUpdatedAt > 0;
 
   useEffect(
@@ -107,7 +114,7 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     [isNotAnAffiliate, router]
   );
 
-  if (isNotAnAffiliate || isCheckingEligibility || (!profile && !canJoin && !hasProfileLoadFailed)) return null;
+  if (isNotAnAffiliate || isCheckingEligibility || (!profile && !canJoin && !hasProfileLoadFailed && !hasEligibilityLoadFailed)) return null;
 
   const usd: Usd = value => <d.FormattedNumber value={value} style="currency" currency="usd" currencyDisplay="narrowSymbol" />;
 
@@ -151,7 +158,13 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           <d.Card className={`${CARD_CLASSES} flex flex-col items-center gap-3 py-10 text-center`}>
             <CircleAlert className="h-[22px] w-[22px] text-destructive" aria-hidden />
             <p className="text-sm text-muted-foreground">Your referrals couldn&apos;t be loaded.</p>
-            <LoadingButton type="button" variant="outline" size="sm" loading={isFetching} onClick={() => refetch()}>
+            <LoadingButton
+              type="button"
+              variant="outline"
+              size="sm"
+              loading={hasEligibilityLoadFailed ? isFetchingEligibility : isFetching}
+              onClick={() => (hasEligibilityLoadFailed ? refetchEligibility() : refetch())}
+            >
               Try again
             </LoadingButton>
           </d.Card>

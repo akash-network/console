@@ -74,6 +74,48 @@ describe(ReferralsPage.name, () => {
       expect(mockRouter.replace).not.toHaveBeenCalled();
       expect(screen.queryByRole("button", { name: "Join the referral program" })).not.toBeInTheDocument();
     });
+
+    it("shows an error with a retry button that checks eligibility again instead of redirecting when eligibility fails to load", async () => {
+      const { mockRouter, user, refetch, refetchEligibility } = setup({ profile: null, isOpenEnrollmentEnabled: true, isEligibilityError: true });
+
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      expect(screen.getByText("Your referrals couldn't be loaded.")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Try again" }));
+
+      expect(refetchEligibility).toHaveBeenCalled();
+      expect(refetch).not.toHaveBeenCalled();
+    });
+
+    it("keeps the retry button disabled while eligibility is fetched again", () => {
+      setup({ profile: null, isOpenEnrollmentEnabled: true, isEligibilityError: true, isFetchingEligibility: true });
+
+      expect(screen.getByRole("button", { name: /Try again/ })).toBeDisabled();
+    });
+
+    it("keeps the join view when a refetch of eligibility fails after it loaded", () => {
+      const { mockRouter } = setup({
+        profile: null,
+        isOpenEnrollmentEnabled: true,
+        isEligibilityError: true,
+        eligibility: { eligible: true, terms: buildProfile().terms }
+      });
+
+      expect(screen.getByRole("button", { name: "Join the referral program" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
+    it("redirects to billing when a refetch of eligibility fails after it read ineligible", () => {
+      const { mockRouter } = setup({
+        profile: null,
+        isOpenEnrollmentEnabled: true,
+        isEligibilityError: true,
+        eligibility: { eligible: false, terms: buildProfile().terms }
+      });
+
+      expect(mockRouter.replace).toHaveBeenCalledWith(UrlService.billing());
+    });
   });
 
   it("redirects an eligible non-affiliate to billing while open enrollment is off", () => {
@@ -486,12 +528,15 @@ describe(ReferralsPage.name, () => {
       isOpenEnrollmentEnabled?: boolean;
       eligibility?: { eligible: boolean; terms: AffiliateProfile["terms"] };
       isEligibilityLoading?: boolean;
+      isEligibilityError?: boolean;
+      isFetchingEligibility?: boolean;
     } = {}
   ) {
     const user = userEvent.setup();
     const mockRouter = { replace: vi.fn() };
     const enqueueSnackbar = vi.fn();
     const refetch = vi.fn();
+    const refetchEligibility = vi.fn();
     const copyTextToClipboard = vi.fn<typeof DEPENDENCIES.copyTextToClipboard>();
     const isAffiliateProgramEnabled = input.isAffiliateProgramEnabled ?? true;
 
@@ -507,7 +552,10 @@ describe(ReferralsPage.name, () => {
     const useAffiliateEligibilityQuery = vi.fn<typeof DEPENDENCIES.useAffiliateEligibilityQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateEligibilityQuery>>(), {
         data: input.eligibility,
-        isLoading: input.isEligibilityLoading ?? false
+        isLoading: input.isEligibilityLoading ?? false,
+        isError: input.isEligibilityError ?? false,
+        isFetching: input.isFetchingEligibility ?? false,
+        refetch: refetchEligibility
       })
     );
     const JoinReferralProgram = vi.fn<typeof DEPENDENCIES.JoinReferralProgram>(() => <button type="button">Join the referral program</button>);
@@ -549,6 +597,7 @@ describe(ReferralsPage.name, () => {
       mockRouter,
       enqueueSnackbar,
       refetch,
+      refetchEligibility,
       copyTextToClipboard,
       SettingsLayout,
       Layout,
