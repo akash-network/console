@@ -113,6 +113,8 @@
     "@akashnetwork/docker": "*",
     "@akashnetwork/net": "*",
     "@akashnetwork/releaser": "*",
+    "@cosmjs/proto-signing": "~0.38.0",
+    "@cosmjs/stargate": "~0.38.0",
     "@faker-js/faker": "^9.4.0",
     "@next/bundle-analyzer": "^15.5.28",
     "@playwright/test": "~1.57.0",
