@@ -1727,6 +1727,61 @@ describe(AffiliateCommissionService.name, () => {
       });
     });
 
+    it.each([
+      { case: "has not indexed past the window's close", isUsageIndexed: false as const },
+      { case: "cannot tell how far it has indexed", isUsageIndexed: "error" as const }
+    ])("rechecks the bonus instead of canceling it below the minimum usage while the chain index $case", async ({ isUsageIndexed }) => {
+      const now = new Date("2026-07-15T10:00:00.000Z");
+      const { service, payment, bonus, stripeTransactionRepository, referredUsageService, jobQueueService, logger } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        isUsageIndexed,
+        now
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.isIndexedThrough).toHaveBeenCalledWith(new Date("2026-07-15T10:00:00.000Z"));
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), {
+        startAfter: addDays(now, 1)
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_BONUS_RELEASE_DEFERRED", commissionId: bonus.id, reason: "usage_unchecked" })
+      );
+    });
+
+    it("logs a failed read of how far the chain index has indexed", async () => {
+      const { service, payment, bonus, logger } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        isUsageIndexed: "error",
+        now: new Date("2026-07-15T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "AFFILIATE_BONUS_USAGE_READ_FAILED",
+        commissionId: bonus.id,
+        sourceTransactionId: payment.id,
+        error: expect.any(Error)
+      });
+    });
+
+    it.each([
+      { case: "while the commission window is open", now: new Date("2026-07-15T09:59:59.999Z"), hasConsumedBonusUsage: false },
+      { case: "once the minimum usage is met", now: new Date("2026-07-15T10:00:00.000Z"), hasConsumedBonusUsage: true }
+    ])("does not check how far the chain index has indexed $case", async ({ now, hasConsumedBonusUsage }) => {
+      const { service, payment, referredUsageService } = setup({ hasBonus: true, hasConsumedBonusUsage, referredAt: "2026-04-15T10:00:00.000Z", now });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.isIndexedThrough).not.toHaveBeenCalled();
+    });
+
     it("reports a released bonus apart from the commission", async () => {
       const { service, payment, affiliate, bonus, analyticsService, logger } = setup({ hasBonus: true });
 
@@ -2594,6 +2649,7 @@ describe(AffiliateCommissionService.name, () => {
       hasConsumedBonusUsage?: boolean;
       referredUserConsumedCents?: number;
       referralTrialCreditsCents?: number;
+      isUsageIndexed?: boolean | "error";
       now?: Date;
     } = {}
   ) {
@@ -2738,6 +2794,10 @@ describe(AffiliateCommissionService.name, () => {
     referredUsageService.hasConsumedAtLeast.mockImplementation(async (_referredUserId, _window, minCents) =>
       input.referredUserConsumedCents === undefined ? input.hasConsumedBonusUsage ?? true : input.referredUserConsumedCents >= minCents
     );
+    referredUsageService.isIndexedThrough.mockImplementation(async () => {
+      if (input.isUsageIndexed === "error") throw new Error("chain index unavailable");
+      return input.isUsageIndexed ?? true;
+    });
 
     const billingConfig = mock<BillingConfig>({
       AFFILIATE_COMMISSION_HOLD_SECONDS: input.holdSeconds ?? HOLD_SECONDS,

@@ -223,7 +223,20 @@ export class AffiliateCommissionService {
     const hasConsumedMinimum = await this.#hasConsumedBonusMinimum(bonus, referredUserId, attribution.referral, min([now, windowEndsAt]));
     if (hasConsumedMinimum === undefined) return undefined;
 
-    return { commissionId: bonus.id, hasConsumedMinimum, isWindowOpen: isBefore(now, windowEndsAt) };
+    const isWindowOpen = isBefore(now, windowEndsAt);
+    if (!hasConsumedMinimum && !isWindowOpen && !(await this.#isUsageIndexedThrough(bonus, windowEndsAt))) return undefined;
+
+    return { commissionId: bonus.id, hasConsumedMinimum, isWindowOpen };
+  }
+
+  /** A chain index still behind the window's close may not hold the usage that met the minimum, so the bonus waits for it rather than cancel. */
+  async #isUsageIndexedThrough(bonus: StripeTransactionOutput, windowEndsAt: Date): Promise<boolean> {
+    try {
+      return await this.referredUsageService.isIndexedThrough(windowEndsAt);
+    } catch (error) {
+      this.#logger.error({ event: "AFFILIATE_BONUS_USAGE_READ_FAILED", commissionId: bonus.id, sourceTransactionId: bonus.sourceTransactionId, error });
+      return false;
+    }
   }
 
   /** The chain index can stay down longer than the job retries, so a failed read leaves the bonus to its next recheck instead of failing the commission release beside it. */

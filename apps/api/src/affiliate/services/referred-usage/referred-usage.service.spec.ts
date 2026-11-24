@@ -72,6 +72,20 @@ describe(ReferredUsageService.name, () => {
     });
   });
 
+  describe("isIndexedThrough", () => {
+    it.each([
+      { case: "the latest indexed block is after the time", latestBlockTime: new Date("2026-07-15T10:00:01.000Z"), isIndexed: true },
+      { case: "the latest indexed block is at the time", latestBlockTime: new Date("2026-07-15T10:00:00.000Z"), isIndexed: true },
+      { case: "the latest indexed block is before the time", latestBlockTime: new Date("2026-07-15T09:59:59.999Z"), isIndexed: false },
+      { case: "no block is indexed", latestBlockTime: undefined, isIndexed: false }
+    ])("returns $isIndexed when $case", async ({ latestBlockTime, isIndexed }) => {
+      const { service, deploymentSpendRepository } = setup({ organizationCount: 0, consumption: [] });
+      deploymentSpendRepository.findLatestBlockTime.mockResolvedValue(latestBlockTime);
+
+      await expect(service.isIndexedThrough(new Date("2026-07-15T10:00:00.000Z"))).resolves.toBe(isIndexed);
+    });
+  });
+
   function setup(input: {
     organizationCount: number;
     walletlessOrganizationCount?: number;

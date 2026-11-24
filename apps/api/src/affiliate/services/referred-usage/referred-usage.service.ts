@@ -1,3 +1,4 @@
+import { isBefore } from "date-fns";
 import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
@@ -27,6 +28,11 @@ export class ReferredUsageService {
     const consumedMicroUsd = consumption.reduce((total, { settledMicroUsd, accruedMicroUsd }) => total + Number(settledMicroUsd) + Number(accruedMicroUsd), 0);
 
     return consumedMicroUsd / MICRO_USD_PER_CENT >= minCents;
+  }
+
+  async isIndexedThrough(at: Date): Promise<boolean> {
+    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
+    return !!latestBlockTime && !isBefore(latestBlockTime, at);
   }
 
   /** The same payers commission counts: the referred user's personal organization and the teams they created. */

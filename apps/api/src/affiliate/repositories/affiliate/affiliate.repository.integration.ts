@@ -72,10 +72,13 @@ describe(AffiliateRepository.name, () => {
         await repository.lockById(affiliate.id);
         steps.push("second locked");
       });
-      await waitForLockWait('%from "affiliates"%for no key update%');
-      steps.push("first done");
-      first.release();
-      await Promise.all([first.committed, second]);
+      try {
+        await waitForLockWait('%from "affiliates"%for no key update%');
+        steps.push("first done");
+      } finally {
+        first.release();
+        await Promise.all([first.committed, second]);
+      }
 
       expect(steps).toEqual(["first locked", "first done", "second locked"]);
     });
