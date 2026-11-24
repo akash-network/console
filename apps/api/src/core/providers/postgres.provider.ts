@@ -82,7 +82,7 @@ const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
 });
 
 /** Mainnet, sandbox and every CLI command migrate this one database on boot, so whoever comes second must wait rather than re-apply. */
-const MIGRATION_ADVISORY_LOCK_KEY = 5_377_032_119;
+export const MIGRATION_ADVISORY_LOCK_KEY = 5_377_032_119;
 
 /** Their sum plus each attempt's lock_timeout must stay under the REST pod's ~95 s liveness budget. */
 const MIGRATION_LOCK_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 15_000];
@@ -92,11 +92,13 @@ const LOCK_NOT_AVAILABLE = "55P03";
 export async function migratePG(config: CoreConfig = container.resolve(CORE_CONFIG), options: { lockRetryDelaysMs?: number[] } = {}): Promise<void> {
   const migrationClient = postgres(config.POSTGRES_MIGRATION_DB_URI ?? config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
   const pgMigrationDatabase = drizzle(migrationClient, getDrizzleOptions(config));
-  const applyPendingMigrations = () => migrate(pgMigrationDatabase, { migrationsFolder: config.DRIZZLE_MIGRATIONS_FOLDER });
+  /** Takes the lock per attempt because postgres.js silently reconnects, without the lock, a session that dropped during backoff. */
+  const applyPendingMigrations = async () => {
+    await migrationClient`SELECT pg_advisory_lock(${MIGRATION_ADVISORY_LOCK_KEY})`;
+    return migrate(pgMigrationDatabase, { migrationsFolder: config.DRIZZLE_MIGRATIONS_FOLDER });
+  };
 
   try {
-    await migrationClient`SELECT pg_advisory_lock(${MIGRATION_ADVISORY_LOCK_KEY})`;
-
     for (const delayMs of options.lockRetryDelaysMs ?? MIGRATION_LOCK_RETRY_DELAYS_MS) {
       try {
         return await applyPendingMigrations();
