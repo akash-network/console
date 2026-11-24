@@ -1,3 +1,4 @@
+import { once } from "lodash";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -25,15 +26,42 @@ describe(migratePG.name, () => {
     expect(await countProbeMigrationRuns()).toBe(1);
   });
 
-  function setup(input: { appDbUri?: string } = {}) {
+  it("retries a migration that timed out on a table lock once the lock is released", async () => {
+    const { config, holdLockOnProbeTable, countProbeMigrationRuns, listProbeTableColumns } = setup({ migration: "alterLockedTable" });
+    const releaseLock = await holdLockOnProbeTable();
+    setTimeout(releaseLock, 300);
+
+    await migratePG(config, { lockRetryDelaysMs: [1_000] });
+
+    expect(await countProbeMigrationRuns()).toBe(1);
+    expect(await listProbeTableColumns()).toEqual(["id", "added_by_migration"]);
+  });
+
+  it("fails with the lock timeout once the lock outlasts every retry", async () => {
+    const { config, holdLockOnProbeTable } = setup({ migration: "alterLockedTable" });
+    await holdLockOnProbeTable();
+
+    await expect(migratePG(config, { lockRetryDelaysMs: [10] })).rejects.toMatchObject({ cause: { code: "55P03" } });
+  });
+
+  it("fails without retrying when a migration fails for another reason", { timeout: 10_000 }, async () => {
+    const { config } = setup({ migration: "divideByZero" });
+
+    await expect(migratePG(config, { lockRetryDelaysMs: [30_000] })).rejects.toMatchObject({ cause: { code: "22012" } });
+  });
+
+  function setup(input: { appDbUri?: string; migration?: "createTable" | "alterLockedTable" | "divideByZero" } = {}) {
     const migrationsFolder = mkdtempSync(path.join(tmpdir(), "migration-race-"));
     const createdAt = Date.now();
     const tag = "0000_migration_race_probe";
+    const probeTable = `migration_race_probe_${createdAt}`;
+    const migrationStatements = {
+      createTable: ["SELECT pg_sleep(0.3);", `CREATE TABLE "${probeTable}" ("id" integer);`],
+      alterLockedTable: ["SET lock_timeout = '50ms';", `ALTER TABLE "${probeTable}" ADD COLUMN "added_by_migration" integer;`],
+      divideByZero: ["SELECT 1 / 0;"]
+    }[input.migration ?? "createTable"];
 
-    writeFileSync(
-      path.join(migrationsFolder, `${tag}.sql`),
-      `SELECT pg_sleep(0.3);\n--> statement-breakpoint\nCREATE TABLE "migration_race_probe_${createdAt}" ("id" integer);\n`
-    );
+    writeFileSync(path.join(migrationsFolder, `${tag}.sql`), migrationStatements.join("\n--> statement-breakpoint\n"));
     mkdirSync(path.join(migrationsFolder, "meta"));
     writeFileSync(
       path.join(migrationsFolder, "meta", "_journal.json"),
@@ -49,7 +77,10 @@ describe(migratePG.name, () => {
     };
     const sql = postgres(coreConfig.POSTGRES_DB_URI, { max: 1 });
 
+    let releaseProbeTableLock: (() => Promise<void>) | undefined;
+
     onTestFinished(async () => {
+      await releaseProbeTableLock?.();
       await sql.end();
       rmSync(migrationsFolder, { recursive: true, force: true });
     });
@@ -59,7 +90,26 @@ describe(migratePG.name, () => {
       return count;
     };
 
-    return { config, countProbeMigrationRuns };
+    const holdLockOnProbeTable = async () => {
+      await sql.unsafe(`CREATE TABLE "${probeTable}" ("id" integer)`);
+      const holder = await sql.reserve();
+      await holder`BEGIN`;
+      await holder.unsafe(`LOCK TABLE "${probeTable}" IN ACCESS SHARE MODE`);
+      releaseProbeTableLock = once(async () => {
+        await holder`COMMIT`;
+        holder.release();
+      });
+      return releaseProbeTableLock;
+    };
+
+    const listProbeTableColumns = async () => {
+      const columns = await sql<
+        { column_name: string }[]
+      >`SELECT column_name FROM information_schema.columns WHERE table_name = ${probeTable} ORDER BY ordinal_position`;
+      return columns.map(column => column.column_name);
+    };
+
+    return { config, countProbeMigrationRuns, holdLockOnProbeTable, listProbeTableColumns };
   }
 });
 
