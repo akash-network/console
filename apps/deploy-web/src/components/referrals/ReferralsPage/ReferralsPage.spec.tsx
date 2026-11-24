@@ -69,7 +69,14 @@ describe(ReferralsPage.name, () => {
     });
 
     it("neither redirects nor renders while eligibility is loading", () => {
-      const { mockRouter } = setup({ profile: null, isOpenEnrollmentEnabled: true, isEligibilityLoading: true });
+      const { mockRouter } = setup({ profile: null, isOpenEnrollmentEnabled: true, isEligibilityPending: true, isFetchingEligibility: true });
+
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      expect(screen.queryByRole("button", { name: "Join the referral program" })).not.toBeInTheDocument();
+    });
+
+    it("neither redirects nor renders while the eligibility check is paused before its first answer", () => {
+      const { mockRouter } = setup({ profile: null, isOpenEnrollmentEnabled: true, isEligibilityPending: true, isFetchingEligibility: false });
 
       expect(mockRouter.replace).not.toHaveBeenCalled();
       expect(screen.queryByRole("button", { name: "Join the referral program" })).not.toBeInTheDocument();
@@ -527,7 +534,7 @@ describe(ReferralsPage.name, () => {
       activeOrganization?: OrganizationOutput;
       isOpenEnrollmentEnabled?: boolean;
       eligibility?: { eligible: boolean; terms: AffiliateProfile["terms"] };
-      isEligibilityLoading?: boolean;
+      isEligibilityPending?: boolean;
       isEligibilityError?: boolean;
       isFetchingEligibility?: boolean;
     } = {}
@@ -552,7 +559,8 @@ describe(ReferralsPage.name, () => {
     const useAffiliateEligibilityQuery = vi.fn<typeof DEPENDENCIES.useAffiliateEligibilityQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateEligibilityQuery>>(), {
         data: input.eligibility,
-        isLoading: input.isEligibilityLoading ?? false,
+        isPending: input.isEligibilityPending ?? false,
+        isLoading: (input.isEligibilityPending ?? false) && (input.isFetchingEligibility ?? false),
         isError: input.isEligibilityError ?? false,
         isFetching: input.isFetchingEligibility ?? false,
         refetch: refetchEligibility

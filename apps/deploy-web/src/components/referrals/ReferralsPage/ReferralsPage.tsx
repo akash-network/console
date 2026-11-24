@@ -94,7 +94,7 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const hasNoProfile = isAffiliateProgramEnabled && isSuccess && !profile;
   const {
     data: eligibility,
-    isLoading: isEligibilityLoading,
+    isPending: isEligibilityPending,
     isError: isEligibilityError,
     isFetching: isFetchingEligibility,
     refetch: refetchEligibility
@@ -102,7 +102,7 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     enabled: hasNoProfile && isOpenEnrollmentEnabled
   });
   const canJoin = hasNoProfile && isOpenEnrollmentEnabled && !!eligibility?.eligible;
-  const isCheckingEligibility = hasNoProfile && isOpenEnrollmentEnabled && isEligibilityLoading;
+  const isCheckingEligibility = hasNoProfile && isOpenEnrollmentEnabled && isEligibilityPending;
   const hasEligibilityLoadFailed = hasNoProfile && isOpenEnrollmentEnabled && isEligibilityError && !eligibility;
   const isNotAnAffiliate = !isAffiliateProgramEnabled || (hasNoProfile && !canJoin && !isCheckingEligibility && !hasEligibilityLoadFailed);
   const hasProfileLoadFailed = errorUpdatedAt > 0;
