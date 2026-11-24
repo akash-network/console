@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -63,6 +63,9 @@ export type StripeTransactionWithInitiator = StripeTransactionOutput & {
 
 /** A commission with when its release credit landed and the card payment it was earned on, both null when absent. */
 export type AffiliateCommissionEntry = StripeTransactionOutput & { creditedAt: Date | null; paymentAmount: number | null };
+
+/** Which of a source payment's commission rows is meant: the percentage commission, or the first-payment bonus next to it. */
+export type AffiliateCommissionLane = { bonus: boolean };
 
 @singleton()
 export class StripeTransactionRepository extends OrgScopedRepository<Table, StripeTransactionInput, StripeTransactionOutput> {
@@ -390,25 +393,29 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     sourceTransactionId: string;
     sourceStripeChargeId?: string | null;
     createdAt?: Date;
+    affiliateBonus?: boolean;
   }): Promise<StripeTransactionOutput> {
+    const affiliateBonus = input.affiliateBonus ?? false;
+
     return this.create({
       userId: input.userId,
       organizationId: input.organizationId,
       type: "affiliate_commission",
       status: "pending",
       currency: "usd",
-      description: "Affiliate commission",
+      description: affiliateBonus ? "Affiliate first-payment bonus" : "Affiliate commission",
       amount: input.amount,
       amountRefunded: input.amountRefunded ?? 0,
       sourceTransactionId: input.sourceTransactionId,
       sourceStripeChargeId: input.sourceStripeChargeId,
+      affiliateBonus,
       ...(input.createdAt && { createdAt: input.createdAt })
     });
   }
 
-  async findAffiliateCommissionBySource(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
+  async findAffiliateCommissionBySource(sourceTransactionId: string, lane: AffiliateCommissionLane): Promise<StripeTransactionOutput | undefined> {
     const item = await this.cursor.query.StripeTransactions.findFirst({
-      where: this.#isAffiliateCommissionOf(sourceTransactionId),
+      where: this.#isAffiliateCommissionOf(sourceTransactionId, lane),
       orderBy: this.#currentAffiliateCommissionFirst()
     });
     if (!item) return undefined;
@@ -417,12 +424,12 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
   }
 
   /** Leaves the key lockable, because crediting the commission or taking it back records a row that references it from another connection. */
-  async findAffiliateCommissionBySourceAndLock(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
+  async findAffiliateCommissionBySourceAndLock(sourceTransactionId: string, lane: AffiliateCommissionLane): Promise<StripeTransactionOutput | undefined> {
     const items = await this.txManager
       .getPgTx()
       ?.select()
       .from(this.table)
-      .where(this.#isAffiliateCommissionOf(sourceTransactionId))
+      .where(this.#isAffiliateCommissionOf(sourceTransactionId, lane))
       .orderBy(...this.#currentAffiliateCommissionFirst())
       .limit(1)
       .for("no key update");
@@ -449,8 +456,10 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return this.toOutputList(items);
   }
 
-  #isAffiliateCommissionOf(sourceTransactionId: string): SQL | undefined {
-    return this.whereAccessibleBy(and(eq(this.table.sourceTransactionId, sourceTransactionId), eq(this.table.type, "affiliate_commission")));
+  #isAffiliateCommissionOf(sourceTransactionId: string, lane: AffiliateCommissionLane): SQL | undefined {
+    return this.whereAccessibleBy(
+      and(eq(this.table.sourceTransactionId, sourceTransactionId), eq(this.table.type, "affiliate_commission"), eq(this.table.affiliateBonus, lane.bonus))
+    );
   }
 
   /** A payment can have several commission rows once one was taken back in full, and the one still open, or else the last one touched, is the current one. */
@@ -476,6 +485,30 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     });
 
     return items.reduce((sum, item) => sum + (item.amount - item.amountRefunded), 0);
+  }
+
+  /** Counts each source payment's bonus once whatever its status, so neither a refund nor the row re-held for a dispute changes the allowance it uses up. */
+  async countAffiliateBonusesSince(affiliateUserId: string, since: Date): Promise<number> {
+    const [{ total }] = await this.cursor
+      .select({ total: countDistinct(this.#bonusGrantKey()) })
+      .from(this.table)
+      .where(
+        this.unscoped("affiliate-earnings").whereAccessibleBy(
+          and(
+            eq(this.table.userId, affiliateUserId),
+            eq(this.table.type, "affiliate_commission"),
+            eq(this.table.affiliateBonus, true),
+            gte(this.table.createdAt, since)
+          )
+        )
+      );
+
+    return total;
+  }
+
+  /** A deleted source payment leaves its rows only the charge they were earned on. */
+  #bonusGrantKey(): SQL {
+    return sql`coalesce(${this.table.sourceTransactionId}::text, ${this.table.sourceStripeChargeId}, ${this.table.id}::text)`;
   }
 
   async sumCreditedAffiliateCommissionNet(userId: string): Promise<number> {

@@ -1,11 +1,13 @@
-import { addMonths, addSeconds, isAfter } from "date-fns";
+import { addDays, addMonths, addSeconds, isAfter, isBefore, min } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { AFFILIATE_COMMISSION_MONTHS, AFFILIATE_COMMISSION_PERCENT } from "@src/affiliate/lib/affiliate-terms/affiliate-terms";
 import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
 import { ReferralRepository, type ReferralWithAffiliate } from "@src/affiliate/repositories/referral/referral.repository";
+import { ReferredUsageService } from "@src/affiliate/services/referred-usage/referred-usage.service";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import {
+  type AffiliateCommissionLane,
   PaymentMethodRepository,
   SETTLED_TRANSACTION_STATUSES,
   type StripeTransactionOutput,
@@ -41,11 +43,24 @@ type SkipReason =
 
 type CancelReason = Extract<SkipReason, "program_disabled" | "affiliate_revoked" | "affiliate_abuse_locked" | "nothing_left_to_grant">;
 
+type BonusSkipReason = "bonus_disabled" | "bonus_below_min_payment" | "bonus_cap_reached" | Extract<SkipReason, "nothing_left_to_grant">;
+
+/** Read off the chain index before the payment row lock, so it names the bonus row it was read for in case another sync replaced that row since. */
+type BonusUsage = { commissionId: string; hasConsumedMinimum: boolean; isWindowOpen: boolean };
+
+type LaneSync = { lane: AffiliateCommissionLane; releaseCredit?: PaymentCreditOutput; bonusUsage?: BonusUsage };
+
 type ReversalReason = "dispute_lost" | "dispute_funds_withdrawn" | "refund";
 
 type Reversal = { commission: StripeTransactionOutput & { userId: string }; amountCents: number; totalReversedCents: number; shortfallCents: number };
 
 const UNCREDITED_COMMISSION_STATUSES = new Set<StripeTransactionOutput["status"]>(["pending", "canceled"]);
+
+const COMMISSION_LANE: AffiliateCommissionLane = { bonus: false };
+
+const BONUS_LANE: AffiliateCommissionLane = { bonus: true };
+
+const BONUS_RELEASE_TRIGGERS = new Set<AffiliateCommissionSyncTrigger>(["release", "dispute", "bonus_usage"]);
 
 @singleton()
 export class AffiliateCommissionService {
@@ -67,6 +82,7 @@ export class AffiliateCommissionService {
     private readonly analyticsService: AnalyticsService,
     private readonly txService: TxService,
     private readonly jobQueueService: JobQueueService,
+    private readonly referredUsageService: ReferredUsageService,
     @InjectBillingConfig() private readonly billingConfig: BillingConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -76,23 +92,53 @@ export class AffiliateCommissionService {
   /** Holds the payment row lock until commit, so syncs of one payment run in turn and each sees the commission the previous one recorded. */
   async syncCommission(transactionId: string, trigger: AffiliateCommissionSyncTrigger): Promise<void> {
     if (trigger === "settlement" && !(await this.#isCreditLanded(transactionId))) return this.#skip(transactionId, "credit_not_landed");
-    const releaseCredit = trigger === "settlement" ? undefined : await this.#findReleaseCredit(transactionId);
+    const laneSyncs = await this.#readLanesBeforeLock(transactionId, trigger);
 
     await this.txService.transaction(async () => {
       const payment = await this.stripeTransactionRepository.findOneByAndLock({ id: transactionId });
       if (!payment || payment.type !== "payment_intent" || !SETTLED_TRANSACTION_STATUSES.has(payment.status)) return;
 
-      const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id);
-      if (!commission) {
-        if (trigger === "settlement") await this.#hold(payment);
-      } else if (releaseCredit?.transactionId === commission.id && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
-        await this.#reconcileReversal(payment, await this.#recordLandedRelease(commission, releaseCredit, trigger));
-      } else if (commission.status === "pending") {
-        await (this.#isReleaseDue(payment, commission, trigger) ? this.#release(payment, commission) : this.#reconcileHeld(payment, commission));
-      } else {
-        await this.#reconcileReversal(payment, commission);
+      for (const laneSync of laneSyncs) {
+        await this.#syncLane(payment, trigger, laneSync);
       }
     });
+  }
+
+  /** The bonus row lives next to the commission row of the same payment and runs through the same states, so each sync walks both unless it concerns one alone. */
+  async #readLanesBeforeLock(transactionId: string, trigger: AffiliateCommissionSyncTrigger): Promise<LaneSync[]> {
+    if (trigger === "settlement") return [{ lane: COMMISSION_LANE }];
+    if (trigger === "bonus_usage") return [await this.#readLaneBeforeLock(transactionId, BONUS_LANE, trigger)];
+
+    return [await this.#readLaneBeforeLock(transactionId, COMMISSION_LANE, trigger), await this.#readLaneBeforeLock(transactionId, BONUS_LANE, trigger)];
+  }
+
+  async #readLaneBeforeLock(transactionId: string, lane: AffiliateCommissionLane, trigger: AffiliateCommissionSyncTrigger): Promise<LaneSync> {
+    const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySource(transactionId, lane);
+    if (!commission) return { lane };
+
+    const releaseCredit = await this.#findReleaseCredit(commission);
+    const canReleaseBonus = commission.affiliateBonus && commission.status === "pending" && BONUS_RELEASE_TRIGGERS.has(trigger);
+
+    return { lane, releaseCredit, bonusUsage: canReleaseBonus ? await this.#readBonusUsage(transactionId, commission, trigger) : undefined };
+  }
+
+  async #syncLane(payment: StripeTransactionOutput, trigger: AffiliateCommissionSyncTrigger, { lane, releaseCredit, bonusUsage }: LaneSync): Promise<void> {
+    const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id, lane);
+    if (!commission) {
+      if (trigger === "settlement") await this.#hold(payment);
+    } else if (releaseCredit?.transactionId === commission.id && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
+      await this.#reconcileReversal(payment, await this.#recordLandedRelease(commission, releaseCredit, trigger));
+    } else if (commission.status === "pending") {
+      await (this.#isReleaseDue(payment, commission, trigger)
+        ? this.#releaseInLane(payment, commission, bonusUsage)
+        : this.#reconcileHeld(payment, commission));
+    } else {
+      await this.#reconcileReversal(payment, commission);
+    }
+  }
+
+  async #releaseInLane(payment: StripeTransactionOutput, commission: StripeTransactionOutput, bonusUsage: BonusUsage | undefined): Promise<void> {
+    await (commission.affiliateBonus ? this.#releaseBonus(payment, commission, bonusUsage) : this.#release(payment, commission));
   }
 
   /** A payment row goes with its payer's account, so the charge is all that still tells what the payer paid on it. */
@@ -159,9 +205,62 @@ export class AffiliateCommissionService {
   }
 
   /** Reads before taking the payment row lock, like `#isCreditLanded`, so the credit may belong to a commission another sync has replaced by the time the lock is held. */
-  async #findReleaseCredit(transactionId: string): Promise<PaymentCreditOutput | undefined> {
-    const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySource(transactionId);
-    return commission ? this.paymentCreditRepository.findByTransactionId(commission.id) : undefined;
+  async #findReleaseCredit(commission: StripeTransactionOutput): Promise<PaymentCreditOutput | undefined> {
+    return await this.paymentCreditRepository.findByTransactionId(commission.id);
+  }
+
+  /** Reads the chain index before taking the payment row lock, like `#isCreditLanded`, since syncs queued on that lock would each hold a connection while it runs. */
+  async #readBonusUsage(transactionId: string, bonus: StripeTransactionOutput, trigger: AffiliateCommissionSyncTrigger): Promise<BonusUsage | undefined> {
+    const payment = await this.stripeTransactionRepository.findById(transactionId);
+    if (payment && !this.#isReleaseDue(payment, bonus, trigger)) return undefined;
+
+    const referredUserId = payment && (await this.#findReferredUserId(payment));
+    const attribution = referredUserId ? await this.referralRepository.findWithAffiliateByReferredUserId(referredUserId) : undefined;
+    if (!referredUserId || !attribution) return { commissionId: bonus.id, hasConsumedMinimum: false, isWindowOpen: false };
+
+    const now = new Date();
+    const windowEndsAt = addMonths(new Date(attribution.referral.createdAt), AFFILIATE_COMMISSION_MONTHS);
+    const isWindowOpen = isBefore(now, windowEndsAt);
+    const isIndexedThroughClose = isWindowOpen || (await this.#isUsageIndexedThrough(bonus, windowEndsAt));
+    const hasConsumedMinimum = await this.#hasConsumedBonusMinimum(bonus, referredUserId, attribution.referral, min([now, windowEndsAt]));
+    if (hasConsumedMinimum === undefined) return undefined;
+    if (!hasConsumedMinimum && !isIndexedThroughClose) return undefined;
+
+    return { commissionId: bonus.id, hasConsumedMinimum, isWindowOpen };
+  }
+
+  /** Checked before the usage read, since a chain index that has not processed the window's closing day may not hold the usage that met the minimum, so the bonus waits for it rather than cancel. */
+  async #isUsageIndexedThrough(bonus: StripeTransactionOutput, windowEndsAt: Date): Promise<boolean> {
+    try {
+      return await this.referredUsageService.isIndexedThroughUtcDayOf(windowEndsAt);
+    } catch (error) {
+      this.#logger.error({ event: "AFFILIATE_BONUS_USAGE_READ_FAILED", commissionId: bonus.id, sourceTransactionId: bonus.sourceTransactionId, error });
+      return false;
+    }
+  }
+
+  /** The chain index can stay down longer than the job retries, so a failed read leaves the bonus to its next recheck instead of failing the commission release beside it. */
+  async #hasConsumedBonusMinimum(
+    bonus: StripeTransactionOutput,
+    referredUserId: string,
+    referral: ReferralWithAffiliate["referral"],
+    until: Date
+  ): Promise<boolean | undefined> {
+    try {
+      return await this.referredUsageService.hasConsumedAtLeast(
+        referredUserId,
+        { since: new Date(referral.createdAt), until },
+        this.#bonusUsageThreshold(referral)
+      );
+    } catch (error) {
+      this.#logger.error({ event: "AFFILIATE_BONUS_USAGE_READ_FAILED", commissionId: bonus.id, sourceTransactionId: bonus.sourceTransactionId, error });
+      return undefined;
+    }
+  }
+
+  /** The trial credit the referral granted pays for usage too, so only usage beyond it shows the referred user paid to deploy. */
+  #bonusUsageThreshold(referral: ReferralWithAffiliate["referral"]): number {
+    return this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT + (referral.trialCreditsCents ?? 0);
   }
 
   /** A release whose credit landed on its own connection before its transaction rolled back leaves the row pending, or canceled by a refund that read no credit yet, so the row is recorded as credited before any refund is taken back from it. */
@@ -199,9 +298,13 @@ export class AffiliateCommissionService {
     const skipReason = await this.#findSkipReason(payment, { referredUserId, ...attribution }, { amount, keptAmount });
     if (skipReason) return this.#skip(payment.id, skipReason);
 
+    const organizationId = await this.#findPersonalOrganizationId(affiliate.userId);
+    await this.affiliateRepository.lockById(affiliate.id);
+    const referral = await this.referralRepository.findByIdFresh(attribution.referral.id);
+
     const commission = await this.#recordCommission({
       userId: affiliate.userId,
-      organizationId: await this.#findPersonalOrganizationId(affiliate.userId),
+      organizationId,
       amount,
       amountRefunded: amount - keptAmount,
       sourceTransactionId: payment.id,
@@ -211,6 +314,10 @@ export class AffiliateCommissionService {
 
     const releasesAt = this.#releasesAt(commission);
     await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }), { startAfter: releasesAt });
+
+    if (referral?.firstCommissionAt === null && (await this.referralRepository.markFirstCommission(referral.id, new Date()))) {
+      await this.#grantBonus(payment, { affiliateUserId: affiliate.userId, organizationId, referredUserId });
+    }
 
     this.analyticsService.track(affiliate.userId, "affiliate_commission_held", {
       amount_cents: keptAmount,
@@ -229,13 +336,94 @@ export class AffiliateCommissionService {
     });
   }
 
+  /** Runs under the affiliate row lock `#hold` takes, so two payments of one referral cannot both be first and the monthly cap counts every bonus granted before it. */
+  async #grantBonus(
+    payment: StripeTransactionOutput,
+    { affiliateUserId, organizationId, referredUserId }: { affiliateUserId: string; organizationId: string; referredUserId: string }
+  ): Promise<void> {
+    const grantedAt = new Date();
+    const amount = this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT;
+    const keptAmount = this.#keptCommission(amount, payment);
+    const skipReason = await this.#findBonusSkipReason(payment, affiliateUserId, { amount, keptAmount, grantedAt });
+    if (skipReason) {
+      this.#logger.info({ event: "AFFILIATE_BONUS_SKIPPED", transactionId: payment.id, affiliateUserId, reason: skipReason });
+      return;
+    }
+
+    const bonus = await this.#recordCommission({
+      userId: affiliateUserId,
+      organizationId,
+      amount,
+      amountRefunded: amount - keptAmount,
+      sourceTransactionId: payment.id,
+      sourceStripeChargeId: payment.stripeChargeId,
+      createdAt: grantedAt,
+      affiliateBonus: true
+    });
+    if (!bonus) return;
+
+    const releasesAt = this.#releasesAt(bonus);
+    this.analyticsService.track(affiliateUserId, "affiliate_bonus_held", {
+      bonus_cents: keptAmount,
+      source_transaction_id: payment.id,
+      referred_user_id: referredUserId,
+      releases_at: releasesAt.toISOString()
+    });
+    this.#logger.info({
+      event: "AFFILIATE_BONUS_HELD",
+      commissionId: bonus.id,
+      affiliateUserId,
+      sourceTransactionId: payment.id,
+      amountCents: keptAmount,
+      grossAmountCents: amount,
+      releasesAt
+    });
+  }
+
+  async #findBonusSkipReason(
+    payment: StripeTransactionOutput,
+    affiliateUserId: string,
+    { amount, keptAmount, grantedAt }: { amount: number; keptAmount: number; grantedAt: Date }
+  ): Promise<BonusSkipReason | undefined> {
+    if (amount <= 0) return "bonus_disabled";
+    if (payment.amount < this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT) return "bonus_below_min_payment";
+
+    const bonusesThisMonth = await this.stripeTransactionRepository.countAffiliateBonusesSince(affiliateUserId, startOfUtcMonth(grantedAt));
+    if (bonusesThisMonth >= this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MONTHLY_CAP) return "bonus_cap_reached";
+    if (keptAmount <= 0) return "nothing_left_to_grant";
+
+    return undefined;
+  }
+
+  /** A usage read that no longer names the locked row says nothing about it, so the release waits for a fresh read rather than cancel on a stale one. */
+  async #releaseBonus(payment: StripeTransactionOutput, bonus: StripeTransactionOutput, usage: BonusUsage | undefined): Promise<void> {
+    if (usage?.commissionId !== bonus.id) return this.#deferBonusRelease(payment, bonus, "usage_unchecked");
+    if (usage.hasConsumedMinimum) return this.#release(payment, bonus);
+    if (usage.isWindowOpen) return this.#deferBonusRelease(payment, bonus, "usage_below_minimum");
+
+    await this.#cancel(bonus, "bonus_usage_not_met");
+  }
+
+  async #deferBonusRelease(payment: StripeTransactionOutput, bonus: StripeTransactionOutput, reason: "usage_unchecked" | "usage_below_minimum"): Promise<void> {
+    const recheckAt = addDays(new Date(), 1);
+    await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), { startAfter: recheckAt });
+
+    this.#logger.info({
+      event: "AFFILIATE_BONUS_RELEASE_DEFERRED",
+      commissionId: bonus.id,
+      sourceTransactionId: payment.id,
+      reason,
+      recheckAt
+    });
+  }
+
   #releasesAt(commission: StripeTransactionOutput): Date {
     return addSeconds(commission.createdAt, this.billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS);
   }
 
   /** A dispute settled in Console's favour after the hold ended has no scheduled release left to wait for. */
   #isReleaseDue(payment: StripeTransactionOutput, commission: StripeTransactionOutput, trigger: AffiliateCommissionSyncTrigger): boolean {
-    if (trigger === "release") return true;
+    if (trigger === "release" || trigger === "bonus_usage") return true;
     if (trigger !== "dispute" || payment.disputeLostAt) return false;
 
     return !isAfter(this.#releasesAt(commission), new Date());
@@ -289,14 +477,16 @@ export class AffiliateCommissionService {
     this.analyticsService.track(affiliateUserId, "affiliate_commission_released", {
       amount_cents: releasedAmount,
       source_transaction_id: payment.id,
-      referred_user_id: await this.#findReferredUserId(payment)
+      referred_user_id: await this.#findReferredUserId(payment),
+      affiliate_bonus: commission.affiliateBonus
     });
     this.#logger.info({
       event: "AFFILIATE_COMMISSION_RELEASED",
       commissionId: commission.id,
       affiliateUserId,
       sourceTransactionId: payment.id,
-      amountCents: releasedAmount
+      amountCents: releasedAmount,
+      affiliateBonus: commission.affiliateBonus
     });
   }
 
@@ -317,17 +507,24 @@ export class AffiliateCommissionService {
     return !!wallet?.abuseLockedAt;
   }
 
-  async #cancel(commission: StripeTransactionOutput, reason: CancelReason | "refund" | "dispute_lost"): Promise<void> {
+  async #cancel(commission: StripeTransactionOutput, reason: CancelReason | "refund" | "dispute_lost" | "bonus_usage_not_met"): Promise<void> {
     await this.stripeTransactionRepository.updateById(commission.id, { status: "canceled", amountRefunded: commission.amount });
 
     if (commission.userId) {
       this.analyticsService.track(commission.userId, "affiliate_commission_canceled", {
         amount_cents: commission.amount - commission.amountRefunded,
         source_transaction_id: commission.sourceTransactionId,
-        reason
+        reason,
+        affiliate_bonus: commission.affiliateBonus
       });
     }
-    this.#logger.info({ event: "AFFILIATE_COMMISSION_CANCELED", commissionId: commission.id, sourceTransactionId: commission.sourceTransactionId, reason });
+    this.#logger.info({
+      event: "AFFILIATE_COMMISSION_CANCELED",
+      commissionId: commission.id,
+      sourceTransactionId: commission.sourceTransactionId,
+      reason,
+      affiliateBonus: commission.affiliateBonus
+    });
   }
 
   async #reconcileHeld(payment: StripeTransactionOutput, commission: StripeTransactionOutput): Promise<void> {
@@ -401,6 +598,7 @@ export class AffiliateCommissionService {
     sourceTransactionId: string;
     sourceStripeChargeId: string | null;
     createdAt?: Date;
+    affiliateBonus?: boolean;
   }): Promise<StripeTransactionOutput | undefined> {
     try {
       return await this.stripeTransactionRepository.createAffiliateCommission(input);
@@ -450,7 +648,8 @@ export class AffiliateCommissionService {
       amount_cents: amountCents,
       source_transaction_id: commission.sourceTransactionId,
       referred_user_id: referredUserId,
-      reason
+      reason,
+      affiliate_bonus: commission.affiliateBonus
     });
     this.#logger.info({
       event: "AFFILIATE_COMMISSION_REVERSED",
@@ -460,7 +659,8 @@ export class AffiliateCommissionService {
       amountCents,
       totalReversedCents,
       shortfallCents,
-      reason
+      reason,
+      affiliateBonus: commission.affiliateBonus
     });
   }
 
@@ -485,7 +685,8 @@ export class AffiliateCommissionService {
       amountRefunded: reversed.amount - takenBackAmount,
       sourceTransactionId: payment.id,
       sourceStripeChargeId: payment.stripeChargeId,
-      createdAt: reversed.createdAt
+      createdAt: reversed.createdAt,
+      affiliateBonus: reversed.affiliateBonus
     });
     if (!held) return;
 
@@ -511,4 +712,9 @@ export class AffiliateCommissionService {
   #skip(transactionId: string, reason: SkipReason): void {
     this.#logger.debug({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId, reason });
   }
+}
+
+/** Caps count calendar months in UTC, whatever zone the process runs in. */
+function startOfUtcMonth(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }

@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { type AnyPgColumn, index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, boolean, index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
@@ -53,6 +53,8 @@ export const StripeTransactions = pgTable(
     sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id, { onDelete: "set null" }),
     /** The charge a commission was earned on, kept because the payment row itself goes with its payer's account. */
     sourceStripeChargeId: varchar("source_stripe_charge_id", { length: 255 }),
+    /** Marks the affiliate's first-payment bonus, which sits next to the percentage commission of the same source payment. */
+    affiliateBonus: boolean("affiliate_bonus").notNull().default(false),
     /** Kept next to `dispute_closed_at` instead of being cleared, because Stripe can deliver the closing event before the opening one. */
     disputeOpenedAt: timestamp("dispute_opened_at", { withTimezone: true }),
     disputeClosedAt: timestamp("dispute_closed_at", { withTimezone: true }),
@@ -79,9 +81,9 @@ export const StripeTransactions = pgTable(
     oneFirstPurchaseBonusPerUser: uniqueIndex(ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX)
       .on(table.userId)
       .where(sql`${table.bonusAmount} > 0`),
-    /** At most one commission row per source payment that is not taken back in full, so a commission sync can never double-grant it. */
+    /** At most one commission row per source payment and lane that is not taken back in full, so a commission sync can never double-grant it. */
     sourceTransactionIdUnique: uniqueIndex("stripe_transactions_source_transaction_id_unique")
-      .on(table.sourceTransactionId)
+      .on(table.sourceTransactionId, table.affiliateBonus)
       .where(sql`${table.sourceTransactionId} IS NOT NULL AND ${table.status} <> 'refunded'`),
     sourceTransactionIdIdx: index("stripe_transactions_source_transaction_id_idx")
       .on(table.sourceTransactionId)

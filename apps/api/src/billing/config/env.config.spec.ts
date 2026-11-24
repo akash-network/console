@@ -63,6 +63,42 @@ describe("envSchema", () => {
     });
   });
 
+  describe.each([
+    ["AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT", 500],
+    ["AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT", 2000],
+    ["AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT", 2000],
+    ["AFFILIATE_FIRST_PURCHASE_BONUS_MONTHLY_CAP", 10],
+    ["AFFILIATE_SELF_JOIN_MIN_SPEND_AMOUNT", 10000]
+  ] as const)("%s", (key, defaultValue) => {
+    it(`defaults to ${defaultValue} when absent`, () => {
+      const result = setup({});
+      expect(result.success).toBe(true);
+      expect(result.data?.[key]).toBe(defaultValue);
+    });
+
+    it("coerces a string value", () => {
+      const result = setup({ [key]: "750" });
+      expect(result.success).toBe(true);
+      expect(result.data?.[key]).toBe(750);
+    });
+
+    it("accepts zero", () => {
+      const result = setup({ [key]: "0" });
+      expect(result.success).toBe(true);
+      expect(result.data?.[key]).toBe(0);
+    });
+
+    it("rejects a negative value", () => {
+      const result = setup({ [key]: "-1" });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects a fractional value", () => {
+      const result = setup({ [key]: "1.5" });
+      expect(result.success).toBe(false);
+    });
+  });
+
   describe("MASTER_WALLET_MAX_MINT_UAKT", () => {
     it("rejects a negative value", () => {
       const result = setup({ MASTER_WALLET_MAX_MINT_UAKT: "-1" });

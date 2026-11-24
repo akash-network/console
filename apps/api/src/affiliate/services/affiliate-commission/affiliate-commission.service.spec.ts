@@ -1,15 +1,21 @@
 import type { CreateLogger } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
-import { addSeconds, subSeconds } from "date-fns";
+import { addDays, addSeconds, subSeconds } from "date-fns";
 import createHttpError from "http-errors";
 import { PostgresError } from "postgres";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AffiliateOutput, AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
 import type { ReferralOutput, ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import type { BillingConfig } from "@src/billing/providers";
-import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
+import type {
+  AffiliateCommissionLane,
+  PaymentMethodRepository,
+  StripeTransactionOutput,
+  StripeTransactionRepository,
+  UserWalletRepository
+} from "@src/billing/repositories";
 import type { PaymentCreditOutput, PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import type { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
@@ -21,6 +27,7 @@ import type { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { ReferredUsageService } from "../referred-usage/referred-usage.service";
 import { AffiliateCommissionService } from "./affiliate-commission.service";
 import { SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
@@ -214,10 +221,10 @@ describe(AffiliateCommissionService.name, () => {
       expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "not_referred" });
     });
 
-    it("holds a payment made exactly 12 months after the referral", async () => {
+    it("holds a payment made exactly 3 months after the referral", async () => {
       const { service, payment, stripeTransactionRepository } = setup({
-        referredAt: "2025-01-15T10:00:00.000Z",
-        paymentCreatedAt: new Date("2026-01-15T10:00:00.000Z")
+        referredAt: "2025-04-15T10:00:00.000Z",
+        paymentCreatedAt: new Date("2025-07-15T10:00:00.000Z")
       });
 
       await service.syncCommission(payment.id, "settlement");
@@ -225,10 +232,10 @@ describe(AffiliateCommissionService.name, () => {
       expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalled();
     });
 
-    it("holds nothing for a payment made more than 12 months after the referral", async () => {
+    it("holds nothing for a payment made more than 3 months after the referral", async () => {
       const { service, payment, stripeTransactionRepository, logger } = setup({
-        referredAt: "2025-01-15T10:00:00.000Z",
-        paymentCreatedAt: new Date("2026-01-16T10:00:00.000Z")
+        referredAt: "2025-04-15T10:00:00.000Z",
+        paymentCreatedAt: new Date("2025-07-16T10:00:00.000Z")
       });
 
       await service.syncCommission(payment.id, "settlement");
@@ -334,7 +341,7 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id, "settlement");
 
-      expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).toHaveBeenCalledWith(payment.id);
+      expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).toHaveBeenCalledWith(payment.id, { bonus: false });
       expect(referralRepository.findWithAffiliateByReferredUserId).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
@@ -472,14 +479,16 @@ describe(AffiliateCommissionService.name, () => {
         expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_released", {
           amount_cents: 500,
           source_transaction_id: payment.id,
-          referred_user_id: payment.userId
+          referred_user_id: payment.userId,
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_RELEASED",
           commissionId: commission.id,
           affiliateUserId: affiliate.userId,
           sourceTransactionId: payment.id,
-          amountCents: 500
+          amountCents: 500,
+          affiliateBonus: false
         });
       });
 
@@ -582,13 +591,15 @@ describe(AffiliateCommissionService.name, () => {
         expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_canceled", {
           amount_cents: 500,
           source_transaction_id: payment.id,
-          reason
+          reason,
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_CANCELED",
           commissionId: commission.id,
           sourceTransactionId: payment.id,
-          reason
+          reason,
+          affiliateBonus: false
         });
       });
 
@@ -608,7 +619,8 @@ describe(AffiliateCommissionService.name, () => {
           event: "AFFILIATE_COMMISSION_CANCELED",
           commissionId: commission.id,
           sourceTransactionId: payment.id,
-          reason: "affiliate_abuse_locked"
+          reason: "affiliate_abuse_locked",
+          affiliateBonus: false
         });
       });
 
@@ -888,7 +900,8 @@ describe(AffiliateCommissionService.name, () => {
           amount_cents: 200,
           source_transaction_id: payment.id,
           referred_user_id: payment.userId,
-          reason: "refund"
+          reason: "refund",
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_REVERSED",
@@ -898,7 +911,8 @@ describe(AffiliateCommissionService.name, () => {
           amountCents: 200,
           totalReversedCents: 200,
           shortfallCents: 0,
-          reason: "refund"
+          reason: "refund",
+          affiliateBonus: false
         });
       });
 
@@ -1172,14 +1186,16 @@ describe(AffiliateCommissionService.name, () => {
           amountRefunded: 0,
           sourceTransactionId: payment.id,
           sourceStripeChargeId: payment.stripeChargeId,
-          createdAt: commission.createdAt
+          createdAt: commission.createdAt,
+          affiliateBonus: false
         });
         expect(refillService.topUpWallet).not.toHaveBeenCalled();
         expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(affiliate.userId, "affiliate_commission_reversed", {
           amount_cents: 500,
           source_transaction_id: payment.id,
           referred_user_id: payment.userId,
-          reason: "dispute_funds_withdrawn"
+          reason: "dispute_funds_withdrawn",
+          affiliate_bonus: false
         });
         expect(logger.info).toHaveBeenCalledWith({
           event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE",
@@ -1374,6 +1390,692 @@ describe(AffiliateCommissionService.name, () => {
         expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE" }));
         expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED" }));
       });
+    });
+  });
+
+  describe("when the referral's first commission is held", () => {
+    it("holds a $5 bonus next to the commission of the referral's first payment of $20 or more", async () => {
+      const now = new Date("2026-06-10T12:00:00.000Z");
+      const {
+        service,
+        payment,
+        affiliate,
+        affiliatePersonalOrganization,
+        referral,
+        bonus,
+        stripeTransactionRepository,
+        referralRepository,
+        jobQueueService,
+        refillService,
+        analyticsService,
+        logger
+      } = setup({ isFirstCommission: true, paymentAmount: 2000, now });
+      const releasesAt = addSeconds(now, HOLD_SECONDS);
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(referralRepository.markFirstCommission).toHaveBeenCalledWith(referral.id, expect.any(Date));
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith({
+        userId: affiliate.userId,
+        organizationId: affiliatePersonalOrganization.id,
+        amount: 500,
+        amountRefunded: 0,
+        sourceTransactionId: payment.id,
+        sourceStripeChargeId: payment.stripeChargeId,
+        createdAt: now,
+        affiliateBonus: true
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }), {
+        startAfter: expect.any(Date)
+      });
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_bonus_held", {
+        bonus_cents: 500,
+        source_transaction_id: payment.id,
+        referred_user_id: payment.userId,
+        releases_at: releasesAt.toISOString()
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_BONUS_HELD",
+        commissionId: bonus.id,
+        affiliateUserId: affiliate.userId,
+        sourceTransactionId: payment.id,
+        amountCents: 500,
+        grossAmountCents: 500,
+        releasesAt
+      });
+    });
+
+    it("decides the first commission under the affiliate row lock, taken after the payment row lock", async () => {
+      const { service, payment, affiliate, referral, stripeTransactionRepository, affiliateRepository, referralRepository } = setup({
+        isFirstCommission: true
+      });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(affiliateRepository.lockById).toHaveBeenCalledWith(affiliate.id);
+      expect(referralRepository.findByIdFresh).toHaveBeenCalledWith(referral.id);
+      expect(stripeTransactionRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(affiliateRepository.lockById.mock.invocationCallOrder[0]);
+      expect(affiliateRepository.lockById.mock.invocationCallOrder[0]).toBeLessThan(referralRepository.findByIdFresh.mock.invocationCallOrder[0]);
+      expect(referralRepository.findByIdFresh.mock.invocationCallOrder[0]).toBeLessThan(
+        stripeTransactionRepository.createAffiliateCommission.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("holds no bonus on a first payment below $20, yet counts it as the referral's first commission", async () => {
+      const { service, payment, affiliate, referral, stripeTransactionRepository, referralRepository, logger } = setup({
+        isFirstCommission: true,
+        paymentAmount: 1999
+      });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(referralRepository.markFirstCommission).toHaveBeenCalledWith(referral.id, expect.any(Date));
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith(expect.not.objectContaining({ affiliateBonus: true }));
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_BONUS_SKIPPED",
+        transactionId: payment.id,
+        affiliateUserId: affiliate.userId,
+        reason: "bonus_below_min_payment"
+      });
+    });
+
+    it.each([
+      { reason: "bonus_disabled", input: { bonusAmountConfig: 0 } },
+      { reason: "bonus_cap_reached", input: { bonusesThisMonth: 10 } },
+      { reason: "bonus_cap_reached", input: { bonusMonthlyCap: 0 } },
+      { reason: "nothing_left_to_grant", input: { bonusAmountConfig: 1, paymentAmountRefunded: 5000 } }
+    ])("holds only the commission when the bonus is skipped as $reason", async ({ reason, input }) => {
+      const { service, payment, affiliate, stripeTransactionRepository, logger } = setup({ isFirstCommission: true, ...input });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith(expect.not.objectContaining({ affiliateBonus: true }));
+      expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_BONUS_SKIPPED", transactionId: payment.id, affiliateUserId: affiliate.userId, reason });
+    });
+
+    it("holds a bonus while the affiliate is one bonus under the monthly cap", async () => {
+      const { service, payment, stripeTransactionRepository } = setup({ isFirstCommission: true, bonusesThisMonth: 9 });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.objectContaining({ affiliateBonus: true }));
+    });
+
+    it("counts the affiliate's bonuses since the start of the month in UTC", async () => {
+      const { service, payment, affiliate, stripeTransactionRepository } = setup({
+        isFirstCommission: true,
+        now: new Date("2026-12-01T03:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.countAffiliateBonusesSince).toHaveBeenCalledWith(affiliate.userId, new Date("2026-12-01T00:00:00.000Z"));
+    });
+
+    it("dates the bonus at the moment its monthly cap was checked", async () => {
+      const now = new Date("2026-12-01T03:00:00.000Z");
+      const { service, payment, stripeTransactionRepository } = setup({ isFirstCommission: true, now });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.objectContaining({ affiliateBonus: true, createdAt: now }));
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.not.objectContaining({ createdAt: expect.anything() }));
+    });
+
+    it("holds only the payer's share still paid of the bonus of a partly refunded payment", async () => {
+      const { service, payment, affiliate, stripeTransactionRepository, analyticsService } = setup({
+        isFirstCommission: true,
+        paymentAmount: 10000,
+        paymentAmountRefunded: 4000
+      });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(
+        expect.objectContaining({ affiliateBonus: true, amount: 500, amountRefunded: 200 })
+      );
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_bonus_held", expect.objectContaining({ bonus_cents: 300 }));
+    });
+
+    it("holds no bonus on a later payment of the referral", async () => {
+      const { service, payment, stripeTransactionRepository, referralRepository, logger } = setup({ isFirstCommission: false });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(referralRepository.markFirstCommission).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith(expect.not.objectContaining({ affiliateBonus: true }));
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_BONUS_SKIPPED" }));
+    });
+
+    it("holds no bonus when another sync counted its own payment as the referral's first commission", async () => {
+      const { service, payment, stripeTransactionRepository } = setup({ isFirstCommission: true, isFirstCommissionMarked: false });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith(expect.not.objectContaining({ affiliateBonus: true }));
+    });
+
+    it("holds no bonus when the referral can no longer be read under the affiliate row lock", async () => {
+      const { service, payment, stripeTransactionRepository, referralRepository } = setup({ isFirstCommission: true });
+      referralRepository.findByIdFresh.mockResolvedValue(undefined);
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(referralRepository.markFirstCommission).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith(expect.not.objectContaining({ affiliateBonus: true }));
+    });
+
+    it("treats a bonus that another sync recorded first as already held", async () => {
+      const { service, payment, commission, stripeTransactionRepository, analyticsService, logger } = setup({ isFirstCommission: true });
+      stripeTransactionRepository.createAffiliateCommission.mockImplementation(async created => {
+        if (created.affiliateBonus) throw createUniqueViolation("stripe_transactions_source_transaction_id_unique");
+        return { ...commission, ...created };
+      });
+
+      await expect(service.syncCommission(payment.id, "settlement")).resolves.toBeUndefined();
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith(expect.anything(), "affiliate_bonus_held", expect.anything());
+      expect(logger.warn).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_ALREADY_GRANTED", transactionId: payment.id });
+    });
+
+    it("leaves the referral's first commission unclaimed when the payment is skipped", async () => {
+      const { service, payment, stripeTransactionRepository, affiliateRepository, referralRepository } = setup({
+        isFirstCommission: true,
+        sharesPaymentMethod: true
+      });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(affiliateRepository.lockById).not.toHaveBeenCalled();
+      expect(referralRepository.markFirstCommission).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when a held bonus comes due", () => {
+    it("credits the held bonus once the referred user has consumed $20 since the referral", async () => {
+      const now = new Date("2026-05-20T08:00:00.000Z");
+      const { service, payment, affiliate, bonus, stripeTransactionRepository, refillService, referredUsageService } = setup({
+        hasBonus: true,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now
+      });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(referredUsageService.hasConsumedAtLeast).toHaveBeenCalledWith(payment.userId, { since: new Date("2026-04-15T10:00:00.000Z"), until: now }, 2000);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "succeeded", amountRefunded: 0 });
+      expect(refillService.topUpWallet).toHaveBeenCalledExactlyOnceWith(
+        500,
+        { userId: affiliate.userId, organizationId: bonus.organizationId },
+        { endTrial: false, liftAbuseLock: false, payment: { source: "affiliate_commission", transactionId: bonus.id, currency: "usd" } }
+      );
+    });
+
+    it.each([
+      { consumedCents: 2499, isCredited: false },
+      { consumedCents: 2500, isCredited: true }
+    ])(
+      "counts only usage beyond a 500 cent referral trial credit, so $consumedCents cents of usage credits the bonus: $isCredited",
+      async ({ consumedCents, isCredited }) => {
+        const { service, payment, refillService } = setup({ hasBonus: true, referralTrialCreditsCents: 500, referredUserConsumedCents: consumedCents });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(refillService.topUpWallet).toHaveBeenCalledTimes(isCredited ? 1 : 0);
+      }
+    );
+
+    it("credits both the commission and the bonus when the hold ends", async () => {
+      const { service, payment, commission, bonus, refillService } = setup({ hasCommission: true, commissionStatus: "pending", hasBonus: true });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        500,
+        expect.anything(),
+        expect.objectContaining({ payment: expect.objectContaining({ transactionId: commission.id }) })
+      );
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        500,
+        expect.anything(),
+        expect.objectContaining({ payment: expect.objectContaining({ transactionId: bonus.id }) })
+      );
+    });
+
+    it("counts only the usage up to the close of the commission window when the check runs after it", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, refillService, referredUsageService } = setup({
+        hasBonus: true,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-20T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.hasConsumedAtLeast).toHaveBeenCalledWith(
+        payment.userId,
+        { since: new Date("2026-04-15T10:00:00.000Z"), until: new Date("2026-07-15T10:00:00.000Z") },
+        2000
+      );
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "succeeded", amountRefunded: 0 });
+      expect(refillService.topUpWallet).toHaveBeenCalledOnce();
+    });
+
+    it("reads the referred user's usage before taking the payment lock", async () => {
+      const { service, payment, stripeTransactionRepository, referredUsageService } = setup({ hasBonus: true });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(referredUsageService.hasConsumedAtLeast.mock.invocationCallOrder[0]).toBeLessThan(
+        stripeTransactionRepository.findOneByAndLock.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("rechecks the usage a day later while it is below the minimum and the commission window is open", async () => {
+      const now = new Date("2026-07-15T09:59:59.999Z");
+      const { service, payment, bonus, stripeTransactionRepository, refillService, jobQueueService, logger } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now
+      });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), {
+        startAfter: addDays(now, 1)
+      });
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_BONUS_RELEASE_DEFERRED",
+        commissionId: bonus.id,
+        sourceTransactionId: payment.id,
+        reason: "usage_below_minimum",
+        recheckAt: addDays(now, 1)
+      });
+    });
+
+    it("cancels the bonus without touching the commission once the commission window closes below the minimum usage", async () => {
+      const { service, payment, affiliate, bonus, stripeTransactionRepository, refillService, jobQueueService, analyticsService, logger } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-15T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "canceled", amountRefunded: 500 });
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_canceled", {
+        amount_cents: 500,
+        source_transaction_id: payment.id,
+        reason: "bonus_usage_not_met",
+        affiliate_bonus: true
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_COMMISSION_CANCELED",
+        commissionId: bonus.id,
+        sourceTransactionId: payment.id,
+        reason: "bonus_usage_not_met",
+        affiliateBonus: true
+      });
+    });
+
+    it.each([
+      { case: "has not processed the whole UTC day the window closes on", isUsageIndexed: false as const },
+      { case: "cannot tell how far it has indexed", isUsageIndexed: "error" as const }
+    ])("rechecks the bonus instead of canceling it below the minimum usage while the chain index $case", async ({ isUsageIndexed }) => {
+      const now = new Date("2026-07-15T10:00:00.000Z");
+      const { service, payment, bonus, stripeTransactionRepository, referredUsageService, jobQueueService, logger } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        isUsageIndexed,
+        now
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.isIndexedThroughUtcDayOf).toHaveBeenCalledWith(new Date("2026-07-15T10:00:00.000Z"));
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), {
+        startAfter: addDays(now, 1)
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_BONUS_RELEASE_DEFERRED", commissionId: bonus.id, reason: "usage_unchecked" })
+      );
+    });
+
+    it("logs a failed read of how far the chain index has indexed", async () => {
+      const { service, payment, bonus, logger } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        isUsageIndexed: "error",
+        now: new Date("2026-07-15T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "AFFILIATE_BONUS_USAGE_READ_FAILED",
+        commissionId: bonus.id,
+        sourceTransactionId: payment.id,
+        error: expect.any(Error)
+      });
+    });
+
+    it("does not check how far the chain index has indexed while the commission window is open", async () => {
+      const { service, payment, referredUsageService } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-15T09:59:59.999Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.isIndexedThroughUtcDayOf).not.toHaveBeenCalled();
+    });
+
+    it("confirms the chain index processed the window's closing day before reading the usage that decides a cancel", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, referredUsageService } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-15T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.isIndexedThroughUtcDayOf.mock.invocationCallOrder[0]).toBeLessThan(
+        referredUsageService.hasConsumedAtLeast.mock.invocationCallOrder[0]
+      );
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "canceled", amountRefunded: 500 });
+    });
+
+    it("credits a bonus whose minimum usage was met by the window's close while the chain index is still behind it", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, refillService } = setup({
+        hasBonus: true,
+        hasConsumedBonusUsage: true,
+        isUsageIndexed: false,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-15T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "succeeded", amountRefunded: 0 });
+      expect(refillService.topUpWallet).toHaveBeenCalledOnce();
+    });
+
+    it("reports a released bonus apart from the commission", async () => {
+      const { service, payment, affiliate, bonus, analyticsService, logger } = setup({ hasBonus: true });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_released", {
+        amount_cents: 500,
+        source_transaction_id: payment.id,
+        referred_user_id: payment.userId,
+        affiliate_bonus: true
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_COMMISSION_RELEASED",
+        commissionId: bonus.id,
+        affiliateUserId: affiliate.userId,
+        sourceTransactionId: payment.id,
+        amountCents: 500,
+        affiliateBonus: true
+      });
+    });
+
+    it("credits the commission and rechecks the bonus a day later when the chain index cannot be read", async () => {
+      const now = new Date("2026-07-15T09:00:00.000Z");
+      const { service, payment, commission, bonus, refillService, referredUsageService, jobQueueService, logger } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        hasBonus: true,
+        now
+      });
+      const error = new Error("chain index unavailable");
+      referredUsageService.hasConsumedAtLeast.mockRejectedValue(error);
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(refillService.topUpWallet).toHaveBeenCalledExactlyOnceWith(
+        500,
+        expect.anything(),
+        expect.objectContaining({ payment: expect.objectContaining({ transactionId: commission.id }) })
+      );
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), {
+        startAfter: addDays(now, 1)
+      });
+      expect(logger.error).toHaveBeenCalledWith({ event: "AFFILIATE_BONUS_USAGE_READ_FAILED", commissionId: bonus.id, sourceTransactionId: payment.id, error });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_BONUS_RELEASE_DEFERRED", commissionId: bonus.id, reason: "usage_unchecked" })
+      );
+    });
+
+    it.each([
+      { case: "on a dispute sync during the hold", input: { paymentDisputeOpenedAt: subSeconds(new Date(), 600) } },
+      {
+        case: "once the dispute is lost after the hold",
+        input: {
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentDisputeOpenedAt: subSeconds(new Date(), 600),
+          paymentDisputeClosedAt: subSeconds(new Date(), 60),
+          paymentDisputeLostAt: subSeconds(new Date(), 60)
+        }
+      }
+    ])("does not read the referred user's usage $case", async ({ input }) => {
+      const { service, payment, referredUsageService } = setup({ hasBonus: true, ...input });
+
+      await service.syncCommission(payment.id, "dispute");
+
+      expect(referredUsageService.hasConsumedAtLeast).not.toHaveBeenCalled();
+    });
+
+    it("syncs only the bonus on a usage recheck", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        hasBonus: true
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(stripeTransactionRepository.findAffiliateCommissionBySource).toHaveBeenCalledExactlyOnceWith(payment.id, { bonus: true });
+      expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).toHaveBeenCalledExactlyOnceWith(payment.id, { bonus: true });
+      expect(refillService.topUpWallet).toHaveBeenCalledExactlyOnceWith(
+        500,
+        expect.anything(),
+        expect.objectContaining({ payment: expect.objectContaining({ transactionId: bonus.id }) })
+      );
+    });
+
+    it("credits the held bonus as soon as a dispute closes in Console's favour once the hold is over", async () => {
+      const { service, payment, bonus, refillService, referredUsageService } = setup({
+        hasBonus: true,
+        commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+        paymentDisputeOpenedAt: subSeconds(new Date(), 600),
+        paymentDisputeClosedAt: subSeconds(new Date(), 60)
+      });
+
+      await service.syncCommission(payment.id, "dispute");
+
+      expect(referredUsageService.hasConsumedAtLeast).toHaveBeenCalled();
+      expect(refillService.topUpWallet).toHaveBeenCalledExactlyOnceWith(
+        500,
+        expect.anything(),
+        expect.objectContaining({ payment: expect.objectContaining({ transactionId: bonus.id }) })
+      );
+    });
+
+    it("waits for a fresh usage read when the bonus row it read is not the one it locked", async () => {
+      const { service, payment, stripeTransactionRepository, refillService, jobQueueService, logger } = setup({ hasBonus: true });
+      const replacement = generateDatabaseStripeTransaction({
+        type: "affiliate_commission",
+        status: "pending",
+        affiliateBonus: true,
+        sourceTransactionId: payment.id
+      });
+      stripeTransactionRepository.findAffiliateCommissionBySourceAndLock.mockResolvedValue(replacement);
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "bonus_usage" }), {
+        startAfter: expect.any(Date)
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_BONUS_RELEASE_DEFERRED", commissionId: replacement.id, reason: "usage_unchecked" })
+      );
+    });
+
+    it("waits for a fresh usage read when the bonus was not held yet as it read the usage", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, refillService, referredUsageService, logger } = setup({ hasBonus: true });
+      stripeTransactionRepository.findAffiliateCommissionBySource.mockResolvedValue(undefined);
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.hasConsumedAtLeast).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_BONUS_RELEASE_DEFERRED", commissionId: bonus.id, reason: "usage_unchecked" })
+      );
+    });
+
+    it.each([
+      { case: "on a refund sync", trigger: "refund" as const, input: {} },
+      { case: "for a bonus no longer held", trigger: "release" as const, input: { bonusStatus: "canceled" as const } },
+      { case: "without a bonus", trigger: "release" as const, input: { hasBonus: false, hasCommission: true, commissionStatus: "pending" as const } }
+    ])("does not read the referred user's usage $case", async ({ trigger, input }) => {
+      const { service, payment, referredUsageService } = setup({ hasBonus: true, ...input });
+
+      await service.syncCommission(payment.id, trigger);
+
+      expect(referredUsageService.hasConsumedAtLeast).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "the payer is no longer referred", input: { isReferred: false } },
+      { case: "the team that paid is gone", input: { isOrganizationGone: true } }
+    ])("cancels the held bonus when $case", async ({ input }) => {
+      const { service, payment, bonus, stripeTransactionRepository, referredUsageService } = setup({ hasBonus: true, ...input });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(referredUsageService.hasConsumedAtLeast).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "canceled", amountRefunded: 500 });
+    });
+
+    it("cancels the held bonus when the payment can no longer be read before its lock", async () => {
+      const { service, payment, bonus, stripeTransactionRepository } = setup({ hasBonus: true });
+      stripeTransactionRepository.findById.mockResolvedValue(undefined);
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "canceled", amountRefunded: 500 });
+    });
+  });
+
+  describe("when a payment with a bonus is refunded or disputed", () => {
+    it("shrinks both the held commission and the held bonus in proportion to a refund", async () => {
+      const { service, payment, commission, bonus, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        hasBonus: true,
+        paymentAmount: 10000,
+        paymentAmountRefunded: 4000
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 200 });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(bonus.id, { amountRefunded: 200 });
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("reports a bonus taken back after its release apart from the commission", async () => {
+      const { service, payment, affiliate, bonus, analyticsService, logger } = setup({
+        hasBonus: true,
+        bonusStatus: "succeeded",
+        paymentAmount: 10000,
+        paymentAmountRefunded: 4000
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_reversed", {
+        amount_cents: 200,
+        source_transaction_id: payment.id,
+        referred_user_id: payment.userId,
+        reason: "refund",
+        affiliate_bonus: true
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED", commissionId: bonus.id, affiliateBonus: true })
+      );
+    });
+
+    it("cancels both the held commission and the held bonus when the dispute is lost", async () => {
+      const { service, payment, commission, bonus, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        hasBonus: true,
+        paymentDisputeOpenedAt: subSeconds(new Date(), 600),
+        paymentDisputeClosedAt: subSeconds(new Date(), 60),
+        paymentDisputeLostAt: subSeconds(new Date(), 60)
+      });
+
+      await service.syncCommission(payment.id, "dispute");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "canceled", amountRefunded: 500 });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(bonus.id, { status: "canceled", amountRefunded: 500 });
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("holds the credited bonus again in the bonus lane while the disputed funds are withdrawn", async () => {
+      const { service, payment, affiliate, bonus, stripeTransactionRepository } = setup({
+        hasBonus: true,
+        bonusStatus: "succeeded",
+        paymentDisputeOpenedAt: subSeconds(new Date(), 600),
+        paymentDisputeFundsWithdrawnAt: subSeconds(new Date(), 300)
+      });
+
+      await service.syncCommission(payment.id, "dispute");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith({
+        userId: affiliate.userId,
+        organizationId: bonus.organizationId,
+        amount: 500,
+        amountRefunded: 0,
+        sourceTransactionId: payment.id,
+        sourceStripeChargeId: payment.stripeChargeId,
+        createdAt: bonus.createdAt,
+        affiliateBonus: true
+      });
+    });
+
+    it("records a bonus as credited and takes back the refund when its release credit landed before its sync rolled back", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, refillService } = setup({
+        hasBonus: true,
+        paymentAmountRefunded: 10000,
+        bonusReleaseCredit: { status: "landed", amount: 500 }
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(bonus.id, { status: "succeeded", amountRefunded: 0 });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.anything(), expect.objectContaining({ transactionId: bonus.id }));
     });
   });
 
@@ -1577,6 +2279,18 @@ describe(AffiliateCommissionService.name, () => {
       );
     });
 
+    it("looks for the release credit of the percentage commission", async () => {
+      const { service, payment, stripeTransactionRepository } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        releaseCredit: { status: "landed", amount: 500 }
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(stripeTransactionRepository.findAffiliateCommissionBySource).toHaveBeenCalledWith(payment.id, { bonus: false });
+    });
+
     it("does not look for a release credit when settling a payment", async () => {
       const { service, payment, stripeTransactionRepository } = setup();
 
@@ -1607,7 +2321,8 @@ describe(AffiliateCommissionService.name, () => {
         amount_cents: 200,
         source_transaction_id: null,
         referred_user_id: null,
-        reason: "refund"
+        reason: "refund",
+        affiliate_bonus: false
       });
       expect(logger.info).toHaveBeenCalledWith({
         event: "AFFILIATE_COMMISSION_REVERSED",
@@ -1617,7 +2332,8 @@ describe(AffiliateCommissionService.name, () => {
         amountCents: 200,
         totalReversedCents: 200,
         shortfallCents: 0,
-        reason: "refund"
+        reason: "refund",
+        affiliateBonus: false
       });
     });
 
@@ -1716,13 +2432,15 @@ describe(AffiliateCommissionService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(affiliate.userId, "affiliate_commission_canceled", {
         amount_cents: 500,
         source_transaction_id: null,
-        reason: "dispute_lost"
+        reason: "dispute_lost",
+        affiliate_bonus: false
       });
       expect(logger.info).toHaveBeenCalledWith({
         event: "AFFILIATE_COMMISSION_CANCELED",
         commissionId: commission.id,
         sourceTransactionId: null,
-        reason: "dispute_lost"
+        reason: "dispute_lost",
+        affiliateBonus: false
       });
     });
 
@@ -1952,8 +2670,28 @@ describe(AffiliateCommissionService.name, () => {
       holdSeconds?: number;
       shortfallCents?: number;
       orphanedCommissions?: Array<Partial<StripeTransactionOutput> & { releaseCredit?: { status: PaymentCreditOutput["status"]; amount: number } }>;
+      isFirstCommission?: boolean;
+      isFirstCommissionMarked?: boolean;
+      bonusAmountConfig?: number;
+      bonusMonthlyCap?: number;
+      bonusesThisMonth?: number;
+      hasBonus?: boolean;
+      bonusStatus?: StripeTransactionOutput["status"];
+      bonusAmountRefunded?: number;
+      bonusReleaseCredit?: { status: PaymentCreditOutput["status"]; amount: number };
+      hasConsumedBonusUsage?: boolean;
+      referredUserConsumedCents?: number;
+      referralTrialCreditsCents?: number;
+      isUsageIndexed?: boolean | "error";
+      now?: Date;
     } = {}
   ) {
+    if (input.now) {
+      vi.useFakeTimers({ now: input.now, toFake: ["Date"] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+    }
     const affiliate = createAffiliate({ revokedAt: input.affiliateRevokedAt ?? null });
     const affiliatePersonalOrganization = createOrganization({ type: "personal", createdByUserId: affiliate.userId });
     const payerUserId = faker.string.uuid();
@@ -1973,7 +2711,12 @@ describe(AffiliateCommissionService.name, () => {
       organizationId: paymentOrganization.id
     });
     const referredUserId = paymentOrganization.createdByUserId ?? payerUserId;
-    const referral = createReferral({ referredUserId, affiliateId: affiliate.id, createdAt: input.referredAt ?? new Date().toISOString() });
+    const referral = createReferral({
+      referredUserId,
+      affiliateId: affiliate.id,
+      trialCreditsCents: input.referralTrialCreditsCents ?? null,
+      createdAt: input.referredAt ?? new Date().toISOString()
+    });
     const commission = generateDatabaseStripeTransaction({
       userId: input.isAffiliateAccountGone ? null : affiliate.userId,
       type: "affiliate_commission",
@@ -1981,6 +2724,16 @@ describe(AffiliateCommissionService.name, () => {
       amount: input.commissionAmount ?? 500,
       amountRefunded: input.commissionAmountRefunded ?? 0,
       sourceTransactionId: payment.id,
+      createdAt: input.commissionCreatedAt ?? new Date()
+    });
+    const bonus = generateDatabaseStripeTransaction({
+      userId: affiliate.userId,
+      type: "affiliate_commission",
+      status: input.bonusStatus ?? "pending",
+      amount: 500,
+      amountRefunded: input.bonusAmountRefunded ?? 0,
+      sourceTransactionId: payment.id,
+      affiliateBonus: true,
       createdAt: input.commissionCreatedAt ?? new Date()
     });
     const affiliateWallet = createUserWallet({ userId: affiliate.userId, abuseLockedAt: input.affiliateAbuseLockedAt ?? null });
@@ -2001,11 +2754,22 @@ describe(AffiliateCommissionService.name, () => {
     stripeTransactionRepository.find.mockResolvedValue(orphanedCommissions);
     stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock.mockResolvedValue(orphanedCommissions);
     stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
-    stripeTransactionRepository.findAffiliateCommissionBySourceAndLock.mockResolvedValue(input.hasCommission ? commission : undefined);
-    stripeTransactionRepository.createAffiliateCommission.mockImplementation(async created => ({ ...commission, ...created }));
+    const findCommissionInLane = async (_sourceTransactionId: string, lane: AffiliateCommissionLane) => {
+      if (lane.bonus) return input.hasBonus ? bonus : undefined;
+      return input.hasCommission ? commission : undefined;
+    };
+    stripeTransactionRepository.findAffiliateCommissionBySourceAndLock.mockImplementation(findCommissionInLane);
+    stripeTransactionRepository.createAffiliateCommission.mockImplementation(async created => ({
+      ...(created.affiliateBonus ? bonus : commission),
+      ...created
+    }));
+    stripeTransactionRepository.countAffiliateBonusesSince.mockResolvedValue(input.bonusesThisMonth ?? 0);
+    stripeTransactionRepository.findById.mockResolvedValue(payment);
 
     const referralRepository = mock<ReferralRepository>();
     referralRepository.findWithAffiliateByReferredUserId.mockResolvedValue(input.isReferred === false ? undefined : { referral, affiliate });
+    referralRepository.findByIdFresh.mockResolvedValue({ ...referral, firstCommissionAt: input.isFirstCommission ? null : new Date().toISOString() });
+    referralRepository.markFirstCommission.mockResolvedValue(input.isFirstCommissionMarked ?? true);
 
     const affiliateRepository = mock<AffiliateRepository>();
     affiliateRepository.findOneBy.mockResolvedValue(input.isAffiliateGone ? undefined : affiliate);
@@ -2015,12 +2779,13 @@ describe(AffiliateCommissionService.name, () => {
       input.hasPaymentCredit === false ? undefined : createPaymentCredit({ transactionId: payment.id, status: input.paymentCreditStatus ?? "landed" });
     const releaseCredits = new Map([
       [commission.id, input.releaseCredit && createPaymentCredit({ transactionId: commission.id, ...input.releaseCredit })],
+      [bonus.id, input.bonusReleaseCredit && createPaymentCredit({ transactionId: bonus.id, ...input.bonusReleaseCredit })],
       ...orphans.map(orphan => [orphan.orphanedCommission.id, orphan.releaseCredit] as const)
     ]);
     paymentCreditRepository.findByTransactionId.mockImplementation(async transactionId =>
       releaseCredits.has(transactionId) ? releaseCredits.get(transactionId) : paymentCredit
     );
-    stripeTransactionRepository.findAffiliateCommissionBySource.mockResolvedValue(input.hasCommission ? commission : undefined);
+    stripeTransactionRepository.findAffiliateCommissionBySource.mockImplementation(findCommissionInLane);
 
     const paymentCreditService = mock<PaymentCreditService>();
     paymentCreditService.hasLanded.mockImplementation(async transactionId => releaseCredits.get(transactionId)?.status === "landed");
@@ -2058,7 +2823,22 @@ describe(AffiliateCommissionService.name, () => {
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue("job-id");
 
-    const billingConfig = mock<BillingConfig>({ AFFILIATE_COMMISSION_HOLD_SECONDS: input.holdSeconds ?? HOLD_SECONDS });
+    const referredUsageService = mock<ReferredUsageService>();
+    referredUsageService.hasConsumedAtLeast.mockImplementation(async (_referredUserId, _window, minCents) =>
+      input.referredUserConsumedCents === undefined ? input.hasConsumedBonusUsage ?? true : input.referredUserConsumedCents >= minCents
+    );
+    referredUsageService.isIndexedThroughUtcDayOf.mockImplementation(async () => {
+      if (input.isUsageIndexed === "error") throw new Error("chain index unavailable");
+      return input.isUsageIndexed ?? true;
+    });
+
+    const billingConfig = mock<BillingConfig>({
+      AFFILIATE_COMMISSION_HOLD_SECONDS: input.holdSeconds ?? HOLD_SECONDS,
+      AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT: input.bonusAmountConfig ?? 500,
+      AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT: 2000,
+      AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT: 2000,
+      AFFILIATE_FIRST_PURCHASE_BONUS_MONTHLY_CAP: input.bonusMonthlyCap ?? 10
+    });
 
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -2079,6 +2859,7 @@ describe(AffiliateCommissionService.name, () => {
       analyticsService,
       txService,
       jobQueueService,
+      referredUsageService,
       billingConfig,
       createLogger
     );
@@ -2092,6 +2873,7 @@ describe(AffiliateCommissionService.name, () => {
       personalOrganizationService,
       referral,
       commission,
+      bonus,
       orphanedCommissions,
       stripeTransactionRepository,
       referralRepository,
@@ -2106,6 +2888,7 @@ describe(AffiliateCommissionService.name, () => {
       analyticsService,
       txService,
       jobQueueService,
+      referredUsageService,
       logger
     };
   }

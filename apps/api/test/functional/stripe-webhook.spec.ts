@@ -244,7 +244,7 @@ describe("Stripe webhook", () => {
         await processAffiliateCommissionSyncOf(payment.id, "settlement");
 
         expect(response.status).toBe(200);
-        await expect(stripeTransactionRepository.findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+        await expect(stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toMatchObject({
           userId: affiliateUser.id,
           type: "affiliate_commission",
           status: "pending",
@@ -256,7 +256,7 @@ describe("Stripe webhook", () => {
 
         await releaseAffiliateCommissionOf(payment.id);
 
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
         expect(commission).toMatchObject({ status: "succeeded", amount: 500 });
         expect(affiliateWallet).toMatchObject({
@@ -1062,7 +1062,7 @@ describe("Stripe webhook", () => {
         const response = await getWebhookResponse(generateChargeRefundedPayload(chargeId, stripeCustomerId, 4000));
         await processAffiliateCommissionSyncOf(payment.id, "refund");
 
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1079,7 +1079,7 @@ describe("Stripe webhook", () => {
         const response = await getWebhookResponse(generateChargeRefundedPayload(chargeId, stripeCustomerId, 4000));
         await processAffiliateCommissionSyncOf(payment.id, "refund");
 
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1178,7 +1178,7 @@ describe("Stripe webhook", () => {
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
         expect(response.status).toBe(200);
-        await expect(stripeTransactionRepository.findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+        await expect(stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false })).resolves.toMatchObject({
           status: "canceled",
           amount: 500,
           amountRefunded: 500
@@ -1195,7 +1195,7 @@ describe("Stripe webhook", () => {
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
         const disputedPayment = await stripeTransactionRepository.findById(payment.id);
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
         const payerWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
 
@@ -1217,7 +1217,7 @@ describe("Stripe webhook", () => {
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
         const undisputedPayment = await stripeTransactionRepository.findById(payment.id);
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1244,7 +1244,7 @@ describe("Stripe webhook", () => {
         const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1273,7 +1273,7 @@ describe("Stripe webhook", () => {
         await processAffiliateCommissionSyncOf(payment.id, "release");
 
         const disputedPayment = await stripeTransactionRepository.findById(payment.id);
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1295,7 +1295,7 @@ describe("Stripe webhook", () => {
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
         const disputedPayment = await stripeTransactionRepository.findById(payment.id);
-        const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
         const payerWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
 
@@ -1327,7 +1327,7 @@ describe("Stripe webhook", () => {
         const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1347,7 +1347,7 @@ describe("Stripe webhook", () => {
         const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "lost"));
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1372,7 +1372,7 @@ describe("Stripe webhook", () => {
         const response = await getWebhookResponse(generateDisputeCreatedPayload(chargeId));
 
         const disputedPayment = await stripeTransactionRepository.findById(payment.id);
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
         const payerWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
 
@@ -1401,7 +1401,7 @@ describe("Stripe webhook", () => {
         await enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }));
         await processAffiliateCommissionSyncOf(payment.id, "release");
 
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
@@ -1428,7 +1428,7 @@ describe("Stripe webhook", () => {
         await processAffiliateCommissionSyncOf(payment.id, "release");
 
         const preventedPayment = await stripeTransactionRepository.findById(payment.id);
-        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);

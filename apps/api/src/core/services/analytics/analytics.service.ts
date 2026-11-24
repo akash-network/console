@@ -29,6 +29,7 @@ type AnalyticsEvent =
   | "gpu_request_closed"
   | "referral_signup"
   | "affiliate_commission_held"
+  | "affiliate_bonus_held"
   | "affiliate_commission_released"
   | "affiliate_commission_canceled"
   | "affiliate_commission_reversed"

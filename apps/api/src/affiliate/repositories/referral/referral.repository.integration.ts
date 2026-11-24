@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
 import { StripeTransactionRepository } from "@src/billing/repositories";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { TxService } from "@src/core/services";
 import { ReferralRepository } from "./referral.repository";
 
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
@@ -37,6 +38,61 @@ describe(ReferralRepository.name, () => {
       const { repository, referredUserId } = await setup();
 
       await expect(repository.findByReferredUserId(referredUserId)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("findByIdFresh", () => {
+    it("reads a referral whose first commission is not recorded yet inside a transaction", async () => {
+      const { repository, txService, referredUserId, affiliate } = await setup();
+      const referral = await repository.createIfAbsent({ referredUserId, affiliateId: affiliate.id });
+
+      const found = await txService.transaction(async () => repository.findByIdFresh(referral!.id));
+
+      expect(found).toMatchObject({ id: referral!.id, referredUserId, affiliateId: affiliate.id, firstCommissionAt: null });
+    });
+
+    it("reads when the referral's first commission was recorded", async () => {
+      const { repository, txService, referredUserId, affiliate } = await setup();
+      const referral = await repository.createIfAbsent({ referredUserId, affiliateId: affiliate.id });
+      const firstCommissionAt = new Date("2026-11-20T10:00:00.000Z");
+      await repository.markFirstCommission(referral!.id, firstCommissionAt);
+
+      const found = await txService.transaction(async () => repository.findByIdFresh(referral!.id));
+
+      expect(found).toMatchObject({ id: referral!.id, firstCommissionAt: firstCommissionAt.toISOString() });
+    });
+
+    it("returns undefined for an unknown referral", async () => {
+      const { repository, txService } = await setup();
+
+      await expect(txService.transaction(async () => repository.findByIdFresh(faker.string.uuid()))).resolves.toBeUndefined();
+    });
+
+    it("throws outside a transaction", async () => {
+      const { repository, referredUserId, affiliate } = await setup();
+      const referral = await repository.createIfAbsent({ referredUserId, affiliateId: affiliate.id });
+
+      await expect(repository.findByIdFresh(referral!.id)).rejects.toThrow("can only be re-read inside a transaction");
+    });
+  });
+
+  describe("markFirstCommission", () => {
+    it("records the first commission once, then refuses to overwrite it", async () => {
+      const { repository, referredUserId, affiliate } = await setup();
+      const referral = await repository.createIfAbsent({ referredUserId, affiliateId: affiliate.id });
+      const first = new Date("2026-11-20T10:00:00.000Z");
+
+      const recorded = await repository.markFirstCommission(referral!.id, first);
+      const recordedAgain = await repository.markFirstCommission(referral!.id, new Date("2026-11-21T10:00:00.000Z"));
+
+      expect([recorded, recordedAgain]).toEqual([true, false]);
+      expect(await repository.findById(referral!.id)).toMatchObject({ firstCommissionAt: first.toISOString() });
+    });
+
+    it("returns false for an unknown referral", async () => {
+      const { repository } = await setup();
+
+      await expect(repository.markFirstCommission(faker.string.uuid(), new Date())).resolves.toBe(false);
     });
   });
 
@@ -293,6 +349,6 @@ describe(ReferralRepository.name, () => {
     const referred = await seedUser();
     const affiliate = await seedAffiliate();
 
-    return { repository: container.resolve(ReferralRepository), referredUserId: referred.id, affiliate };
+    return { repository: container.resolve(ReferralRepository), txService: container.resolve(TxService), referredUserId: referred.id, affiliate };
   }
 });

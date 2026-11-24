@@ -37,10 +37,33 @@ describe(AffiliateCommissionService.name, () => {
 
       await Promise.all([service.syncCommission(payment.id, "settlement"), service.syncCommission(payment.id, "settlement")]);
 
-      const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id });
+      const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id, affiliateBonus: false });
       expect(commissions).toEqual([expect.objectContaining({ userId: affiliateUser.id, type: "affiliate_commission", status: "pending", amount: 500 })]);
+      await expect(container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id, affiliateBonus: true })).resolves.toHaveLength(1);
       await expect(findJobRows(SyncAffiliateCommission[JOB_NAME], { data: { transactionId: payment.id, trigger: "release" } })).resolves.toHaveLength(1);
       expect(topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("holds a single first-payment bonus when two payments of the same referred user settle at the same time", async () => {
+      const { service, payment, payer, affiliateUser } = await setup();
+      const secondPayment = await createPayment(payer.id);
+      const referralRepository = container.resolve(ReferralRepository);
+      const findReferral = referralRepository.findWithAffiliateByReferredUserId.bind(referralRepository);
+      vi.spyOn(referralRepository, "findWithAffiliateByReferredUserId").mockImplementation(async referredUserId => {
+        await delay(200);
+        return findReferral(referredUserId);
+      });
+
+      await Promise.all([service.syncCommission(payment.id, "settlement"), service.syncCommission(secondPayment.id, "settlement")]);
+
+      const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+      const bonuses = [
+        ...(await stripeTransactionRepository.find({ sourceTransactionId: payment.id, affiliateBonus: true })),
+        ...(await stripeTransactionRepository.find({ sourceTransactionId: secondPayment.id, affiliateBonus: true }))
+      ];
+      expect(bonuses).toEqual([expect.objectContaining({ userId: affiliateUser.id, status: "pending", amount: 500, amountRefunded: 0 })]);
+      await expect(stripeTransactionRepository.find({ sourceTransactionId: payment.id, affiliateBonus: false })).resolves.toHaveLength(1);
+      await expect(stripeTransactionRepository.find({ sourceTransactionId: secondPayment.id, affiliateBonus: false })).resolves.toHaveLength(1);
     });
 
     it("credits the affiliate once when two releases of the same commission race", async () => {
@@ -49,7 +72,7 @@ describe(AffiliateCommissionService.name, () => {
 
       await Promise.all([service.syncCommission(payment.id, "release"), service.syncCommission(payment.id, "release")]);
 
-      const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id });
+      const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id, affiliateBonus: false });
       expect(commissions).toEqual([expect.objectContaining({ userId: affiliateUser.id, status: "succeeded", amount: 500, amountRefunded: 0 })]);
       expect(topUpWallet).toHaveBeenCalledTimes(1);
     });
@@ -60,7 +83,7 @@ describe(AffiliateCommissionService.name, () => {
       await service.syncCommission(payment.id, "settlement");
 
       const personalOrganization = await container.resolve(OrganizationRepository).findPersonalByUserId(affiliateUser.id);
-      const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id });
+      const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id, affiliateBonus: false });
       expect(personalOrganization).toBeDefined();
       expect(commissions).toEqual([expect.objectContaining({ userId: affiliateUser.id, organizationId: personalOrganization?.id, status: "pending" })]);
     });
@@ -78,21 +101,27 @@ describe(AffiliateCommissionService.name, () => {
       approvedBy: "ops@akash.network"
     });
     await container.resolve(ReferralRepository).createIfAbsent({ referredUserId: payer.id, affiliateId: affiliate.id });
+    const payment = await createPayment(payer.id);
+    const topUpWallet = vi.spyOn(container.resolve(RefillService), "topUpWallet").mockImplementation(async () => {
+      await delay(200);
+      return toppedUpWallet;
+    });
+
+    return { service: container.resolve(AffiliateCommissionService), payment, payer, affiliateUser, topUpWallet };
+  }
+
+  async function createPayment(payerId: string) {
     const payment = await container.resolve(StripeTransactionRepository).create({
-      userId: payer.id,
-      organizationId: await seedPersonalOrganizationIdOf(payer.id),
+      userId: payerId,
+      organizationId: await seedPersonalOrganizationIdOf(payerId),
       type: "payment_intent",
       status: "succeeded",
       amount: 10000,
       currency: "usd"
     });
     await seedPaymentCredit({ transactionId: payment.id });
-    const topUpWallet = vi.spyOn(container.resolve(RefillService), "topUpWallet").mockImplementation(async () => {
-      await delay(200);
-      return toppedUpWallet;
-    });
 
-    return { service: container.resolve(AffiliateCommissionService), payment, affiliateUser, topUpWallet };
+    return payment;
   }
 
   async function seedAffiliateWithWallet() {

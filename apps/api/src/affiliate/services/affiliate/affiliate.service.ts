@@ -26,6 +26,9 @@ export type AffiliateProfile = {
     commissionMonths: number;
     referralTrialCreditsUsd: number;
     commissionHoldDays: number;
+    firstPurchaseBonusUsd: number;
+    firstPurchaseBonusMinPaymentUsd: number;
+    firstPurchaseBonusMinUsageUsd: number;
   };
   stats: {
     signups: number;
@@ -42,12 +45,14 @@ export type AffiliateProfile = {
     amountUsd: number;
     reversedUsd: number;
     status: AffiliateCommissionStatus;
+    kind: AffiliateCommissionKind;
     releasesAt: string | null;
     creditedAt: string | null;
     paymentUsd: number | null;
   }[];
 };
 
+export type AffiliateCommissionKind = "commission" | "first_payment_bonus";
 export type AffiliateCommissionStatus = "on_hold" | "credited" | "canceled" | "reversed";
 
 const COMMISSION_STATUSES: Partial<Record<StripeTransactionStatus, AffiliateCommissionStatus>> = {
@@ -143,7 +148,10 @@ export class AffiliateService {
         commissionPercent: AFFILIATE_COMMISSION_PERCENT,
         commissionMonths: AFFILIATE_COMMISSION_MONTHS,
         referralTrialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT,
-        commissionHoldDays: Math.ceil(this.billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS / SECONDS_PER_DAY)
+        commissionHoldDays: Math.ceil(this.billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS / SECONDS_PER_DAY),
+        firstPurchaseBonusUsd: this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT / CENTS_PER_USD,
+        firstPurchaseBonusMinPaymentUsd: this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT / CENTS_PER_USD,
+        firstPurchaseBonusMinUsageUsd: this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT / CENTS_PER_USD
       },
       stats: {
         signups,
@@ -164,6 +172,7 @@ export class AffiliateService {
           amountUsd: commission.amount / CENTS_PER_USD,
           reversedUsd: commission.amountRefunded / CENTS_PER_USD,
           status,
+          kind: commission.affiliateBonus ? "first_payment_bonus" : "commission",
           releasesAt: status === "on_hold" ? this.#findUpcomingReleaseDate(commission, now)?.toISOString() ?? null : null,
           creditedAt: commission.creditedAt?.toISOString() ?? null,
           paymentUsd: commission.paymentAmount === null ? null : commission.paymentAmount / CENTS_PER_USD

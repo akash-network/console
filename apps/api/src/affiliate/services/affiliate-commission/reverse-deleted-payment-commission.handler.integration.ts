@@ -211,7 +211,7 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
       await startWorkers();
       await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], { data: { transactionId, trigger: "settlement" } });
 
-      return (await stripeTransactionRepository.findAffiliateCommissionBySource(transactionId))!;
+      return (await stripeTransactionRepository.findAffiliateCommissionBySource(transactionId, { bonus: false }))!;
     }
 
     async function creditCommissionOf(transactionId: string) {

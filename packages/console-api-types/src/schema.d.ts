@@ -18165,6 +18165,12 @@ export interface operations {
                 referralTrialCreditsUsd: number;
                 /** @description How many days each commission stays on hold before it is credited. */
                 commissionHoldDays: number;
+                /** @description The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off. */
+                firstPurchaseBonusUsd: number;
+                /** @description The bonus applies only if the referred user's first payment is at least this amount. */
+                firstPurchaseBonusMinPaymentUsd: number;
+                /** @description How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid. */
+                firstPurchaseBonusMinUsageUsd: number;
               };
               stats: {
                 signups: number;
@@ -18188,6 +18194,8 @@ export interface operations {
                 reversedUsd: number;
                 /** @enum {string} */
                 status: "on_hold" | "credited" | "canceled" | "reversed";
+                /** @enum {string} */
+                kind: "commission" | "first_payment_bonus";
                 /** @description When a held commission is due for release, null once that date has passed or when it is not on hold. */
                 releasesAt: string | null;
                 /** @description When the commission was credited to the personal balance. */

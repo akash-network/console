@@ -1,7 +1,7 @@
 import { type Job, JOB_NAME } from "@src/core/services/job-queue/job-queue.service";
 
-/** Only a settlement may record a commission and only a release may credit it; a refund or a dispute only takes back one that exists, so a skipped grant stays skipped. */
-export type AffiliateCommissionSyncTrigger = "settlement" | "release" | "refund" | "dispute";
+/** Only a settlement may record a commission; a refund or a dispute only takes back one that exists, so a skipped grant stays skipped, and a usage recheck only releases a held bonus. */
+export type AffiliateCommissionSyncTrigger = "settlement" | "release" | "refund" | "dispute" | "bonus_usage";
 
 export class SyncAffiliateCommission implements Job {
   static readonly [JOB_NAME] = "SyncAffiliateCommission";

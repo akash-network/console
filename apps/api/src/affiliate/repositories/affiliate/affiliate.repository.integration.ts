@@ -2,9 +2,12 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { TxService } from "@src/core/services";
 import { AffiliateRepository } from "./affiliate.repository";
 
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 describe(AffiliateRepository.name, () => {
   describe("revokeIfActive", () => {
@@ -55,6 +58,55 @@ describe(AffiliateRepository.name, () => {
     });
   });
 
+  describe("lockById", () => {
+    it("makes a second transaction locking the same affiliate wait until the first one ends", async () => {
+      const { repository, txService, affiliate } = await setup();
+      const steps: string[] = [];
+
+      const first = holdTransaction(async () => {
+        await repository.lockById(affiliate.id);
+        steps.push("first locked");
+      });
+      await first.held;
+      const second = txService.transaction(async () => {
+        await repository.lockById(affiliate.id);
+        steps.push("second locked");
+      });
+      try {
+        await waitForLockWait('%from "affiliates"%for no key update%');
+        steps.push("first done");
+      } finally {
+        first.release();
+        await Promise.all([first.committed, second]);
+      }
+
+      expect(steps).toEqual(["first locked", "first done", "second locked"]);
+    });
+
+    it("lets another connection record a referral to the locked affiliate", async () => {
+      const { repository, txService, affiliate } = await setup();
+      const referred = await seedUser();
+
+      const referral = await txService.transaction(async () => {
+        await repository.lockById(affiliate.id);
+        const [row] = await container
+          .resolve<ApiPgDatabase>(POSTGRES_DB)
+          .insert(resolveTable("Referrals"))
+          .values({ referredUserId: referred.id, affiliateId: affiliate.id })
+          .returning();
+        return row;
+      });
+
+      expect(referral).toMatchObject({ referredUserId: referred.id, affiliateId: affiliate.id });
+    });
+
+    it("throws outside a transaction", async () => {
+      const { repository, affiliate } = await setup();
+
+      await expect(repository.lockById(affiliate.id)).rejects.toThrow("can only be locked inside a transaction");
+    });
+  });
+
   async function setup(input: { revoked?: boolean } = {}) {
     const repository = container.resolve(AffiliateRepository);
     const user = await seedUser();
@@ -66,6 +118,6 @@ describe(AffiliateRepository.name, () => {
       ...(input.revoked && { revokedAt: new Date(), revokedBy: "ops@akash.network" })
     });
 
-    return { repository, affiliate };
+    return { repository, txService: container.resolve(TxService), affiliate };
   }
 });
