@@ -36,7 +36,7 @@ describe(affiliateInvitationNotification.name, () => {
     });
   });
 
-  it("states every amount in whole dollars and follows the configured terms", () => {
+  it("states whole amounts without cents and the others to the cent, following the configured terms", () => {
     const user = createUser();
 
     const { payload } = affiliateInvitationNotification(user, {
@@ -53,8 +53,8 @@ describe(affiliateInvitationNotification.name, () => {
     });
 
     expect(payload.description).toBe(
-      "You can now refer people to Akash Console. Anyone who signs up with your link gets a $8 trial. " +
-        "You earn 7% of every card payment they make for 6 months, plus $10 if their first payment is $25 or more, " +
+      "You can now refer people to Akash Console. Anyone who signs up with your link gets a $7.50 trial. " +
+        "You earn 7% of every card payment they make for 6 months, plus $10.40 if their first payment is $25 or more, " +
         "once they've used $30 on deployments beyond their trial credit within those 6 months. " +
         "Your earnings arrive as Console credit after a 14-day hold, and you can't withdraw them."
     );

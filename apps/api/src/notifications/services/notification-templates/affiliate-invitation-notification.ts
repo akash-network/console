@@ -2,8 +2,8 @@ import type { AffiliateTerms } from "@src/affiliate/lib/affiliate-terms/affiliat
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
-function wholeDollars(usd: number): string {
-  return `$${Math.round(usd)}`;
+function formatWholeOrCents(usd: number): string {
+  return Number.isInteger(usd) ? `$${usd}` : `$${usd.toFixed(2)}`;
 }
 
 function describeEarnings(terms: AffiliateTerms): string {
@@ -12,8 +12,8 @@ function describeEarnings(terms: AffiliateTerms): string {
   if (terms.firstPurchaseBonusUsd <= 0) return `You earn ${commission}.`;
 
   return (
-    `You earn ${commission}, plus ${wholeDollars(terms.firstPurchaseBonusUsd)} if their first payment is ${wholeDollars(terms.firstPurchaseBonusMinPaymentUsd)} or more, ` +
-    `once they've used ${wholeDollars(terms.firstPurchaseBonusMinUsageUsd)} on deployments beyond their trial credit within those ${terms.commissionMonths} months.`
+    `You earn ${commission}, plus ${formatWholeOrCents(terms.firstPurchaseBonusUsd)} if their first payment is ${formatWholeOrCents(terms.firstPurchaseBonusMinPaymentUsd)} or more, ` +
+    `once they've used ${formatWholeOrCents(terms.firstPurchaseBonusMinUsageUsd)} on deployments beyond their trial credit within those ${terms.commissionMonths} months.`
   );
 }
 
@@ -25,7 +25,7 @@ export function affiliateInvitationNotification(user: UserOutput, vars: { terms:
     payload: {
       summary: "Earn Console credit by referring friends",
       description:
-        `You can now refer people to Akash Console. Anyone who signs up with your link gets a ${wholeDollars(terms.referralTrialCreditsUsd)} trial. ` +
+        `You can now refer people to Akash Console. Anyone who signs up with your link gets a ${formatWholeOrCents(terms.referralTrialCreditsUsd)} trial. ` +
         `${describeEarnings(terms)} ` +
         `Your earnings arrive as Console credit after a ${terms.commissionHoldDays}-day hold, and you can't withdraw them.`,
       actions: [{ label: "Join the referral program", url: vars.referralsUrl }]
