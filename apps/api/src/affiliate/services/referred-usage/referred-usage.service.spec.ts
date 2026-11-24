@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -21,19 +21,21 @@ describe(ReferredUsageService.name, () => {
         ]
       });
 
-      await expect(service.hasConsumedAtLeast(referredUserId, new Date("2026-08-10T23:30:00.000Z"), 2000)).resolves.toBe(true);
+      await expect(
+        service.hasConsumedAtLeast(referredUserId, { since: new Date("2026-08-10T23:30:00.000Z"), until: new Date("2026-11-09T22:00:00.000Z") }, 2000)
+      ).resolves.toBe(true);
 
       expect(deploymentSpendRepository.findConsumedByDeployment).toHaveBeenCalledWith({
         owners: wallets.map(({ address }) => address),
         startDate: "2026-08-10",
-        endDate: "2026-11-23"
+        endDate: "2026-11-09"
       });
     });
 
     it("finds the organizations the referred user created", async () => {
       const { service, referredUserId, organizationRepository } = setup({ organizationCount: 1, consumption: [] });
 
-      await service.hasConsumedAtLeast(referredUserId, new Date(), 2000);
+      await service.hasConsumedAtLeast(referredUserId, { since: new Date(), until: new Date() }, 2000);
 
       expect(organizationRepository.find).toHaveBeenCalledWith({ createdByUserId: referredUserId });
     });
@@ -44,7 +46,7 @@ describe(ReferredUsageService.name, () => {
         consumption: [{ settledMicroUsd: "19980000", accruedMicroUsd: "10000" }]
       });
 
-      await expect(service.hasConsumedAtLeast(referredUserId, new Date(), 2000)).resolves.toBe(false);
+      await expect(service.hasConsumedAtLeast(referredUserId, { since: new Date(), until: new Date() }, 2000)).resolves.toBe(false);
     });
 
     it("ignores an organization without a wallet", async () => {
@@ -54,7 +56,7 @@ describe(ReferredUsageService.name, () => {
         consumption: [{ settledMicroUsd: "20000000", accruedMicroUsd: "0" }]
       });
 
-      await expect(service.hasConsumedAtLeast(referredUserId, new Date(), 2000)).resolves.toBe(true);
+      await expect(service.hasConsumedAtLeast(referredUserId, { since: new Date(), until: new Date() }, 2000)).resolves.toBe(true);
 
       expect(deploymentSpendRepository.findConsumedByDeployment).toHaveBeenCalledWith(
         expect.objectContaining({ owners: wallets.map(({ address }) => address) })
@@ -64,7 +66,7 @@ describe(ReferredUsageService.name, () => {
     it("returns false without reading the chain when no payer organization has a wallet", async () => {
       const { service, referredUserId, deploymentSpendRepository } = setup({ organizationCount: 0, walletlessOrganizationCount: 1, consumption: [] });
 
-      await expect(service.hasConsumedAtLeast(referredUserId, new Date(), 0)).resolves.toBe(false);
+      await expect(service.hasConsumedAtLeast(referredUserId, { since: new Date(), until: new Date() }, 0)).resolves.toBe(false);
 
       expect(deploymentSpendRepository.findConsumedByDeployment).not.toHaveBeenCalled();
     });
@@ -75,7 +77,6 @@ describe(ReferredUsageService.name, () => {
     walletlessOrganizationCount?: number;
     consumption: Array<Pick<DeploymentConsumption, "settledMicroUsd" | "accruedMicroUsd">>;
   }) {
-    vi.useFakeTimers({ now: new Date("2026-11-23T12:00:00.000Z"), toFake: ["Date"] });
     const referredUserId = faker.string.uuid();
     const organizations = Array.from({ length: input.organizationCount }, () => createOrganization({ createdByUserId: referredUserId }));
     const walletlessOrganizations = Array.from({ length: input.walletlessOrganizationCount ?? 0 }, () =>

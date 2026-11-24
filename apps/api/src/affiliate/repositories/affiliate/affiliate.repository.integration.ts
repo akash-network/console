@@ -1,5 +1,4 @@
 import { faker } from "@faker-js/faker";
-import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +7,7 @@ import { TxService } from "@src/core/services";
 import { AffiliateRepository } from "./affiliate.repository";
 
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 describe(AffiliateRepository.name, () => {
   describe("revokeIfActive", () => {
@@ -63,18 +63,19 @@ describe(AffiliateRepository.name, () => {
       const { repository, txService, affiliate } = await setup();
       const steps: string[] = [];
 
-      const first = txService.transaction(async () => {
+      const first = holdTransaction(async () => {
         await repository.lockById(affiliate.id);
         steps.push("first locked");
-        await delay(150);
-        steps.push("first done");
       });
-      await delay(50);
+      await first.held;
       const second = txService.transaction(async () => {
         await repository.lockById(affiliate.id);
         steps.push("second locked");
       });
-      await Promise.all([first, second]);
+      await waitForLockWait('%from "affiliates"%for no key update%');
+      steps.push("first done");
+      first.release();
+      await Promise.all([first.committed, second]);
 
       expect(steps).toEqual(["first locked", "first done", "second locked"]);
     });

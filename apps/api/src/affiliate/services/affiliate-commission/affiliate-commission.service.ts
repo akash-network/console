@@ -1,4 +1,4 @@
-import { addDays, addMonths, addSeconds, isAfter, isBefore } from "date-fns";
+import { addDays, addMonths, addSeconds, isAfter, isBefore, min } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { AFFILIATE_COMMISSION_MONTHS, AFFILIATE_COMMISSION_PERCENT } from "@src/affiliate/lib/affiliate-terms/affiliate-terms";
@@ -218,21 +218,27 @@ export class AffiliateCommissionService {
     const attribution = referredUserId ? await this.referralRepository.findWithAffiliateByReferredUserId(referredUserId) : undefined;
     if (!referredUserId || !attribution) return { commissionId: bonus.id, hasConsumedMinimum: false, isWindowOpen: false };
 
-    const referredAt = new Date(attribution.referral.createdAt);
-    const hasConsumedMinimum = await this.#hasConsumedBonusMinimum(bonus, referredUserId, attribution.referral);
+    const now = new Date();
+    const windowEndsAt = addMonths(new Date(attribution.referral.createdAt), AFFILIATE_COMMISSION_MONTHS);
+    const hasConsumedMinimum = await this.#hasConsumedBonusMinimum(bonus, referredUserId, attribution.referral, min([now, windowEndsAt]));
     if (hasConsumedMinimum === undefined) return undefined;
 
-    return { commissionId: bonus.id, hasConsumedMinimum, isWindowOpen: isBefore(new Date(), addMonths(referredAt, AFFILIATE_COMMISSION_MONTHS)) };
+    return { commissionId: bonus.id, hasConsumedMinimum, isWindowOpen: isBefore(now, windowEndsAt) };
   }
 
   /** The chain index can stay down longer than the job retries, so a failed read leaves the bonus to its next recheck instead of failing the commission release beside it. */
   async #hasConsumedBonusMinimum(
     bonus: StripeTransactionOutput,
     referredUserId: string,
-    referral: ReferralWithAffiliate["referral"]
+    referral: ReferralWithAffiliate["referral"],
+    until: Date
   ): Promise<boolean | undefined> {
     try {
-      return await this.referredUsageService.hasConsumedAtLeast(referredUserId, new Date(referral.createdAt), this.#bonusUsageThreshold(referral));
+      return await this.referredUsageService.hasConsumedAtLeast(
+        referredUserId,
+        { since: new Date(referral.createdAt), until },
+        this.#bonusUsageThreshold(referral)
+      );
     } catch (error) {
       this.#logger.error({ event: "AFFILIATE_BONUS_USAGE_READ_FAILED", commissionId: bonus.id, sourceTransactionId: bonus.sourceTransactionId, error });
       return undefined;
@@ -322,9 +328,10 @@ export class AffiliateCommissionService {
     payment: StripeTransactionOutput,
     { affiliateUserId, organizationId, referredUserId }: { affiliateUserId: string; organizationId: string; referredUserId: string }
   ): Promise<void> {
+    const grantedAt = new Date();
     const amount = this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT;
     const keptAmount = this.#keptCommission(amount, payment);
-    const skipReason = await this.#findBonusSkipReason(payment, affiliateUserId, { amount, keptAmount });
+    const skipReason = await this.#findBonusSkipReason(payment, affiliateUserId, { amount, keptAmount, grantedAt });
     if (skipReason) {
       this.#logger.info({ event: "AFFILIATE_BONUS_SKIPPED", transactionId: payment.id, affiliateUserId, reason: skipReason });
       return;
@@ -337,6 +344,7 @@ export class AffiliateCommissionService {
       amountRefunded: amount - keptAmount,
       sourceTransactionId: payment.id,
       sourceStripeChargeId: payment.stripeChargeId,
+      createdAt: grantedAt,
       affiliateBonus: true
     });
     if (!bonus) return;
@@ -362,12 +370,12 @@ export class AffiliateCommissionService {
   async #findBonusSkipReason(
     payment: StripeTransactionOutput,
     affiliateUserId: string,
-    { amount, keptAmount }: { amount: number; keptAmount: number }
+    { amount, keptAmount, grantedAt }: { amount: number; keptAmount: number; grantedAt: Date }
   ): Promise<BonusSkipReason | undefined> {
     if (amount <= 0) return "bonus_disabled";
     if (payment.amount < this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT) return "bonus_below_min_payment";
 
-    const bonusesThisMonth = await this.stripeTransactionRepository.countAffiliateBonusesSince(affiliateUserId, startOfUtcMonth(new Date()));
+    const bonusesThisMonth = await this.stripeTransactionRepository.countAffiliateBonusesSince(affiliateUserId, startOfUtcMonth(grantedAt));
     if (bonusesThisMonth >= this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MONTHLY_CAP) return "bonus_cap_reached";
     if (keptAmount <= 0) return "nothing_left_to_grant";
 

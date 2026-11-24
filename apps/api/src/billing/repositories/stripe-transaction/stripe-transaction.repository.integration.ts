@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import { RefundDebitRepository } from "@src/billing/repositories/refund-debit/refund-debit.repository";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { getPostgresError } from "@src/core/repositories/base.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
@@ -481,15 +482,17 @@ describe(StripeTransactionRepository.name, () => {
         affiliateBonus: true
       });
 
-      await expect(
-        stripeTransactionRepository.createAffiliateCommission({
+      const error = await stripeTransactionRepository
+        .createAffiliateCommission({
           userId: affiliate.id,
           organizationId,
           amount: 500,
           sourceTransactionId: sourcePayment.id,
           affiliateBonus: true
         })
-      ).rejects.toThrow();
+        .catch((caught: unknown) => caught);
+
+      expect(getPostgresError(error)).toMatchObject({ code: "23505", constraint_name: "stripe_transactions_source_transaction_id_unique" });
     });
 
     it("records the part of the commission already taken back when the source payment was partly refunded", async () => {
@@ -1036,6 +1039,34 @@ describe(StripeTransactionRepository.name, () => {
       await createTestCommission(affiliate.id, { affiliateBonus: true, status: "refunded", createdAt: new Date("2024-06-04T00:00:00Z") });
 
       await expect(stripeTransactionRepository.countAffiliateBonusesSince(affiliate.id, since)).resolves.toBe(3);
+    });
+
+    it("counts a bonus re-held for a dispute once, together with the row it replaced", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      const since = new Date("2024-06-01T00:00:00Z");
+      const grantedAt = new Date("2024-06-02T00:00:00Z");
+      await createTestCommission(affiliate.id, { affiliateBonus: true, status: "refunded", sourceTransactionId: sourcePayment.id, createdAt: grantedAt });
+      await createTestCommission(affiliate.id, { affiliateBonus: true, status: "pending", sourceTransactionId: sourcePayment.id, createdAt: grantedAt });
+
+      await expect(stripeTransactionRepository.countAffiliateBonusesSince(affiliate.id, since)).resolves.toBe(1);
+    });
+
+    it("counts the bonuses of a deleted payment once by the charge they were earned on", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const since = new Date("2024-06-01T00:00:00Z");
+      const sourceStripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
+      await createTestCommission(affiliate.id, { affiliateBonus: true, status: "refunded", sourceStripeChargeId, createdAt: new Date("2024-06-02T00:00:00Z") });
+      await createTestCommission(affiliate.id, { affiliateBonus: true, status: "pending", sourceStripeChargeId, createdAt: new Date("2024-06-02T00:00:00Z") });
+      await createTestCommission(affiliate.id, {
+        affiliateBonus: true,
+        sourceStripeChargeId: `ch_${faker.string.alphanumeric(24)}`,
+        createdAt: new Date("2024-06-03T00:00:00Z")
+      });
+
+      await expect(stripeTransactionRepository.countAffiliateBonusesSince(affiliate.id, since)).resolves.toBe(2);
     });
 
     it("ignores percentage commissions and other transactions of the affiliate", async () => {

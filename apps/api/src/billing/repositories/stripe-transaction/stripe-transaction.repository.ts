@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -487,10 +487,10 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return items.reduce((sum, item) => sum + (item.amount - item.amountRefunded), 0);
   }
 
-  /** Counts every status, so a bonus taken back by a refund still uses up the affiliate's allowance. */
+  /** Counts each source payment's bonus once whatever its status, so neither a refund nor the row re-held for a dispute changes the allowance it uses up. */
   async countAffiliateBonusesSince(affiliateUserId: string, since: Date): Promise<number> {
     const [{ total }] = await this.cursor
-      .select({ total: count() })
+      .select({ total: countDistinct(this.#bonusGrantKey()) })
       .from(this.table)
       .where(
         this.unscoped("affiliate-earnings").whereAccessibleBy(
@@ -504,6 +504,11 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       );
 
     return total;
+  }
+
+  /** A deleted source payment leaves its rows only the charge they were earned on. */
+  #bonusGrantKey(): SQL {
+    return sql`coalesce(${this.table.sourceTransactionId}::text, ${this.table.sourceStripeChargeId}, ${this.table.id}::text)`;
   }
 
   async sumCreditedAffiliateCommissionNet(userId: string): Promise<number> {

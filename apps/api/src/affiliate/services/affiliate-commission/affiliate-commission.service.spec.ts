@@ -1395,6 +1395,7 @@ describe(AffiliateCommissionService.name, () => {
 
   describe("when the referral's first commission is held", () => {
     it("holds a $5 bonus next to the commission of the referral's first payment of $20 or more", async () => {
+      const now = new Date("2026-06-10T12:00:00.000Z");
       const {
         service,
         payment,
@@ -1408,8 +1409,8 @@ describe(AffiliateCommissionService.name, () => {
         refillService,
         analyticsService,
         logger
-      } = setup({ isFirstCommission: true, paymentAmount: 2000 });
-      const releasesAt = addSeconds(bonus.createdAt, HOLD_SECONDS);
+      } = setup({ isFirstCommission: true, paymentAmount: 2000, now });
+      const releasesAt = addSeconds(now, HOLD_SECONDS);
 
       await service.syncCommission(payment.id, "settlement");
 
@@ -1421,6 +1422,7 @@ describe(AffiliateCommissionService.name, () => {
         amountRefunded: 0,
         sourceTransactionId: payment.id,
         sourceStripeChargeId: payment.stripeChargeId,
+        createdAt: now,
         affiliateBonus: true
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }), {
@@ -1511,6 +1513,16 @@ describe(AffiliateCommissionService.name, () => {
       expect(stripeTransactionRepository.countAffiliateBonusesSince).toHaveBeenCalledWith(affiliate.userId, new Date("2026-12-01T00:00:00.000Z"));
     });
 
+    it("dates the bonus at the moment its monthly cap was checked", async () => {
+      const now = new Date("2026-12-01T03:00:00.000Z");
+      const { service, payment, stripeTransactionRepository } = setup({ isFirstCommission: true, now });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.objectContaining({ affiliateBonus: true, createdAt: now }));
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.not.objectContaining({ createdAt: expect.anything() }));
+    });
+
     it("holds only the payer's share still paid of the bonus of a partly refunded payment", async () => {
       const { service, payment, affiliate, stripeTransactionRepository, analyticsService } = setup({
         isFirstCommission: true,
@@ -1583,11 +1595,16 @@ describe(AffiliateCommissionService.name, () => {
 
   describe("when a held bonus comes due", () => {
     it("credits the held bonus once the referred user has consumed $20 since the referral", async () => {
-      const { service, payment, affiliate, referral, bonus, stripeTransactionRepository, refillService, referredUsageService } = setup({ hasBonus: true });
+      const now = new Date("2026-05-20T08:00:00.000Z");
+      const { service, payment, affiliate, bonus, stripeTransactionRepository, refillService, referredUsageService } = setup({
+        hasBonus: true,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now
+      });
 
       await service.syncCommission(payment.id, "release");
 
-      expect(referredUsageService.hasConsumedAtLeast).toHaveBeenCalledWith(payment.userId, new Date(referral.createdAt), 2000);
+      expect(referredUsageService.hasConsumedAtLeast).toHaveBeenCalledWith(payment.userId, { since: new Date("2026-04-15T10:00:00.000Z"), until: now }, 2000);
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "succeeded", amountRefunded: 0 });
       expect(refillService.topUpWallet).toHaveBeenCalledExactlyOnceWith(
         500,
@@ -1625,6 +1642,24 @@ describe(AffiliateCommissionService.name, () => {
         expect.anything(),
         expect.objectContaining({ payment: expect.objectContaining({ transactionId: bonus.id }) })
       );
+    });
+
+    it("counts only the usage up to the close of the commission window when the check runs after it", async () => {
+      const { service, payment, bonus, stripeTransactionRepository, refillService, referredUsageService } = setup({
+        hasBonus: true,
+        referredAt: "2026-04-15T10:00:00.000Z",
+        now: new Date("2026-07-20T10:00:00.000Z")
+      });
+
+      await service.syncCommission(payment.id, "bonus_usage");
+
+      expect(referredUsageService.hasConsumedAtLeast).toHaveBeenCalledWith(
+        payment.userId,
+        { since: new Date("2026-04-15T10:00:00.000Z"), until: new Date("2026-07-15T10:00:00.000Z") },
+        2000
+      );
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(bonus.id, { status: "succeeded", amountRefunded: 0 });
+      expect(refillService.topUpWallet).toHaveBeenCalledOnce();
     });
 
     it("reads the referred user's usage before taking the payment lock", async () => {
@@ -2700,7 +2735,7 @@ describe(AffiliateCommissionService.name, () => {
     jobQueueService.enqueue.mockResolvedValue("job-id");
 
     const referredUsageService = mock<ReferredUsageService>();
-    referredUsageService.hasConsumedAtLeast.mockImplementation(async (_referredUserId, _since, minCents) =>
+    referredUsageService.hasConsumedAtLeast.mockImplementation(async (_referredUserId, _window, minCents) =>
       input.referredUserConsumedCents === undefined ? input.hasConsumedBonusUsage ?? true : input.referredUserConsumedCents >= minCents
     );
 

@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { subDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -455,9 +455,11 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const { payment, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     await syncCommissionOf(payment.id);
+    const releaseStartedAt = new Date();
 
     await releaseCommissionOf(payment.id);
 
+    const releaseEndedAt = new Date();
     const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: false });
     expect(commission).toMatchObject({ status: "succeeded" });
     await expect(stripeTransactionRepository.findAffiliateCommissionBySource(payment.id, { bonus: true })).resolves.toMatchObject({
@@ -471,7 +473,8 @@ describe(SyncAffiliateCommissionHandler.name, () => {
       expect.objectContaining({ payment: expect.objectContaining({ transactionId: commission?.id }) })
     );
     const [recheck] = await findJobRows(SyncAffiliateCommission[JOB_NAME], { data: { transactionId: payment.id, trigger: "bonus_usage" } });
-    expect(new Date(recheck.start_after).getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
+    expect(new Date(recheck.start_after).getTime()).toBeGreaterThanOrEqual(addDays(releaseStartedAt, 1).getTime());
+    expect(new Date(recheck.start_after).getTime()).toBeLessThanOrEqual(addDays(releaseEndedAt, 1).getTime());
   });
 
   async function setup(input: { paymentAmount?: number; paymentAmountRefunded?: number; paymentStatus?: "succeeded" | "pending" } = {}) {

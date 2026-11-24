@@ -15,14 +15,14 @@ export class ReferredUsageService {
   ) {}
 
   /** Counts lease cost not yet settled too, so a deployment still running counts for what it has run so far. */
-  async hasConsumedAtLeast(referredUserId: string, since: Date, minCents: number): Promise<boolean> {
+  async hasConsumedAtLeast(referredUserId: string, { since, until }: { since: Date; until: Date }, minCents: number): Promise<boolean> {
     const owners = await this.#findPayerWalletAddresses(referredUserId);
     if (!owners.length) return false;
 
     const consumption = await this.deploymentSpendRepository.findConsumedByDeployment({
       owners,
       startDate: toUtcDay(since),
-      endDate: toUtcDay(new Date())
+      endDate: toUtcDay(until)
     });
     const consumedMicroUsd = consumption.reduce((total, { settledMicroUsd, accruedMicroUsd }) => total + Number(settledMicroUsd) + Number(accruedMicroUsd), 0);
 
