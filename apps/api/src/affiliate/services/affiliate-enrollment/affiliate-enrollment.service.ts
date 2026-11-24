@@ -63,8 +63,8 @@ export class AffiliateEnrollmentService {
   }
 
   async #findIneligibleReason(userId: string): Promise<IneligibleReason | undefined> {
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.AFFILIATE_PROGRAM, { userId })) return "program_disabled";
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.AFFILIATE_OPEN_ENROLLMENT, { userId })) return "enrollment_disabled";
+    if (!this.featureFlagsService.isEnabledForSubject(FeatureFlags.AFFILIATE_PROGRAM, userId)) return "program_disabled";
+    if (!this.featureFlagsService.isEnabledForSubject(FeatureFlags.AFFILIATE_OPEN_ENROLLMENT, userId)) return "enrollment_disabled";
 
     const affiliate = await this.affiliateRepository.findByUserId(userId);
     if (affiliate) return affiliate.revokedAt ? "revoked" : "already_affiliate";
@@ -88,7 +88,7 @@ export class AffiliateEnrollmentService {
 
   async #approveUnlessJoinedConcurrently(userId: string): Promise<void> {
     try {
-      const affiliate = await this.affiliateService.approve({ userId, actor: SELF_SERVICE_ACTOR });
+      const affiliate = await this.affiliateService.enroll({ userId, actor: SELF_SERVICE_ACTOR });
       this.#logger.info({ event: "AFFILIATE_SELF_JOINED", userId, code: affiliate.code });
     } catch (error) {
       if (!isHttpError(error) || error.errorCode !== "affiliate_already_approved") throw error;

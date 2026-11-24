@@ -48,7 +48,7 @@ describe(AffiliateEnrollmentService.name, () => {
       });
 
       await expect(service.checkEligibility("user-1")).resolves.toEqual({ eligible: false, reason: "program_disabled" });
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_PROGRAM, { userId: "user-1" });
+      expect(featureFlagsService.isEnabledForSubject).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_PROGRAM, "user-1");
       expect(affiliateRepository.findByUserId).not.toHaveBeenCalled();
     });
 
@@ -56,7 +56,7 @@ describe(AffiliateEnrollmentService.name, () => {
       const { service, featureFlagsService, affiliateRepository } = setup({ disabledFlags: [FeatureFlags.AFFILIATE_OPEN_ENROLLMENT] });
 
       await expect(service.checkEligibility("user-1")).resolves.toEqual({ eligible: false, reason: "enrollment_disabled" });
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_OPEN_ENROLLMENT, { userId: "user-1" });
+      expect(featureFlagsService.isEnabledForSubject).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_OPEN_ENROLLMENT, "user-1");
       expect(affiliateRepository.findByUserId).not.toHaveBeenCalled();
     });
 
@@ -133,10 +133,10 @@ describe(AffiliateEnrollmentService.name, () => {
       const { service, affiliateService, logger } = setup({ spentCents: 10_000 });
       const profile = mock<AffiliateProfile>({ code: "newcode" });
       affiliateService.getProfile.mockResolvedValueOnce(null).mockResolvedValueOnce(profile);
-      affiliateService.approve.mockResolvedValue(createAffiliate({ userId: "user-1", code: "newcode" }));
+      affiliateService.enroll.mockResolvedValue(createAffiliate({ userId: "user-1", code: "newcode" }));
 
       await expect(service.join("user-1")).resolves.toBe(profile);
-      expect(affiliateService.approve).toHaveBeenCalledWith({ userId: "user-1", actor: "self-service" });
+      expect(affiliateService.enroll).toHaveBeenCalledWith({ userId: "user-1", actor: "self-service" });
       expect(affiliateService.getProfile).toHaveBeenLastCalledWith("user-1");
       expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_SELF_JOINED", userId: "user-1", code: "newcode" });
     });
@@ -148,14 +148,14 @@ describe(AffiliateEnrollmentService.name, () => {
 
       await expect(service.join("user-1")).resolves.toBe(profile);
       expect(affiliateService.getProfile).toHaveBeenCalledWith("user-1");
-      expect(affiliateService.approve).not.toHaveBeenCalled();
+      expect(affiliateService.enroll).not.toHaveBeenCalled();
     });
 
     it("refuses with 403 and logs the reason when the user is ineligible", async () => {
       const { service, affiliateService, logger } = setup({ spentCents: 9_999 });
 
       await expect(service.join("user-1")).rejects.toMatchObject({ status: 403, errorCode: "affiliate_enrollment_ineligible" });
-      expect(affiliateService.approve).not.toHaveBeenCalled();
+      expect(affiliateService.enroll).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_ENROLLMENT_INELIGIBLE", userId: "user-1", reason: "below_min_spend" });
     });
 
@@ -163,10 +163,17 @@ describe(AffiliateEnrollmentService.name, () => {
       const { service, affiliateService, logger } = setup({ spentCents: 10_000 });
       const profile = mock<AffiliateProfile>({ code: "racecode" });
       affiliateService.getProfile.mockResolvedValueOnce(null).mockResolvedValueOnce(profile);
-      affiliateService.approve.mockRejectedValue(createError(409, "This user is already an approved affiliate", { errorCode: "affiliate_already_approved" }));
+      affiliateService.enroll.mockRejectedValue(createError(409, "This user is already an approved affiliate", { errorCode: "affiliate_already_approved" }));
 
       await expect(service.join("user-1")).resolves.toBe(profile);
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_SELF_JOINED" }));
+    });
+
+    it("refuses with 403 when the affiliate a concurrent join created was revoked before this join enrolled", async () => {
+      const { service, affiliateService } = setup({ spentCents: 10_000 });
+      affiliateService.enroll.mockRejectedValue(createError(409, "This user is already an approved affiliate", { errorCode: "affiliate_already_approved" }));
+
+      await expect(service.join("user-1")).rejects.toMatchObject({ status: 403, errorCode: "affiliate_enrollment_ineligible" });
     });
 
     it("returns the profile when a concurrent join inserted the affiliate between the profile read and the eligibility check", async () => {
@@ -176,14 +183,14 @@ describe(AffiliateEnrollmentService.name, () => {
       affiliateRepository.findByUserId.mockResolvedValue(createAffiliate({ userId: "user-1", revokedAt: null }));
 
       await expect(service.join("user-1")).resolves.toBe(profile);
-      expect(affiliateService.approve).not.toHaveBeenCalled();
+      expect(affiliateService.enroll).not.toHaveBeenCalled();
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_ENROLLMENT_INELIGIBLE" }));
     });
 
     it("rethrows another conflict from the approval", async () => {
       const { service, affiliateService } = setup({ spentCents: 10_000 });
       const codeTaken = createError(409, "This code is already used by another affiliate", { errorCode: "affiliate_code_taken" });
-      affiliateService.approve.mockRejectedValue(codeTaken);
+      affiliateService.enroll.mockRejectedValue(codeTaken);
 
       await expect(service.join("user-1")).rejects.toBe(codeTaken);
     });
@@ -191,14 +198,14 @@ describe(AffiliateEnrollmentService.name, () => {
     it("rethrows a failure that is not an http error", async () => {
       const { service, affiliateService } = setup({ spentCents: 10_000 });
       const failure = new Error("connection lost");
-      affiliateService.approve.mockRejectedValue(failure);
+      affiliateService.enroll.mockRejectedValue(failure);
 
       await expect(service.join("user-1")).rejects.toBe(failure);
     });
 
     it("refuses with 403 when the affiliate was revoked before their profile could be read", async () => {
       const { service, affiliateService } = setup({ spentCents: 10_000 });
-      affiliateService.approve.mockResolvedValue(createAffiliate({ userId: "user-1" }));
+      affiliateService.enroll.mockResolvedValue(createAffiliate({ userId: "user-1" }));
 
       await expect(service.join("user-1")).rejects.toMatchObject({ status: 403, errorCode: "affiliate_enrollment_ineligible" });
     });
@@ -217,7 +224,7 @@ describe(AffiliateEnrollmentService.name, () => {
     userWalletRepository.unscoped.mockReturnValue(userWalletRepository);
     userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: "user-1", abuseLockedAt: input.abuseLocked ? new Date() : null }));
     const featureFlagsService = mock<FeatureFlagsService>();
-    featureFlagsService.isEnabled.mockImplementation(flag => !input.disabledFlags?.includes(flag));
+    featureFlagsService.isEnabledForSubject.mockImplementation(flag => !input.disabledFlags?.includes(flag));
     const billingConfig = mock<BillingConfig>({
       AFFILIATE_SELF_JOIN_MIN_SPEND_AMOUNT: input.minSpendCents ?? 10_000,
       REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000,

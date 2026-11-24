@@ -194,7 +194,7 @@ describe("Affiliate enrollment", () => {
     const token = faker.string.alphanumeric(40);
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => (header.replace(/^Bearer +/i, "") === token ? user.userId! : null));
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabledForSubject").mockImplementation(
       flag => flag !== FeatureFlags.AFFILIATE_OPEN_ENROLLMENT || (input.openEnrollment ?? true)
     );
 

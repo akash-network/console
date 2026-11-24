@@ -88,6 +88,14 @@ export class AffiliateService {
     return affiliate;
   }
 
+  /** Only ever inserts, so a row that exists, revoked or not, refuses with `affiliate_already_approved` and only `approve` can reinstate a revoked affiliate. */
+  async enroll({ userId, actor }: { userId: string; actor: string }): Promise<AffiliateOutput> {
+    const affiliate = await this.#createWithCode({ userId, approvedAt: new Date(), actor });
+    this.logger.info({ event: "AFFILIATE_APPROVED", actor, userId, code: affiliate.code });
+
+    return affiliate;
+  }
+
   async revoke({ code, actor }: RevokeAffiliateInput): Promise<AffiliateOutput> {
     const normalizedCode = normalizeAffiliateCode(code);
     const affiliate = normalizedCode ? await this.affiliateRepository.findByCode(normalizedCode) : undefined;
