@@ -52,10 +52,7 @@ describe(useDeploymentFlow.name, () => {
 
     await waitFor(() => expect(result.current.phase).toBe("quoting"));
     expect(result.current.dseq).toBe("999");
-    expect(createMutate).toHaveBeenCalledWith(
-      { async: "true", data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
-      expect.any(Object)
-    );
+    expect(createMutate).toHaveBeenCalledWith({ async: "true", data: { sdl: "sdl-content", sealedSecrets: "SEALED" } }, expect.any(Object));
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/999?bid-strategy=select", undefined, { shallow: true });
   });
 
@@ -206,10 +203,7 @@ describe(useDeploymentFlow.name, () => {
     await settleSeal();
 
     await waitFor(() => expect(result.current.phase).toBe("quoting"));
-    expect(createMutate).toHaveBeenCalledWith(
-      { async: "true", data: { sdl: "sdl-content", name: "my-app", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
-      expect.any(Object)
-    );
+    expect(createMutate).toHaveBeenCalledWith({ async: "true", data: { sdl: "sdl-content", name: "my-app", sealedSecrets: "SEALED" } }, expect.any(Object));
   });
 
   it.each([undefined, "", "   "])("omits a name of %p, which the api refuses rather than treating as unnamed", async name => {
@@ -1521,10 +1515,7 @@ describe(useDeploymentFlow.name, () => {
 
       await waitFor(() => expect(result.current.phase).toBe("quoting"));
       expect(sealSdlSecrets).toHaveBeenCalledWith({ context: SEAL_CONTEXT, sdl: "sdl-content", secrets: { API_KEY: "hunter2" } });
-      expect(createMutate).toHaveBeenCalledWith(
-        { async: "true", data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
-        expect.any(Object)
-      );
+      expect(createMutate).toHaveBeenCalledWith({ async: "true", data: { sdl: "sdl-content", sealedSecrets: "SEALED" } }, expect.any(Object));
     });
 
     it("sends an empty seal when nothing is secret, which is what stops the api protecting every variable", async () => {
@@ -3333,10 +3324,7 @@ describe(useDeploymentFlow.name, () => {
       await settleSeal();
 
       expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
-      expect(createMutate).toHaveBeenCalledWith(
-        { async: "true", data: { sdl: "sdl", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
-        expect.any(Object)
-      );
+      expect(createMutate).toHaveBeenCalledWith({ async: "true", data: { sdl: "sdl", sealedSecrets: "SEALED" } }, expect.any(Object));
       expect(result.current.dseq).toBe("1000");
       expect(result.current.phase).toBe("quoting");
     });

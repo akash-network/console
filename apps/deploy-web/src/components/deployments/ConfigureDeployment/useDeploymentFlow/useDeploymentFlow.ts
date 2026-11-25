@@ -150,9 +150,6 @@ interface UseDeploymentFlowInput {
   pendingCreate?: PendingCreate;
 }
 
-/** Default escrow deposit in USD (ACT maps 1:1 to USD). Matches `DEFAULT_DEPOSIT_USD` in the phased flow so a trial grant covers it. */
-const DEFAULT_DEPOSIT = 0.5;
-
 const BACKGROUND_QUERY: { async: "true" } = { async: "true" };
 
 const HTTP_PAYMENT_REQUIRED = 402;
@@ -781,8 +778,7 @@ export function useDeploymentFlow({ intent, pendingCreate }: UseDeploymentFlowIn
               ...projectPayload(deployTargetProjectId),
               ...templatePayload(intentRef.current),
               ...sealed,
-              ...inheritance,
-              deposit: DEFAULT_DEPOSIT
+              ...inheritance
             },
             ...createQueryFor(isOneClickDeploy(intentRef.current, bidStrategyRef.current))
           },
