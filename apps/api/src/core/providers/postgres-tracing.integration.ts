@@ -21,9 +21,12 @@ describe("postgres.js query tracing", () => {
     expect(span.name).toMatch(/^SELECT /);
     expect(span.attributes).toMatchObject({
       "db.system.name": "postgresql",
+      "db.namespace": expect.any(String),
       "db.query.text": "select $1::text as token",
       "db.operation.name": "SELECT",
-      "db.response.returned_rows": 1
+      "db.response.returned_rows": 1,
+      "server.address": expect.any(String),
+      "server.port": expect.any(Number)
     });
     expect(JSON.stringify(span.attributes)).not.toContain("user-secret-token");
   });
