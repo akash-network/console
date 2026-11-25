@@ -7,6 +7,7 @@ const PINNED_DISTANCE_PX = 48;
 
 function scrollToBottom(scrollArea: HTMLElement) {
   scrollArea.scrollTop = scrollArea.scrollHeight;
+  return scrollArea.scrollTop;
 }
 
 function isNearBottom(scrollArea: HTMLElement) {
@@ -18,12 +19,16 @@ export function useFollowLatestContent(followKey: unknown): { scrollAreaRef: Ref
   const [scrollArea, setScrollArea] = useState<HTMLElement | null>(null);
   const [content, setContent] = useState<HTMLElement | null>(null);
   const isPinnedRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
 
   useEffect(
     function trackWhetherTheReaderIsAtTheBottom() {
       if (!scrollArea) return;
       function updatePinned() {
-        isPinnedRef.current = isNearBottom(scrollArea!);
+        const hasScrolledUp = scrollArea!.scrollTop < lastScrollTopRef.current;
+        lastScrollTopRef.current = scrollArea!.scrollTop;
+        if (isNearBottom(scrollArea!)) isPinnedRef.current = true;
+        else if (hasScrolledUp) isPinnedRef.current = false;
       }
       scrollArea.addEventListener("scroll", updatePinned, { passive: true });
       return function stopTrackingTheReader() {
@@ -37,7 +42,7 @@ export function useFollowLatestContent(followKey: unknown): { scrollAreaRef: Ref
     function followGrowingContent() {
       if (!scrollArea || !content) return;
       const observer = new ResizeObserver(function followIfPinned() {
-        if (isPinnedRef.current) scrollToBottom(scrollArea);
+        if (isPinnedRef.current) lastScrollTopRef.current = scrollToBottom(scrollArea);
       });
       observer.observe(content);
       return function stopFollowingContent() {
@@ -51,7 +56,7 @@ export function useFollowLatestContent(followKey: unknown): { scrollAreaRef: Ref
     function snapToTheBottomOnNewFollowKey() {
       if (!scrollArea) return;
       isPinnedRef.current = true;
-      scrollToBottom(scrollArea);
+      lastScrollTopRef.current = scrollToBottom(scrollArea);
     },
     [scrollArea, followKey]
   );

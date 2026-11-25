@@ -43,6 +43,27 @@ describe(useFollowLatestContent.name, () => {
     expect(scrollArea.scrollTop).toBe(451);
   });
 
+  it("keeps following when the scroll event of its own follow lands after the content grew past the slack", () => {
+    const { scrollArea, scrollTo, growUnobservedTo, growTo } = setup({ scrollHeight: 900, clientHeight: 400 });
+
+    growTo(1400);
+    growUnobservedTo(2000);
+    scrollTo(1400);
+    growTo(2000);
+
+    expect(scrollArea.scrollTop).toBe(2000);
+  });
+
+  it("stays put when the reader scrolls back down without reaching the bottom", () => {
+    const { scrollArea, scrollTo, growTo } = setup({ scrollHeight: 900, clientHeight: 400 });
+
+    scrollTo(100);
+    scrollTo(300);
+    growTo(1400);
+
+    expect(scrollArea.scrollTop).toBe(300);
+  });
+
   it("follows again once the reader scrolls back to the bottom", () => {
     const { scrollArea, scrollTo, growTo } = setup({ scrollHeight: 900, clientHeight: 400 });
 
@@ -145,13 +166,16 @@ describe(useFollowLatestContent.name, () => {
       scrollArea.scrollTop = scrollTop;
       fireEvent.scroll(scrollArea);
     };
-    const growTo = (scrollHeight: number) => {
+    const growUnobservedTo = (scrollHeight: number) => {
       Object.assign(scrollArea, { scrollHeight });
+    };
+    const growTo = (scrollHeight: number) => {
+      growUnobservedTo(scrollHeight);
       observers.filter(observer => observer.targets.size > 0).forEach(observer => observer.notify());
     };
     const observedTargets = () => observers.flatMap(observer => [...observer.targets]);
     const rerender = (followKey: number) => view.rerender({ followKey });
 
-    return { scrollArea, content, attach, scrollTo, growTo, observedTargets, rerender, unmount: view.unmount };
+    return { scrollArea, content, attach, scrollTo, growUnobservedTo, growTo, observedTargets, rerender, unmount: view.unmount };
   }
 });
