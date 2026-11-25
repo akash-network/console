@@ -7,6 +7,7 @@ import { containerDetector } from "@opentelemetry/resource-detector-container";
 import { envDetector, hostDetector, processDetector } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
+import { PostgresJsInstrumentation } from "./postgres-js/postgres-js-instrumentation";
 import { requestSampler } from "./sampler/request-sampler";
 import { redactIncomingUrlCredentials } from "./util/redact-incoming-url/redact-incoming-url";
 
@@ -21,6 +22,7 @@ export const sdk = new NodeSDK({
       startIncomingSpanHook: redactIncomingUrlCredentials
     }),
     new PgInstrumentation(),
+    new PostgresJsInstrumentation(),
     new PinoInstrumentation({
       disableLogSending: true
     }),
