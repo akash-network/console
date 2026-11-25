@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { once } from "lodash";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -195,6 +196,14 @@ describe("POSTGRES_DB", () => {
     expect(client.options.prepare).toBe(true);
   });
 
+  it("binds a bigint as int8 where the query leaves its type open, as postgres.js v3 did", async () => {
+    const { db } = setup({ uriPrepare: "true" });
+
+    const [row] = await db.execute<{ sum: string }>(sql`select (${2n ** 60n} + 1)::text as "sum"`);
+
+    expect(row.sum).toBe("1152921504606846977");
+  });
+
   function setup(input: { uriPrepare: string; POSTGRES_PREPARE?: boolean }) {
     const coreConfig = container.resolve(CORE_CONFIG);
     const uri = new URL(coreConfig.POSTGRES_DB_URI);
@@ -202,10 +211,11 @@ describe("POSTGRES_DB", () => {
 
     const childContainer = container.createChildContainer();
     childContainer.register(CORE_CONFIG, { useValue: { ...coreConfig, POSTGRES_DB_URI: uri.toString(), POSTGRES_PREPARE: input.POSTGRES_PREPARE } });
-    const client = childContainer.resolve(POSTGRES_DB).$client;
+    const db = childContainer.resolve(POSTGRES_DB);
+    const client = db.$client;
 
     onTestFinished(() => client.end());
 
-    return { client };
+    return { db, client };
   }
 });

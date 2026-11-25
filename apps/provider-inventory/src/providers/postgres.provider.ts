@@ -30,6 +30,8 @@ container.register(PG_CLIENT, {
     const config = c.resolve(APP_CONFIG);
     const logger = c.resolve(DB_LOGGER);
     return postgres(config.PROVIDER_INVENTORY_POSTGRES_URL, {
+      /** Types each parameter from its JavaScript value as postgres.js v3 did, which every query here was written against, instead of leaving it to the server. */
+      infer: true,
       max: config.POSTGRES_MAX_CONNECTIONS,
       connect_timeout: config.POSTGRES_CONNECT_TIMEOUT,
       idle_timeout: config.POSTGRES_IDLE_TIMEOUT,
