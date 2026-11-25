@@ -8,14 +8,14 @@ const PROVIDER_LIST_TIMEOUT_MS = 30_000;
 describe("Provider Proxy API", () => {
   let providers: Provider[];
 
-  beforeAll(async () => {
-    providers = await fetchAvailableProviders();
-  }, PROVIDER_LIST_TIMEOUT_MS);
-
   beforeAll(() => {
     // ensure that tests can run against providers with self-signed certificates
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   });
+
+  beforeAll(async () => {
+    providers = await fetchAvailableProviders();
+  }, PROVIDER_LIST_TIMEOUT_MS);
 
   afterAll(() => {
     delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
