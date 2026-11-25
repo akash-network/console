@@ -39,7 +39,7 @@
     "hono": "4.6.12",
     "http-errors": "^2.0.0",
     "lodash": "^4.17.21",
-    "postgres": "^3.4.4",
+    "postgres": "^4.1.1",
     "reflect-metadata": "^0.2.2",
     "sql-formatter": "~15.7.4",
     "tsyringe": "^4.10.0",

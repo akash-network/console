@@ -213,10 +213,10 @@ describe(BaseRepository.name, () => {
   function setup() {
     const executedQueries: Array<{ query: string; params: unknown[] }> = [];
     const client = postgres("postgres://localhost:5432/unused");
-    vi.spyOn(client, "unsafe").mockImplementation((query, params) => {
+    vi.spyOn(client, "unsafe").mockImplementation(((query: string, params?: unknown[]) => {
       executedQueries.push({ query, params: params ?? [] });
       throw new Error(UNREACHABLE_DRIVER);
-    });
+    }) as typeof client.unsafe);
     const driverlessDb = drizzle(client);
     const pg = mock<ApiPgDatabase>({ update: driverlessDb.update.bind(driverlessDb) });
     const txManager = mock<TxService>();

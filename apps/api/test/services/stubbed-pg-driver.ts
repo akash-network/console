@@ -12,17 +12,17 @@ export function stubPgDriver<TSchema extends Record<string, unknown>>({ schema, 
   const columns = Object.keys(getTableColumns(table));
   const client = postgres("postgres://localhost:5432/unused");
 
-  vi.spyOn(client, "unsafe").mockImplementation((query, params) => {
+  vi.spyOn(client, "unsafe").mockImplementation(((query: string, params?: unknown[]) => {
     executedQueries.push({ query, params: params ?? [] });
     const rows = queuedResults.shift() ?? [];
     const pending = Object.assign(Promise.resolve(rows), { values: async () => rows.map(row => columns.map(column => row[column] ?? null)) });
 
     return pending as unknown as ReturnType<typeof client.unsafe>;
-  });
+  }) as typeof client.unsafe);
 
-  vi.spyOn(client, "begin").mockImplementation((async (callback: (transaction: typeof client) => unknown) => {
+  vi.spyOn(client, "begin").mockImplementation((async (callback: (transaction: postgres.TransactionSql) => unknown) => {
     executedQueries.push({ query: "begin", params: [] });
-    return await callback(client);
+    return await callback(client as unknown as postgres.TransactionSql);
   }) as typeof client.begin);
 
   return {
