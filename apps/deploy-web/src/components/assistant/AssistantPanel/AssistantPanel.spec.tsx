@@ -308,14 +308,13 @@ describe("AssistantPanel", () => {
   });
 
   it("follows the latest content, snapping back to it on every question the user asks", () => {
-    const { dependencies } = setup({
+    const { dependencies, scrollAreaRef, contentRef } = setup({
       consent: CURRENT_CONSENT,
       messages: [createTranscriptMessage("1", "user", "Hi"), createTranscriptMessage("2", "assistant", "Hello"), createTranscriptMessage("3", "user", "Deploy")]
     });
-    const { scrollAreaRef, contentRef } = vi.mocked(dependencies.useFollowLatestContent).mock.results.at(-1)!.value;
 
     expect(dependencies.useFollowLatestContent).toHaveBeenLastCalledWith(2);
-    expect(scrollAreaRef.mock.lastCall[0]).toContainElement(contentRef.mock.lastCall[0]);
+    expect(scrollAreaRef.mock.lastCall![0]).toContainElement(contentRef.mock.lastCall![0]);
   });
 
   it.each([
@@ -441,10 +440,12 @@ describe("AssistantPanel", () => {
       isLoading: !!input.isLoading,
       isError: !!input.isError || !!input.refetchFailed
     });
+    const scrollAreaRef = vi.fn<(scrollArea: HTMLElement | null) => void>();
+    const contentRef = vi.fn<(content: HTMLElement | null) => void>();
     const dependencies = MockComponents(DEPENDENCIES, {
       useAssistantPrivacyQuery: vi.fn(() => privacy),
       useDeploymentName: vi.fn(() => input.deploymentName ?? null),
-      useFollowLatestContent: vi.fn(() => ({ scrollAreaRef: vi.fn(), contentRef: vi.fn() })),
+      useFollowLatestContent: vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.useFollowLatestContent>>({ scrollAreaRef, contentRef })),
       SendFeedbackDialog: vi.fn(() => <div role="dialog" />),
       useUpdateAssistantConsentMutation: vi.fn(() =>
         mock<ReturnType<typeof DEPENDENCIES.useUpdateAssistantConsentMutation>>({ mutateAsync: updateConsent as never, isPending: false })
@@ -485,6 +486,17 @@ describe("AssistantPanel", () => {
 
     const consentCardProps = () => vi.mocked(dependencies.AssistantConsentCard).mock.lastCall![0] as ComponentProps<typeof AssistantConsentCard>;
 
-    return { dependencies, conversation, updateConsent, onOpenChange, onPageAction, consentCardProps, rerenderOpen, unmount: view.unmount };
+    return {
+      dependencies,
+      scrollAreaRef,
+      contentRef,
+      conversation,
+      updateConsent,
+      onOpenChange,
+      onPageAction,
+      consentCardProps,
+      rerenderOpen,
+      unmount: view.unmount
+    };
   }
 });

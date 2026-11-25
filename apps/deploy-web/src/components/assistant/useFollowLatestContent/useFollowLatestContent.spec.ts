@@ -77,6 +77,24 @@ describe(useFollowLatestContent.name, () => {
     expect(scrollArea.scrollTop).toBe(100);
   });
 
+  it.each([
+    { detached: "the scroll area", detachesScrollArea: true, detachesContent: false },
+    { detached: "the content", detachesScrollArea: false, detachesContent: true },
+    { detached: "both elements", detachesScrollArea: true, detachesContent: true }
+  ])("stops watching while $detached is detached and follows again once it reattaches", ({ detachesScrollArea, detachesContent }) => {
+    const { scrollArea, content, attach, growTo, observedTargets } = setup({ scrollHeight: 900 });
+
+    attach({ scrollArea: detachesScrollArea ? null : scrollArea, content: detachesContent ? null : content });
+
+    expect(observedTargets()).toEqual([]);
+
+    attach({ scrollArea, content });
+    growTo(1400);
+
+    expect(observedTargets()).toEqual([content]);
+    expect(scrollArea.scrollTop).toBe(1400);
+  });
+
   function setup(input: { scrollHeight: number; clientHeight?: number }) {
     const observers: { notify: () => void; targets: Set<Element> }[] = [];
 
@@ -115,10 +133,13 @@ describe(useFollowLatestContent.name, () => {
     });
 
     const view = renderHook(({ followKey }) => useFollowLatestContent(followKey), { initialProps: { followKey: 1 } });
-    act(() => {
-      view.result.current.scrollAreaRef(scrollArea);
-      view.result.current.contentRef(content);
-    });
+    const attach = (elements: { scrollArea: HTMLElement | null; content: HTMLElement | null }) => {
+      act(() => {
+        view.result.current.scrollAreaRef(elements.scrollArea);
+        view.result.current.contentRef(elements.content);
+      });
+    };
+    attach({ scrollArea, content });
 
     const scrollTo = (scrollTop: number) => {
       scrollArea.scrollTop = scrollTop;
@@ -131,6 +152,6 @@ describe(useFollowLatestContent.name, () => {
     const observedTargets = () => observers.flatMap(observer => [...observer.targets]);
     const rerender = (followKey: number) => view.rerender({ followKey });
 
-    return { scrollArea, content, scrollTo, growTo, observedTargets, rerender, unmount: view.unmount };
+    return { scrollArea, content, attach, scrollTo, growTo, observedTargets, rerender, unmount: view.unmount };
   }
 });

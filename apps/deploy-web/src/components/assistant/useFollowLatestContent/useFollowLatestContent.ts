@@ -1,4 +1,5 @@
 "use client";
+import type { RefCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 
 /** Slack below the fold that still counts as reading the latest message, so sub-pixel rounding never stops the follow. */
@@ -13,7 +14,7 @@ function isNearBottom(scrollArea: HTMLElement) {
 }
 
 /** Keeps the scroll area at the bottom while its content grows, unless the reader scrolled up; a new `followKey` snaps back to the bottom. */
-export function useFollowLatestContent(followKey: unknown) {
+export function useFollowLatestContent(followKey: unknown): { scrollAreaRef: RefCallback<HTMLElement>; contentRef: RefCallback<HTMLElement> } {
   const [scrollArea, setScrollArea] = useState<HTMLElement | null>(null);
   const [content, setContent] = useState<HTMLElement | null>(null);
   const isPinnedRef = useRef(true);
