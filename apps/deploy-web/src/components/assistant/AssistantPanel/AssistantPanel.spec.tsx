@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AssistantConsentCard } from "../AssistantConsentCard/AssistantConsentCard";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
+import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
 import { ASSISTANT_PANEL_WIDTH_VAR, assistantContextLabelOf, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
@@ -306,6 +307,16 @@ describe("AssistantPanel", () => {
     expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
   });
 
+  it("follows the latest content, snapping back to it on every question the user asks", () => {
+    const { dependencies, scrollAreaRef, contentRef } = setup({
+      consent: CURRENT_CONSENT,
+      messages: [createTranscriptMessage("1", "user", "Hi"), createTranscriptMessage("2", "assistant", "Hello"), createTranscriptMessage("3", "user", "Deploy")]
+    });
+
+    expect(dependencies.useFollowLatestContent).toHaveBeenLastCalledWith(2);
+    expect(scrollAreaRef.mock.lastCall![0]).toContainElement(contentRef.mock.lastCall![0]);
+  });
+
   it.each([
     { case: "the user has not agreed yet", consent: null, problem: undefined },
     { case: "the conversation hit a problem", consent: CURRENT_CONSENT, problem: "unavailable" as const }
@@ -417,6 +428,7 @@ describe("AssistantPanel", () => {
     sendsQuestion?: boolean;
     isAnswering?: boolean;
     hasMessages?: boolean;
+    messages?: AssistantTranscriptMessage[];
     page?: string;
     deploymentDseq?: string;
     deploymentName?: string;
@@ -428,16 +440,19 @@ describe("AssistantPanel", () => {
       isLoading: !!input.isLoading,
       isError: !!input.isError || !!input.refetchFailed
     });
+    const scrollAreaRef = vi.fn<(scrollArea: HTMLElement | null) => void>();
+    const contentRef = vi.fn<(content: HTMLElement | null) => void>();
     const dependencies = MockComponents(DEPENDENCIES, {
       useAssistantPrivacyQuery: vi.fn(() => privacy),
       useDeploymentName: vi.fn(() => input.deploymentName ?? null),
+      useFollowLatestContent: vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.useFollowLatestContent>>({ scrollAreaRef, contentRef })),
       SendFeedbackDialog: vi.fn(() => <div role="dialog" />),
       useUpdateAssistantConsentMutation: vi.fn(() =>
         mock<ReturnType<typeof DEPENDENCIES.useUpdateAssistantConsentMutation>>({ mutateAsync: updateConsent as never, isPending: false })
       )
     });
     const conversation = Object.assign(mock<AssistantConversation>(), {
-      messages: input.hasMessages ? [createTranscriptMessage("1", "user", "Hi")] : [],
+      messages: input.messages ?? (input.hasMessages ? [createTranscriptMessage("1", "user", "Hi")] : []),
       problem: input.problem ?? null,
       endedAs: null,
       isAnswering: !!input.isAnswering,
@@ -471,6 +486,17 @@ describe("AssistantPanel", () => {
 
     const consentCardProps = () => vi.mocked(dependencies.AssistantConsentCard).mock.lastCall![0] as ComponentProps<typeof AssistantConsentCard>;
 
-    return { dependencies, conversation, updateConsent, onOpenChange, onPageAction, consentCardProps, rerenderOpen, unmount: view.unmount };
+    return {
+      dependencies,
+      scrollAreaRef,
+      contentRef,
+      conversation,
+      updateConsent,
+      onOpenChange,
+      onPageAction,
+      consentCardProps,
+      rerenderOpen,
+      unmount: view.unmount
+    };
   }
 });

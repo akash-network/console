@@ -14,11 +14,13 @@ import { AssistantExamplePrompts, CONFIGURE_PAGE } from "../AssistantExampleProm
 import { AssistantTranscript } from "../AssistantTranscript/AssistantTranscript";
 import { DiscordHelpCard } from "../DiscordHelpCard/DiscordHelpCard";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
+import { useFollowLatestContent } from "../useFollowLatestContent/useFollowLatestContent";
 
 export const DEPENDENCIES = {
   useAssistantPrivacyQuery,
   useDeploymentName,
   useUpdateAssistantConsentMutation,
+  useFollowLatestContent,
   AssistantConsentCard,
   AssistantExamplePrompts,
   AssistantTranscript,
@@ -66,7 +68,8 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
   const { mutateAsync: updateConsent, isPending: isSavingConsent } = d.useUpdateAssistantConsentMutation();
   const [hasConsentFailed, setHasConsentFailed] = useState(false);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const questionCount = conversation.messages.filter(message => message.role === "user").length;
+  const { scrollAreaRef, contentRef } = d.useFollowLatestContent(questionCount);
   const panelRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const consent = privacy.data?.consent;
@@ -76,14 +79,6 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
   const willSendQuestion = !!sendsQuestion && !!question;
   const isQuestionWaitingToSend = willSendQuestion && sentForOpenRef.current !== openedAt;
   const isAnsweringThisQuestion = conversation.isAnswering && conversation.messages.findLast(message => message.role === "user")?.text === question;
-
-  useEffect(
-    function followTheLatestMessage() {
-      const scrollArea = scrollRef.current;
-      if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
-    },
-    [conversation.messages, conversation.problem, conversation.endedAs]
-  );
 
   useEffect(
     function askTheQuestionTheUserClicked() {
@@ -195,36 +190,38 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
         </div>
       </header>
 
-      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        {privacy.isLoading && (
-          <div className="flex justify-center py-12">
-            <Spinner size="medium" />
-          </div>
-        )}
+      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div ref={contentRef} className="flex min-h-full flex-col gap-4">
+          {privacy.isLoading && (
+            <div className="flex justify-center py-12">
+              <Spinner size="medium" />
+            </div>
+          )}
 
-        {privacy.isError && !privacy.data && (
-          <div className="flex flex-col gap-3">
-            <p role="alert" className="text-sm text-destructive">
-              Couldn&apos;t load the assistant. Close the panel and try again.
-            </p>
-            <d.DiscordHelpCard />
-          </div>
-        )}
+          {privacy.isError && !privacy.data && (
+            <div className="flex flex-col gap-3">
+              <p role="alert" className="text-sm text-destructive">
+                Couldn&apos;t load the assistant. Close the panel and try again.
+              </p>
+              <d.DiscordHelpCard />
+            </div>
+          )}
 
-        {needsConsent && (
-          <d.AssistantConsentCard isSaving={isSavingConsent} hasFailed={hasConsentFailed} onAgree={agree} onDecline={() => onOpenChange(false)} />
-        )}
+          {needsConsent && (
+            <d.AssistantConsentCard isSaving={isSavingConsent} hasFailed={hasConsentFailed} onAgree={agree} onDecline={() => onOpenChange(false)} />
+          )}
 
-        {isReady && conversation.messages.length === 0 && !conversation.problem && (
-          <div className="my-auto flex flex-col items-center gap-5 py-8 text-center">
-            <h3 className="text-xl font-semibold">What do you want to do?</h3>
-            {!isQuestionWaitingToSend && (
-              <d.AssistantExamplePrompts page={conversation.page} deploymentDseq={conversation.deploymentDseq} onSend={conversation.send} />
-            )}
-          </div>
-        )}
+          {isReady && conversation.messages.length === 0 && !conversation.problem && (
+            <div className="my-auto flex flex-col items-center gap-5 py-8 text-center">
+              <h3 className="text-xl font-semibold">What do you want to do?</h3>
+              {!isQuestionWaitingToSend && (
+                <d.AssistantExamplePrompts page={conversation.page} deploymentDseq={conversation.deploymentDseq} onSend={conversation.send} />
+              )}
+            </div>
+          )}
 
-        {isReady && <d.AssistantTranscript conversation={conversation} />}
+          {isReady && <d.AssistantTranscript conversation={conversation} />}
+        </div>
       </div>
 
       {isReady && (
