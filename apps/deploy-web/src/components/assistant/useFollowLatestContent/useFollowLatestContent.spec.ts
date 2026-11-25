@@ -8,7 +8,7 @@ describe(useFollowLatestContent.name, () => {
   it("starts at the bottom once the scroll area is attached", () => {
     const { scrollArea } = setup({ scrollHeight: 900 });
 
-    expect(scrollArea.scrollTop).toBe(900);
+    expect(scrollArea.scrollTop).toBe(500);
   });
 
   it("watches the content for growth", () => {
@@ -22,7 +22,7 @@ describe(useFollowLatestContent.name, () => {
 
     growTo(1400);
 
-    expect(scrollArea.scrollTop).toBe(1400);
+    expect(scrollArea.scrollTop).toBe(1000);
   });
 
   it("follows the content while the reader is within the slack above the bottom", () => {
@@ -31,7 +31,7 @@ describe(useFollowLatestContent.name, () => {
     scrollTo(452);
     growTo(1400);
 
-    expect(scrollArea.scrollTop).toBe(1400);
+    expect(scrollArea.scrollTop).toBe(1000);
   });
 
   it("leaves the reader where they are once they scrolled up past the slack", () => {
@@ -48,10 +48,10 @@ describe(useFollowLatestContent.name, () => {
 
     growTo(1400);
     growUnobservedTo(2000);
-    scrollTo(1400);
+    scrollTo(1000);
     growTo(2000);
 
-    expect(scrollArea.scrollTop).toBe(2000);
+    expect(scrollArea.scrollTop).toBe(1600);
   });
 
   it("stays put when the reader scrolls back down without reaching the bottom", () => {
@@ -71,7 +71,7 @@ describe(useFollowLatestContent.name, () => {
     scrollTo(500);
     growTo(1400);
 
-    expect(scrollArea.scrollTop).toBe(1400);
+    expect(scrollArea.scrollTop).toBe(1000);
   });
 
   it("snaps back to the bottom and follows again on a new follow key, even after the reader scrolled up", () => {
@@ -80,11 +80,11 @@ describe(useFollowLatestContent.name, () => {
     scrollTo(100);
     rerender(2);
 
-    expect(scrollArea.scrollTop).toBe(900);
+    expect(scrollArea.scrollTop).toBe(500);
 
     growTo(1400);
 
-    expect(scrollArea.scrollTop).toBe(1400);
+    expect(scrollArea.scrollTop).toBe(1000);
   });
 
   it("stops watching the content and the reader once unmounted", () => {
@@ -113,7 +113,7 @@ describe(useFollowLatestContent.name, () => {
     growTo(1400);
 
     expect(observedTargets()).toEqual([content]);
-    expect(scrollArea.scrollTop).toBe(1400);
+    expect(scrollArea.scrollTop).toBe(1000);
   });
 
   function setup(input: { scrollHeight: number; clientHeight?: number }) {
@@ -147,10 +147,16 @@ describe(useFollowLatestContent.name, () => {
     const scrollArea = document.createElement("div");
     const content = document.createElement("div");
     scrollArea.append(content);
+    let scrollTop = 0;
     Object.defineProperties(scrollArea, {
-      scrollTop: { value: 0, writable: true },
       scrollHeight: { value: input.scrollHeight, writable: true },
-      clientHeight: { value: input.clientHeight ?? 400, writable: true }
+      clientHeight: { value: input.clientHeight ?? 400, writable: true },
+      scrollTop: {
+        get: () => scrollTop,
+        set: (requested: number) => {
+          scrollTop = Math.max(0, Math.min(requested, scrollArea.scrollHeight - scrollArea.clientHeight));
+        }
+      }
     });
 
     const view = renderHook(({ followKey }) => useFollowLatestContent(followKey), { initialProps: { followKey: 1 } });
