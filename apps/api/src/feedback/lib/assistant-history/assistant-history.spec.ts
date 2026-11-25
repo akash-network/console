@@ -26,7 +26,7 @@ describe("assistant history", () => {
         ])
       ).toEqual([
         { role: "user", content: "why no bids?" },
-        { role: "assistant", content: "[Card shown to the user] Proposed redeploy with resources" },
+        { role: "user", content: "[Card shown to the user by Console, awaiting their decision] Proposed redeploy with resources" },
         { role: "assistant", content: "Try one GPU." },
         { role: "user", content: "[Action card outcome reported by Console] redeploy with resources, confirmed" }
       ]);

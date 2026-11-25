@@ -45,10 +45,11 @@ function bounded(messages: HistoryMessage[]): ChatMessage[] {
   return kept;
 }
 
+/** Cards replay as Console notes, since a card replayed as the assistant's own text teaches the model to type it instead of calling the tool. */
 function historyMessageOf({ role, content, toolName }: StoredMessage): HistoryMessage | null {
   if (role !== "tool") return { role, content };
   if (toolName === ACTION_RESULT_TOOL_NAME) return { role: "user", content: `[Action card outcome reported by Console] ${content}` };
-  if (toolName?.startsWith("propose_")) return { role: "assistant", content: `[Card shown to the user] ${content}` };
+  if (toolName?.startsWith("propose_")) return { role: "user", content: `[Card shown to the user by Console, awaiting their decision] ${content}` };
 
   return null;
 }
