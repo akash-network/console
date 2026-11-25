@@ -1084,7 +1084,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     ],
     context: { dseq: DSEQ },
     toolResults: { get_deployment: HEALTHY_LEASED_WEB },
-    expect: { neverMentions: ["[Card shown", "already done", "is closed", "has been closed", "billing stopped"] }
+    expect: { neverMentions: ["[Card shown", "already done", "already closed", "is now closed", "billing stopped"] }
   },
   {
     id: "configure-no-providers-reads-form-first",
