@@ -38,6 +38,12 @@ describe("postgres provider", () => {
     });
   });
 
+  it("types parameters from their JavaScript values as postgres.js v3 did", () => {
+    const client = setup({});
+
+    expect(client.options.infer).toBe(true);
+  });
+
   it("refuses a zero timeout, which postgres.js would drop from the startup message", () => {
     expect(() => setup({ statementTimeout: "0" })).toThrow(/POSTGRES_STATEMENT_TIMEOUT/);
   });

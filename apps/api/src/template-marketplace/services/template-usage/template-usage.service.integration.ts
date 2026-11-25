@@ -146,6 +146,7 @@ describe(TemplateUsageService.name, () => {
         await service.recordFork(source, { userId: user.id, organizationId: forkersOrganizationId });
         trackedBeforeCommit = track.mock.calls.length;
       });
+      await vi.waitFor(() => expect(track).toHaveBeenCalled());
       await txService.transaction(async () => {
         await service.recordFork(source, { userId: user.id, organizationId: forkersOrganizationId });
       });

@@ -29,11 +29,15 @@ import { LOGGER_FACTORY } from "./logging.provider";
 
 const logger = container.resolve(LOGGER_FACTORY)({ context: "POSTGRES" });
 
+/** Types each parameter from its JavaScript value as postgres.js v3 did, which every query here was written against, instead of leaving it to the server. */
+const V3_PARAMETER_TYPING = { infer: true } as const;
+
 const APP_PG_CLIENT = Symbol("appPgClient") as InjectionToken<postgres.Sql>;
 container.register(APP_PG_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(CORE_CONFIG);
     const client = postgres(config.POSTGRES_DB_URI, {
+      ...V3_PARAMETER_TYPING,
       max: config.POSTGRES_MAX_CONNECTIONS,
       connect_timeout: config.POSTGRES_CONNECT_TIMEOUT,
       idle_timeout: config.POSTGRES_IDLE_TIMEOUT,
@@ -90,7 +94,11 @@ const MIGRATION_LOCK_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 15_0
 const LOCK_NOT_AVAILABLE = "55P03";
 
 export async function migratePG(config: CoreConfig = container.resolve(CORE_CONFIG), options: { lockRetryDelaysMs?: number[] } = {}): Promise<void> {
-  const migrationClient = postgres(config.POSTGRES_MIGRATION_DB_URI ?? config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
+  const migrationClient = postgres(config.POSTGRES_MIGRATION_DB_URI ?? config.POSTGRES_DB_URI, {
+    ...V3_PARAMETER_TYPING,
+    max: 1,
+    onnotice: logger.info.bind(logger)
+  });
   const pgMigrationDatabase = drizzle(migrationClient, getDrizzleOptions(config));
   /** Takes the lock per attempt because postgres.js silently reconnects, without the lock, a session that dropped during backoff. */
   const applyPendingMigrations = async () => {
