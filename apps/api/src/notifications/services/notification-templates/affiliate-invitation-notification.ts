@@ -1,0 +1,38 @@
+import type { AffiliateTerms } from "@src/affiliate/lib/affiliate-terms/affiliate-terms";
+import type { UserOutput } from "@src/user/repositories";
+import type { CreateNotificationInput } from "../notification/notification.service";
+
+function formatWholeOrCents(usd: number): string {
+  return Number.isInteger(usd) ? `$${usd}` : `$${usd.toFixed(2)}`;
+}
+
+function describeEarnings(terms: AffiliateTerms): string {
+  const commission = `${terms.commissionPercent}% of every card payment they make for ${terms.commissionMonths} months`;
+
+  if (terms.firstPurchaseBonusUsd <= 0) return `You earn ${commission}.`;
+
+  return (
+    `You earn ${commission}, plus ${formatWholeOrCents(terms.firstPurchaseBonusUsd)} if their first payment is ${formatWholeOrCents(terms.firstPurchaseBonusMinPaymentUsd)} or more, ` +
+    `once they've used ${formatWholeOrCents(terms.firstPurchaseBonusMinUsageUsd)} on deployments beyond their trial credit within those ${terms.commissionMonths} months.`
+  );
+}
+
+export function affiliateInvitationNotification(user: UserOutput, vars: { terms: AffiliateTerms; referralsUrl: string }): CreateNotificationInput {
+  const { terms } = vars;
+
+  return {
+    notificationId: `affiliateInvitation.${user.id}`,
+    payload: {
+      summary: "Earn Console credit by referring friends",
+      description:
+        `You can now refer people to Akash Console. Anyone who signs up with your link gets a ${formatWholeOrCents(terms.referralTrialCreditsUsd)} trial. ` +
+        `${describeEarnings(terms)} ` +
+        `Your earnings arrive as Console credit after a ${terms.commissionHoldDays}-day hold, and you can't withdraw them.`,
+      actions: [{ label: "Join the referral program", url: vars.referralsUrl }]
+    },
+    user: {
+      id: user.id,
+      email: user.email
+    }
+  };
+}

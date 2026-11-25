@@ -6,9 +6,14 @@ import type {
   RevokeAffiliateRequest,
   RevokeAffiliateResponse
 } from "@src/affiliate/http-schemas/affiliate-admin.schema";
-import type { AffiliateProfileResponse } from "@src/affiliate/http-schemas/affiliate-profile.schema";
+import type {
+  AffiliateEnrollmentEligibilityResponse,
+  AffiliateProfileResponse,
+  JoinAffiliateProgramResponse
+} from "@src/affiliate/http-schemas/affiliate-profile.schema";
 import type { ListAffiliateReferralsQuery, ListAffiliateReferralsResponse } from "@src/affiliate/http-schemas/affiliate-referral.schema";
 import { AffiliateService } from "@src/affiliate/services/affiliate/affiliate.service";
+import { AffiliateEnrollmentService } from "@src/affiliate/services/affiliate-enrollment/affiliate-enrollment.service";
 import { AffiliateReferralService } from "@src/affiliate/services/affiliate-referral/affiliate-referral.service";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 
@@ -17,6 +22,7 @@ export class AffiliateController {
   constructor(
     private readonly affiliateService: AffiliateService,
     private readonly affiliateReferralService: AffiliateReferralService,
+    private readonly affiliateEnrollmentService: AffiliateEnrollmentService,
     private readonly authService: AuthService
   ) {}
 
@@ -34,6 +40,17 @@ export class AffiliateController {
   async getProfile(): Promise<AffiliateProfileResponse> {
     const profile = await this.affiliateService.getProfile(this.authService.currentUser.id);
     return { data: profile };
+  }
+
+  @Protected([{ action: "read", subject: "Affiliate" }])
+  async getEnrollmentEligibility(): Promise<AffiliateEnrollmentEligibilityResponse> {
+    return { data: await this.affiliateEnrollmentService.getEligibility(this.authService.currentUser.id) };
+  }
+
+  /** Guarded by `read` rather than a user-wide `create` rule, since eligibility is what allows the caller to join and the join writes only their own row. */
+  @Protected([{ action: "read", subject: "Affiliate" }])
+  async join(): Promise<JoinAffiliateProgramResponse> {
+    return { data: await this.affiliateEnrollmentService.join(this.authService.currentUser.id) };
   }
 
   @Protected([{ action: "read", subject: "Affiliate" }])

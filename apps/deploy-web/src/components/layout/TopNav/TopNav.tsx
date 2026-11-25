@@ -32,6 +32,7 @@ import { useFlag } from "@src/hooks/useFlag";
 import { useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
+import { useAffiliateEligibilityQuery } from "@src/queries/useAffiliateEligibilityQuery";
 import { useAffiliateProfileQuery } from "@src/queries/useAffiliateProfileQuery";
 import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
@@ -50,6 +51,7 @@ export const DEPENDENCIES = {
   useOpenWhatsNew,
   useAssistantPanel,
   useAffiliateProfileQuery,
+  useAffiliateEligibilityQuery,
   TopBanner,
   HackathonCouponNavEntry,
   CommandMenu,
@@ -107,7 +109,8 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
       usePathname: d.usePathname,
       useFlag: d.useFlag,
       useActiveOrganization: d.useActiveOrganization,
-      useAffiliateProfileQuery: d.useAffiliateProfileQuery
+      useAffiliateProfileQuery: d.useAffiliateProfileQuery,
+      useAffiliateEligibilityQuery: d.useAffiliateEligibilityQuery
     }
   });
   const isSettingsActive = settingsLinks.some(link => link.isActive);

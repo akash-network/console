@@ -3147,6 +3147,315 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "Affiliates",
         ],
       },
+      "post": {
+        "operationId": "joinAffiliateProgram",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                        },
+                        "commissions": {
+                          "items": {
+                            "properties": {
+                              "amountUsd": {
+                                "type": "number",
+                              },
+                              "createdAt": {
+                                "type": "string",
+                              },
+                              "creditedAt": {
+                                "description": "When the commission was credited to the personal balance.",
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "id": {
+                                "type": "string",
+                              },
+                              "kind": {
+                                "enum": [
+                                  "commission",
+                                  "first_payment_bonus",
+                                ],
+                                "type": "string",
+                              },
+                              "paymentUsd": {
+                                "description": "The card payment the commission was earned on.",
+                                "nullable": true,
+                                "type": "number",
+                              },
+                              "releasesAt": {
+                                "description": "When a held commission is due for release, null once that date has passed or when it is not on hold.",
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "reversedUsd": {
+                                "type": "number",
+                              },
+                              "status": {
+                                "enum": [
+                                  "on_hold",
+                                  "credited",
+                                  "canceled",
+                                  "reversed",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "createdAt",
+                              "amountUsd",
+                              "reversedUsd",
+                              "status",
+                              "kind",
+                              "releasesAt",
+                              "creditedAt",
+                              "paymentUsd",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "stats": {
+                          "properties": {
+                            "creditedUsd": {
+                              "description": "Commission credited to the personal balance, net of what was taken back.",
+                              "type": "number",
+                            },
+                            "monthCommissionUsd": {
+                              "type": "number",
+                            },
+                            "nextRelease": {
+                              "description": "The next held commission due for release, null when none has a release date ahead.",
+                              "nullable": true,
+                              "properties": {
+                                "amountUsd": {
+                                  "type": "number",
+                                },
+                                "releasesAt": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "releasesAt",
+                                "amountUsd",
+                              ],
+                              "type": "object",
+                            },
+                            "onHoldUsd": {
+                              "description": "Commission still on hold, net of refunds during the hold.",
+                              "type": "number",
+                            },
+                            "payingUsers": {
+                              "type": "number",
+                            },
+                            "signups": {
+                              "type": "number",
+                            },
+                            "totalCommissionUsd": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "signups",
+                            "payingUsers",
+                            "totalCommissionUsd",
+                            "monthCommissionUsd",
+                            "creditedUsd",
+                            "onHoldUsd",
+                            "nextRelease",
+                          ],
+                          "type": "object",
+                        },
+                        "terms": {
+                          "properties": {
+                            "commissionHoldDays": {
+                              "description": "How many days each commission stays on hold before it is credited.",
+                              "type": "number",
+                            },
+                            "commissionMonths": {
+                              "type": "number",
+                            },
+                            "commissionPercent": {
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusMinPaymentUsd": {
+                              "description": "The bonus applies only if the referred user's first payment is at least this amount.",
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusMinUsageUsd": {
+                              "description": "How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid.",
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusUsd": {
+                              "description": "The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off.",
+                              "type": "number",
+                            },
+                            "referralTrialCreditsUsd": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "commissionPercent",
+                            "commissionMonths",
+                            "referralTrialCreditsUsd",
+                            "commissionHoldDays",
+                            "firstPurchaseBonusUsd",
+                            "firstPurchaseBonusMinPaymentUsd",
+                            "firstPurchaseBonusMinUsageUsd",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "terms",
+                        "stats",
+                        "commissions",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The caller's affiliate profile, also returned when they already are an approved affiliate",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller is not eligible to join the referral program",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Join the referral program",
+        "tags": [
+          "Affiliates",
+        ],
+      },
+    },
+    "/v1/affiliates/me/eligibility": {
+      "get": {
+        "operationId": "getAffiliateEnrollmentEligibility",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "eligible": {
+                          "description": "Whether the caller can join the referral program on their own.",
+                          "type": "boolean",
+                        },
+                        "terms": {
+                          "properties": {
+                            "commissionHoldDays": {
+                              "description": "How many days each commission stays on hold before it is credited.",
+                              "type": "number",
+                            },
+                            "commissionMonths": {
+                              "type": "number",
+                            },
+                            "commissionPercent": {
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusMinPaymentUsd": {
+                              "description": "The bonus applies only if the referred user's first payment is at least this amount.",
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusMinUsageUsd": {
+                              "description": "How much the referred user must have used on deployments, beyond their trial credit, before the bonus is paid.",
+                              "type": "number",
+                            },
+                            "firstPurchaseBonusUsd": {
+                              "description": "The bonus paid on a referred user's first qualifying payment, 0 when the bonus is off.",
+                              "type": "number",
+                            },
+                            "referralTrialCreditsUsd": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "commissionPercent",
+                            "commissionMonths",
+                            "referralTrialCreditsUsd",
+                            "commissionHoldDays",
+                            "firstPurchaseBonusUsd",
+                            "firstPurchaseBonusMinPaymentUsd",
+                            "firstPurchaseBonusMinUsageUsd",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "eligible",
+                        "terms",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Whether the caller can join the referral program, with the terms they would join on",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Check whether the caller can join the referral program",
+        "tags": [
+          "Affiliates",
+        ],
+      },
     },
     "/v1/affiliates/me/referrals": {
       "get": {

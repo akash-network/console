@@ -3,7 +3,7 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { generateAffiliateCode, normalizeAffiliateCode } from "@src/affiliate/lib/affiliate-code/affiliate-code";
-import { AFFILIATE_COMMISSION_MONTHS, AFFILIATE_COMMISSION_PERCENT } from "@src/affiliate/lib/affiliate-terms/affiliate-terms";
+import { type AffiliateTerms, affiliateTermsOf } from "@src/affiliate/lib/affiliate-terms/affiliate-terms";
 import { type AffiliateOutput, AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -13,23 +13,13 @@ import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base
 import { UserRepository } from "@src/user/repositories";
 
 const MAX_GENERATED_CODE_ATTEMPTS = 5;
-const MICRO_DENOM_PER_UNIT = 1_000_000;
 const CENTS_PER_USD = 100;
-const SECONDS_PER_DAY = 86_400;
 
 export type ApproveAffiliateInput = { userId?: string; email?: string; code?: string; actor: string };
 export type RevokeAffiliateInput = { code: string; actor: string };
 export type AffiliateProfile = {
   code: string;
-  terms: {
-    commissionPercent: number;
-    commissionMonths: number;
-    referralTrialCreditsUsd: number;
-    commissionHoldDays: number;
-    firstPurchaseBonusUsd: number;
-    firstPurchaseBonusMinPaymentUsd: number;
-    firstPurchaseBonusMinUsageUsd: number;
-  };
+  terms: AffiliateTerms;
   stats: {
     signups: number;
     payingUsers: number;
@@ -98,6 +88,14 @@ export class AffiliateService {
     return affiliate;
   }
 
+  /** Only ever inserts, so a row that exists, revoked or not, refuses with `affiliate_already_approved` and only `approve` can reinstate a revoked affiliate. */
+  async enroll({ userId, actor }: { userId: string; actor: string }): Promise<AffiliateOutput> {
+    const affiliate = await this.#createWithCode({ userId, approvedAt: new Date(), actor });
+    this.logger.info({ event: "AFFILIATE_APPROVED", actor, userId, code: affiliate.code });
+
+    return affiliate;
+  }
+
   async revoke({ code, actor }: RevokeAffiliateInput): Promise<AffiliateOutput> {
     const normalizedCode = normalizeAffiliateCode(code);
     const affiliate = normalizedCode ? await this.affiliateRepository.findByCode(normalizedCode) : undefined;
@@ -144,15 +142,7 @@ export class AffiliateService {
 
     return {
       code: affiliate.code,
-      terms: {
-        commissionPercent: AFFILIATE_COMMISSION_PERCENT,
-        commissionMonths: AFFILIATE_COMMISSION_MONTHS,
-        referralTrialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT,
-        commissionHoldDays: Math.ceil(this.billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS / SECONDS_PER_DAY),
-        firstPurchaseBonusUsd: this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_AMOUNT / CENTS_PER_USD,
-        firstPurchaseBonusMinPaymentUsd: this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MIN_PAYMENT_AMOUNT / CENTS_PER_USD,
-        firstPurchaseBonusMinUsageUsd: this.billingConfig.AFFILIATE_FIRST_PURCHASE_BONUS_MIN_USAGE_AMOUNT / CENTS_PER_USD
-      },
+      terms: affiliateTermsOf(this.billingConfig),
       stats: {
         signups,
         payingUsers,

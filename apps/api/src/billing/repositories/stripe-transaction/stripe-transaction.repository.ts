@@ -1,7 +1,8 @@
-import { and, asc, count, countDistinct, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notExists, notInArray, or, SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
+import { AffiliateInvitations, Affiliates } from "@src/affiliate/model-schemas";
 import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
 import { ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX, PaymentCredits } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -10,6 +11,7 @@ import { type OrganizationFiledOnWrite, OrgScopedRepository } from "@src/core/re
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
@@ -293,6 +295,49 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       .limit(1);
 
     return !!item;
+  }
+
+  /** In cents, net of partial refunds; a payment refunded in full is no longer `succeeded` and one lost to a dispute is left out. */
+  async sumNetCardPaymentsByOrganizations(organizationIds: string[]): Promise<number> {
+    if (organizationIds.length === 0) return 0;
+
+    const [{ total }] = await this.cursor
+      .select({ total: sql<number>`coalesce(${this.#netCardPaymentsSum}, 0)`.mapWith(Number) })
+      .from(this.table)
+      .where(this.unscoped("affiliate-enrollment").whereAccessibleBy(and(inArray(this.table.organizationId, organizationIds), this.#isNetCardPayment)));
+
+    return total;
+  }
+
+  /** Sums by whoever created the paying organizations, as `sumNetCardPaymentsByOrganizations` does, and leaves out anyone already an affiliate, revoked or not, or already invited. */
+  async findUserIdsWithNetCardSpendAtLeast(minCents: number): Promise<string[]> {
+    const payerId = Organizations.createdByUserId;
+    const rows = await this.cursor
+      .select({ userId: sql<string>`${payerId}` })
+      .from(this.table)
+      .innerJoin(Organizations, eq(Organizations.id, this.table.organizationId))
+      .where(
+        this.unscoped("affiliate-enrollment").whereAccessibleBy(
+          and(
+            this.#isNetCardPayment,
+            isNotNull(payerId),
+            notExists(this.cursor.select({ userId: Affiliates.userId }).from(Affiliates).where(eq(Affiliates.userId, payerId))),
+            notExists(this.cursor.select({ userId: AffiliateInvitations.userId }).from(AffiliateInvitations).where(eq(AffiliateInvitations.userId, payerId)))
+          )
+        )
+      )
+      .groupBy(payerId)
+      .having(gte(this.#netCardPaymentsSum, minCents));
+
+    return rows.map(({ userId }) => userId);
+  }
+
+  get #netCardPaymentsSum(): SQL {
+    return sql`sum(${this.table.amount} - ${this.table.amountRefunded})`;
+  }
+
+  get #isNetCardPayment(): SQL | undefined {
+    return and(eq(this.table.type, "payment_intent"), eq(this.table.status, "succeeded"), isNull(this.table.disputeLostAt));
   }
 
   #completedPaidBy(owner: BillingOwner): SQL | undefined {

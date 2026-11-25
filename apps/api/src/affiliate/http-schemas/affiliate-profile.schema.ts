@@ -40,15 +40,30 @@ const AffiliateCommissionSchema = z.object({
   paymentUsd: z.number().nullable().openapi({ description: "The card payment the commission was earned on." })
 });
 
+const AffiliateProfileSchema = z.object({
+  code: z.string(),
+  terms: AffiliateTermsSchema,
+  stats: AffiliateStatsSchema,
+  commissions: z.array(AffiliateCommissionSchema)
+});
+
 export const AffiliateProfileResponseSchema = z.object({
-  data: z
-    .object({
-      code: z.string(),
-      terms: AffiliateTermsSchema,
-      stats: AffiliateStatsSchema,
-      commissions: z.array(AffiliateCommissionSchema)
-    })
-    .nullable()
+  data: AffiliateProfileSchema.nullable()
 });
 
 export type AffiliateProfileResponse = z.infer<typeof AffiliateProfileResponseSchema>;
+
+export const JoinAffiliateProgramResponseSchema = z.object({
+  data: AffiliateProfileSchema
+});
+
+export type JoinAffiliateProgramResponse = z.infer<typeof JoinAffiliateProgramResponseSchema>;
+
+export const AffiliateEnrollmentEligibilityResponseSchema = z.object({
+  data: z.object({
+    eligible: z.boolean().openapi({ description: "Whether the caller can join the referral program on their own." }),
+    terms: AffiliateTermsSchema
+  })
+});
+
+export type AffiliateEnrollmentEligibilityResponse = z.infer<typeof AffiliateEnrollmentEligibilityResponseSchema>;

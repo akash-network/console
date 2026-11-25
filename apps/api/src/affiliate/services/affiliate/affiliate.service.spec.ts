@@ -310,6 +310,34 @@ describe(AffiliateService.name, () => {
     });
   });
 
+  describe("enroll", () => {
+    it("creates a row with a generated code for the user and logs the approval", async () => {
+      const { service, affiliateRepository, logger, created } = setup();
+
+      await expect(service.enroll({ userId: created.userId, actor: "self-service" })).resolves.toEqual(created);
+
+      expect(affiliateRepository.create).toHaveBeenCalledWith({
+        userId: created.userId,
+        code: expect.stringMatching(/^[a-z0-9]{8}$/),
+        approvedAt: expect.any(Date),
+        approvedBy: "self-service"
+      });
+      expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_APPROVED", actor: "self-service", userId: created.userId, code: created.code });
+    });
+
+    it("refuses with 409 instead of reinstating when the user already has a row, revoked or not", async () => {
+      const { service, affiliateRepository, logger, created } = setup();
+      affiliateRepository.create.mockRejectedValue(createUniqueViolation("affiliates_user_id_unique"));
+
+      await expect(service.enroll({ userId: created.userId, actor: "self-service" })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "affiliate_already_approved"
+      });
+      expect(affiliateRepository.reapproveIfRevoked).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+  });
+
   describe("revoke", () => {
     it("rejects with 404 for an unknown code", async () => {
       const { service, affiliateRepository } = setup();
