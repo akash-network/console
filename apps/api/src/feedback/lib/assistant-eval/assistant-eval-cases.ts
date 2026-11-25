@@ -1056,6 +1056,37 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     expect: { neverMentions: ["has been closed", "i closed", "i've closed"] }
   },
   {
+    id: "close-after-earlier-card-gives-reason",
+    question: "test",
+    history: [
+      { role: "user", content: "close this deployment" },
+      { role: "user", content: "[Card shown to the user by Console, awaiting their decision] Proposed close deployment" },
+      { role: "user", content: "[Action card outcome reported by Console] close deployment, dismissed" },
+      { role: "user", content: "close it" },
+      {
+        role: "assistant",
+        content:
+          "Before I propose closing it, why are you closing it?\n\n- Too expensive\n- Performance or reliability\n- Testing or project complete\n- Other"
+      }
+    ],
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: HEALTHY_LEASED_WEB },
+    expect: { proposes: "close_deployment", neverMentions: ["[Card shown", "Card shown to the user"] }
+  },
+  {
+    id: "close-again-after-unanswered-card",
+    question: "a test deployment close it",
+    history: [
+      { role: "user", content: "close this deployment" },
+      { role: "assistant", content: "Why are you closing it?\n\n- Too expensive\n- Performance or reliability\n- Testing or project complete\n- Other" },
+      { role: "user", content: "test" },
+      { role: "assistant", content: "[Card shown to the user] Proposed close deployment" }
+    ],
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: HEALTHY_LEASED_WEB },
+    expect: { neverMentions: ["[Card shown", "already done", "is closed", "has been closed", "billing stopped"] }
+  },
+  {
     id: "configure-no-providers-reads-form-first",
     question: "no providers with persistent storage on sandbox it seems",
     context: { page: CONFIGURE_PAGE, configureFormOpen: true, isTrialing: true },
