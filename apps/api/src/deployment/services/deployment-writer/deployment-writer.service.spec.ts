@@ -1436,20 +1436,12 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalled();
     });
 
-    it("ignores the caller deposit and uses the configured default", async () => {
+    it("uses the configured default deposit", async () => {
       const { service, rpcMessageService } = setup({ defaultDeposit: 1.25 });
 
       await service.create({ userId: "user-1", sdl: "valid-sdl" });
 
       expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 1_250_000 }));
-    });
-
-    it("creates a deployment without a caller deposit", async () => {
-      const { service, rpcMessageService } = setup({ defaultDeposit: 0.5 });
-
-      await service.create({ userId: "user-1", sdl: "valid-sdl" });
-
-      expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 500000 }));
     });
 
     it("does not reclaim trial orphans when an oversized sdl will reject the create", async () => {
