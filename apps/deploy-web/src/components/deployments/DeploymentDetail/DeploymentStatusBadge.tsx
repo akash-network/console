@@ -9,6 +9,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import {
   classifyLeaseCloseReason,
+  closeReasonOf,
   getClosedLeaseLabel,
   getClosedLeaseSummaryLabel,
   isClosedByOwner,
@@ -150,9 +151,7 @@ function closedByConsoleStatusOf(consoleCloseReason: ConsoleCloseReason, tone: S
  * of following whatever order the lease list arrived in.
  */
 function selectLeaseToReportOn(leases: LeaseDto[]): LeaseDto {
-  const closedByProvider = leases.find(
-    lease => classifyLeaseCloseReason(lease.reason ?? lease.reclamation?.reason) === "provider" || isProviderReclaimed(lease)
-  );
+  const closedByProvider = leases.find(lease => classifyLeaseCloseReason(closeReasonOf(lease)) === "provider" || isProviderReclaimed(lease));
   return closedByProvider ?? leases[0];
 }
 
