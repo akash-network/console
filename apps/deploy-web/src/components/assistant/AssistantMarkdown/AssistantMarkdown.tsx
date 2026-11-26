@@ -13,7 +13,13 @@ export const DEPENDENCIES: { Link: (props: { href: string; children: ReactNode }
 const DISALLOWED_ELEMENTS = ["img"];
 
 /** Answers are model output, so only an exact match on one of these Console routes navigates in place. */
-const IN_APP_ROUTES = [/^\/deployments(?:\/\d+)?$/, /^\/templates(?:\/[\w-]+)?$/, /^\/(?:alerts|billing|usage)$/];
+const IN_APP_ROUTES = [
+  /^\/deployments(?:\/\d+)?$/,
+  /^\/templates(?:\/[\w-]+)?$/,
+  /^\/projects(?:\/[\w-]+)?$/,
+  /^\/providers(?:\/akash1[a-z0-9]+)?$/,
+  /^\/(?:alerts|billing|usage|activity|members|payment-methods|new-deployment|user\/api-keys)$/
+];
 
 /** Link text in an answer is model output, so only these domains and their subdomains render as links; any other URL is shown in full. */
 const LINKABLE_DOMAINS = ["akash.network", "discord.com", "discord.gg"];

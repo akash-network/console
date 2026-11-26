@@ -48,6 +48,10 @@ describe(buildAssistantSystemPrompt.name, () => {
       "saved ones stay until deleted there, while a reply waiting on a browser action is held for up to 5 minutes to resume either way, then deleted by an hourly cleanup"
     );
     expect(prompt).toContain("never a running commentary of what you are about to read or propose, and never name your tools");
+    expect(prompt).toContain("Never use em dashes; use a comma, a period or parentheses instead.");
+    expect(prompt).toContain("never point to exchanges, price sites or any other outside source");
+    expect(prompt).toContain("Link other Console pages only by these paths: /deployments, /templates, /templates/<id>, /projects, /projects/<id>");
+    expect(prompt).toContain("read it with get_deployment and give its services' uris and forwarded ports instead of sending them to its page");
     expect(prompt).toContain(
       "Never write or review the code of the user's own software, such as apps, scripts, bots, websites or features, even one they plan to deploy"
     );

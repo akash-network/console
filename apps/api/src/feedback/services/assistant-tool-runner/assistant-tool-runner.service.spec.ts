@@ -91,7 +91,11 @@ describe(AssistantToolRunnerService.name, () => {
 
   describe("read tools", () => {
     it.each([
-      ["list_deployments", { state: "closed" }, "Read your deployments", "deploymentTools", "listDeployments"],
+      ["list_deployments", { state: "closed" }, "Read your closed deployments", "deploymentTools", "listDeployments"],
+      ["list_deployments", {}, "Read your active deployments", "deploymentTools", "listDeployments"],
+      ["list_deployments", { search: "web" }, 'Searched your active deployments for "web"', "deploymentTools", "listDeployments"],
+      ["list_deployments", { state: "closed", search: "web" }, 'Searched your closed deployments for "web"', "deploymentTools", "listDeployments"],
+      ["list_deployments", { search: "  " }, "Read your active deployments", "deploymentTools", "listDeployments"],
       ["get_deployment", { dseq: "42" }, "Read your deployment", "deploymentTools", "getDeployment"],
       ["get_lease_close_reason", { dseq: "42" }, "Read why your deployment closed", "deploymentTools", "getLeaseCloseReason"],
       ["get_bids", { dseq: "42" }, "Read the bids on your deployment", "bidTools", "getBids"],
