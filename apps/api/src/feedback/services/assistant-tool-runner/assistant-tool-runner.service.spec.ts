@@ -95,7 +95,6 @@ describe(AssistantToolRunnerService.name, () => {
       ["list_deployments", {}, "Read your active deployments", "deploymentTools", "listDeployments"],
       ["list_deployments", { search: "web" }, 'Searched your active deployments for "web"', "deploymentTools", "listDeployments"],
       ["list_deployments", { state: "closed", search: "web" }, 'Searched your closed deployments for "web"', "deploymentTools", "listDeployments"],
-      ["list_deployments", { search: "  " }, "Read your active deployments", "deploymentTools", "listDeployments"],
       ["get_deployment", { dseq: "42" }, "Read your deployment", "deploymentTools", "getDeployment"],
       ["get_lease_close_reason", { dseq: "42" }, "Read why your deployment closed", "deploymentTools", "getLeaseCloseReason"],
       ["get_bids", { dseq: "42" }, "Read the bids on your deployment", "bidTools", "getBids"],
@@ -111,6 +110,26 @@ describe(AssistantToolRunnerService.name, () => {
 
       expect(read).toHaveBeenCalledWith(args);
       expect(outcome).toEqual({ kind: "result", content: readContentOf(name, { read: name }), summary, ok: true });
+    });
+
+    it("reads deployments without a search when the search is only whitespace, as the deployments route does", async () => {
+      const { runner, deploymentTools } = setup();
+      deploymentTools.listDeployments.mockResolvedValue({ total: 0, hasMore: false, deployments: [] });
+
+      const outcome = await runner.run(call("list_deployments", { search: "  " }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(deploymentTools.listDeployments).toHaveBeenCalledWith({ search: undefined });
+      expect(outcome).toMatchObject({ summary: "Read your active deployments" });
+    });
+
+    it("searches deployments for the trimmed search", async () => {
+      const { runner, deploymentTools } = setup();
+      deploymentTools.listDeployments.mockResolvedValue({ total: 0, hasMore: false, deployments: [] });
+
+      const outcome = await runner.run(call("list_deployments", { search: " web " }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(deploymentTools.listDeployments).toHaveBeenCalledWith({ search: "web" });
+      expect(outcome).toMatchObject({ summary: 'Searched your active deployments for "web"' });
     });
 
     it("puts a template search result under untrustedData", async () => {

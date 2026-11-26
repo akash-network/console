@@ -43,7 +43,13 @@ const TEMPLATE_OR_SDL = { message: "Give a templateId or an sdl" };
 export const READ_TOOL_ARGUMENTS = {
   list_deployments: z.object({
     state: z.enum(["active", "closed"]).optional().openapi({ description: "Defaults to active" }),
-    search: z.string().max(MAX_DEPLOYMENT_NAME_LENGTH).optional().openapi({ description: "Part of a deployment name or dseq" })
+    search: z
+      .string()
+      .trim()
+      .max(MAX_DEPLOYMENT_NAME_LENGTH)
+      .optional()
+      .transform(value => value || undefined)
+      .openapi({ description: "Part of a deployment name or dseq" })
   }),
   get_deployment: z.object({ dseq: Dseq }),
   get_bids: z.object({ dseq: Dseq }),

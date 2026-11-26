@@ -120,7 +120,7 @@ function searchedFor(search: string, args: unknown): string {
 function deploymentsReadOf(args: unknown): string {
   const { state, search } = (args ?? {}) as { state?: string; search?: string };
   const deployments = state === "closed" ? "your closed deployments" : "your active deployments";
-  return search?.trim() ? searchedFor(`Searched ${deployments}`, { query: search }) : `Read ${deployments}`;
+  return search ? searchedFor(`Searched ${deployments}`, { query: search }) : `Read ${deployments}`;
 }
 
 function summaryOf(name: DedicatedReadToolName, data: unknown, args: unknown): string {

@@ -15,7 +15,7 @@ const DISALLOWED_ELEMENTS = ["img"];
 /** Answers are model output, so only an exact match on one of these Console routes navigates in place. */
 const IN_APP_ROUTES = [
   /^\/deployments(?:\/\d+)?$/,
-  /^\/templates(?:\/[\w-]+)?$/,
+  /^\/templates(?:\/\w[\w.-]*)?$/,
   /^\/projects(?:\/[\w-]+)?$/,
   /^\/providers(?:\/akash1[a-z0-9]+)?$/,
   /^\/(?:alerts|billing|usage|activity|members|payment-methods|new-deployment|user\/api-keys)$/
