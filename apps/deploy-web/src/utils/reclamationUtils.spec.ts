@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import {
   classifyLeaseCloseReason,
+  closeReasonOf,
   getClosedLeaseLabel,
   getClosedLeaseSummaryLabel,
   getLeaseCloseReasonLabel,
@@ -52,6 +53,46 @@ describe("reclamationUtils", () => {
     });
   });
 
+  describe(closeReasonOf.name, () => {
+    it.each([
+      { groupState: "closed", expected: "lease_closed_owner" },
+      { groupState: "insufficient_funds", expected: "lease_closed_reason_insufficient_funds" },
+      { groupState: "paused", expected: "lease_closed_reason_unspecified" },
+      { groupState: "open", expected: "lease_closed_reason_unspecified" }
+    ])("reads an unspecified close whose group ended $groupState as $expected", ({ groupState, expected }) => {
+      expect(closeReasonOf(closedLease({ reason: "lease_closed_reason_unspecified", groupState }))).toBe(expected);
+    });
+
+    it("reads the reclamation's unspecified reason by the group's state when the lease carries none of its own", () => {
+      expect(
+        closeReasonOf({ state: "closed", reclamation: { reason: "lease_closed_reason_unspecified" }, group: mock<DeploymentGroup>({ state: "closed" }) })
+      ).toBe("lease_closed_owner");
+    });
+
+    it("keeps the unspecified reason of a lease its provider started reclaiming, even once the group closed", () => {
+      const lease = closedLease({ reason: "lease_closed_reason_unspecified", groupState: "closed", reclamationStartedAt: "1700000000" });
+
+      expect(closeReasonOf(lease)).toBe("lease_closed_reason_unspecified");
+    });
+
+    it.each(["lease_closed_reason_unstable", "lease_closed_owner", undefined])("keeps the %s reason whatever the group's state", reason => {
+      expect(closeReasonOf(closedLease({ reason, groupState: "closed" }))).toBe(reason);
+    });
+
+    it("keeps the unspecified reason of a lease whose group is unknown", () => {
+      expect(closeReasonOf({ state: "closed", reason: "lease_closed_reason_unspecified" })).toBe("lease_closed_reason_unspecified");
+    });
+
+    function closedLease(input: { reason?: string; groupState: string; reclamationStartedAt?: string }) {
+      return {
+        state: "closed",
+        reason: input.reason,
+        reclamation: { startedAt: input.reclamationStartedAt },
+        group: mock<DeploymentGroup>({ state: input.groupState })
+      };
+    }
+  });
+
   describe("getLeaseCloseReasonLabel", () => {
     it("returns distinct copy for each bucket", () => {
       expect(getLeaseCloseReasonLabel("lease_closed_owner")).toBe("Closed by you");
@@ -81,6 +122,14 @@ describe("reclamationUtils", () => {
       expect(getClosedLeaseLabel(createClosedLease({ reason: "lease_closed_owner" }))).toBe("Closed by you");
     });
 
+    it("reads an unspecified close whose group closed as the owner's", () => {
+      expect(getClosedLeaseLabel(createClosedLease({ reason: "lease_closed_reason_unspecified", groupState: "closed" }))).toBe("Closed by you");
+    });
+
+    it("reads an unspecified close whose group the provider paused as the provider's", () => {
+      expect(getClosedLeaseLabel(createClosedLease({ reason: "lease_closed_reason_unspecified", groupState: "paused" }))).toBe("Closed by provider");
+    });
+
     it("returns a generic label for an unknown reason with no reclamation evidence", () => {
       expect(getClosedLeaseLabel(createClosedLease({ reason: undefined }))).toBe("Closed");
     });
@@ -106,6 +155,10 @@ describe("reclamationUtils", () => {
       expect(isClosedByOwner({ state: "closed", reclamation: { reason: "lease_closed_owner" } })).toBe(true);
     });
 
+    it("reads an unspecified close whose group closed as closed by its owner", () => {
+      expect(isClosedByOwner({ state: "closed", reason: "lease_closed_reason_unspecified", group: mock<DeploymentGroup>({ state: "closed" }) })).toBe(true);
+    });
+
     it.each(["lease_closed_reason_unstable", "lease_closed_reason_insufficient_funds", "9999", undefined])(
       "does not read a lease closed for %s as closed by its owner",
       reason => {
@@ -122,6 +175,12 @@ describe("reclamationUtils", () => {
 
     it("summarises an insufficient funds close as 'Out of funds'", () => {
       expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "lease_closed_reason_insufficient_funds" }))).toBe("Out of funds");
+    });
+
+    it("summarises an unspecified close whose group ran out of funds as 'Out of funds'", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "lease_closed_reason_unspecified", groupState: "insufficient_funds" }))).toBe(
+        "Out of funds"
+      );
     });
 
     it("returns tenant copy for a self-closed lease", () => {

@@ -52,8 +52,21 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
   }
 }
 
+/** Since node v2.1.1 an owner's close and an out-of-funds close both record the provider-range "unspecified" reason, so the group's final state tells them apart. */
+const CLOSE_REASON_BY_GROUP_STATE: Record<string, string> = {
+  closed: "lease_closed_owner",
+  insufficient_funds: "lease_closed_reason_insufficient_funds"
+};
+
+export function closeReasonOf(lease: ReclaimableLease): string | undefined {
+  const reason = lease.reason ?? lease.reclamation?.reason;
+  const isUnspecified = toNumericCloseReason(reason) === LeaseClosedReason.lease_closed_reason_unspecified;
+  if (!isUnspecified || hasReclamationStarted(lease)) return reason;
+  return CLOSE_REASON_BY_GROUP_STATE[lease.group?.state ?? ""] ?? reason;
+}
+
 export function isClosedByOwner(lease: ReclaimableLease): boolean {
-  return toNumericCloseReason(lease.reason ?? lease.reclamation?.reason) === LeaseClosedReason.lease_closed_owner;
+  return toNumericCloseReason(closeReasonOf(lease)) === LeaseClosedReason.lease_closed_owner;
 }
 
 /**
@@ -61,7 +74,7 @@ export function isClosedByOwner(lease: ReclaimableLease): boolean {
  * second line; the full label stays on the badge's tooltip and on the deployment detail page.
  */
 export function getClosedLeaseSummaryLabel(lease: ReclaimableLease): string {
-  switch (toNumericCloseReason(lease.reason ?? lease.reclamation?.reason)) {
+  switch (toNumericCloseReason(closeReasonOf(lease))) {
     case LeaseClosedReason.lease_closed_reason_unstable:
     case LeaseClosedReason.lease_closed_reason_decommission:
     case LeaseClosedReason.lease_closed_reason_manifest_timeout:
@@ -78,7 +91,7 @@ export function getClosedLeaseSummaryLabel(lease: ReclaimableLease): string {
  * whose reason didn't classify (e.g. only the group is paused) still reads as provider-closed.
  */
 export function getClosedLeaseLabel(lease: ReclaimableLease): string {
-  const label = getLeaseCloseReasonLabel(lease.reason ?? lease.reclamation?.reason);
+  const label = getLeaseCloseReasonLabel(closeReasonOf(lease));
   return label === "Closed" && isProviderReclaimed(lease) ? "Closed by provider" : label;
 }
 

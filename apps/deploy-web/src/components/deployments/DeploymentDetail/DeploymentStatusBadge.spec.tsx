@@ -197,6 +197,15 @@ describe("DeploymentStatusBadge", () => {
       expect(status.label).toBe("Closed by provider (workloads unstable)");
     });
 
+    it("reports a provider close over an owner close that the chain recorded as unspecified", () => {
+      const status = getDeploymentStatus("active", [
+        mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_unspecified", group: mock<DeploymentGroup>({ state: "closed" }) }),
+        mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_unspecified", group: mock<DeploymentGroup>({ state: "paused" }) })
+      ]);
+
+      expect(status.label).toBe("Closed by provider");
+    });
+
     it("warns while a lease is being reclaimed", () => {
       const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "reclaiming" })]);
 
@@ -254,6 +263,14 @@ describe("DeploymentStatusBadge", () => {
         const status = getDeploymentStatus("closed", [closedLease("lease_closed_owner")], false, undefined, false, "runtime_limit_reached");
 
         expect(status).toEqual({ label: "Closed by Console", summaryLabel: "Closed by Console", tone: "closed", reason: "It reached its runtime limit." });
+      });
+
+      it("reads an owner close the chain recorded as unspecified as Console's", () => {
+        const lease = mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_unspecified", group: mock<DeploymentGroup>({ state: "closed" }) });
+
+        const status = getDeploymentStatus("closed", [lease], false, undefined, false, "runtime_limit_reached");
+
+        expect(status.label).toBe("Closed by Console");
       });
 
       it("warns about Console's close of a lease while the deployment is still open", () => {
