@@ -117,10 +117,16 @@ function searchedFor(search: string, args: unknown): string {
   return `${search} for "${shownQuery}"`;
 }
 
+function deploymentsReadOf(args: unknown): string {
+  const { state, search } = (args ?? {}) as { state?: string; search?: string };
+  const deployments = state === "closed" ? "your closed deployments" : "your active deployments";
+  return search ? searchedFor(`Searched ${deployments}`, { query: search }) : `Read ${deployments}`;
+}
+
 function summaryOf(name: DedicatedReadToolName, data: unknown, args: unknown): string {
   const deployment = deploymentLabelOf(data);
   const summaries: Record<DedicatedReadToolName, string> = {
-    list_deployments: "Read your deployments",
+    list_deployments: deploymentsReadOf(args),
     get_deployment: `Read ${deployment}`,
     get_bids: `Read the bids on ${deployment}`,
     get_balance_and_spend: "Read your balance and spend",

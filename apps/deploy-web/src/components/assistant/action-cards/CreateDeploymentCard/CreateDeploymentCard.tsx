@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useRecordOneClickDeploy } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
 import type { AssistantActionOf } from "@src/types/assistant";
 import { readProjectBudgetRefusal } from "@src/utils/projectBudgetRefusal";
@@ -28,6 +29,7 @@ export const DEPENDENCIES = {
   useQueryClient,
   useRouter,
   useRecordOneClickDeploy,
+  useFlag,
   ActionCardChrome,
   NoBidsYetNotice,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -58,6 +60,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
   const [created, setCreated] = useState<CreatedDeployment | null>(null);
   const templateId = action.templateId ?? undefined;
   const isOpen = decision.status === "pending" || decision.status === "failed";
+  const picksProviderAutomatically = d.useFlag("background_auto_lease");
 
   const deploy = async () => {
     const { data: context } = await getSealContext();
@@ -102,7 +105,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
       tier={action.tier}
       decision={decision}
       rows={rowsOf(action)}
-      costNote={costNoteOf(action)}
+      costNote={costNoteOf(action, created?.isAutoLeased ?? picksProviderAutomatically)}
       confirmLabel="Deploy"
       successMessage={successMessageOf(created, deploymentNameOf(action))}
       onConfirm={deploy}
@@ -186,8 +189,14 @@ function costRowsOf(action: AssistantActionOf<"create_deployment">): ActionCardR
   return estimatedUsdPerMonth === null ? [] : [{ label: "Estimated cost", value: `About ${formatUsd(estimatedUsdPerMonth)}/month` }];
 }
 
-function costNoteOf(action: AssistantActionOf<"create_deployment">): string {
-  return estimatedUsdPerMonthOf(action) === null
-    ? "A provider is picked automatically. Billing starts when the lease starts."
-    : "A provider is picked automatically, and the lease runs at the winning provider's bid. Billing starts when the lease starts.";
+function costNoteOf(action: AssistantActionOf<"create_deployment">, picksProviderAutomatically: boolean): string {
+  const hasEstimate = estimatedUsdPerMonthOf(action) !== null;
+  if (picksProviderAutomatically) {
+    return hasEstimate
+      ? "A provider is picked automatically, and the lease runs at the winning provider's bid. Billing starts when the lease starts."
+      : "A provider is picked automatically. Billing starts when the lease starts.";
+  }
+  return hasEstimate
+    ? "You choose a provider after Deploy, and the lease runs at its bid. Billing starts when the lease starts."
+    : "You choose a provider after Deploy. Billing starts when the lease starts.";
 }

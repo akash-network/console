@@ -117,6 +117,37 @@ describe("CreateDeploymentCard", () => {
     expect(chromeProps().costNote).toBe("A provider is picked automatically. Billing starts when the lease starts.");
   });
 
+  it.each([
+    {
+      case: "with an estimate",
+      cost: { estimatedUsdPerMonth: 6.01 },
+      note: "You choose a provider after Deploy, and the lease runs at its bid. Billing starts when the lease starts."
+    },
+    { case: "without an estimate", cost: null, note: "You choose a provider after Deploy. Billing starts when the lease starts." }
+  ])("says the user chooses the provider $case when Console doesn't pick providers for them", ({ cost, note }) => {
+    const { chromeProps, useFlag } = setup({ action: { cost }, picksProviderAutomatically: false });
+
+    expect(chromeProps().costNote).toBe(note);
+    expect(useFlag).toHaveBeenCalledWith("background_auto_lease");
+  });
+
+  it("says the user chooses the provider once the deploy comes back without a background lease", async () => {
+    const { chromeProps, createDeployment } = setup({ action: { cost: null } });
+    createDeployment.mockResolvedValue({ data: { dseq: "1234", manifest: "m", activityId: "activity-1" } });
+
+    await act(() => chromeProps().onConfirm!(""));
+
+    expect(chromeProps().costNote).toBe("You choose a provider after Deploy. Billing starts when the lease starts.");
+  });
+
+  it("says a provider is picked automatically once the deploy comes back leased in the background", async () => {
+    const { chromeProps } = setup({ action: { cost: null }, picksProviderAutomatically: false });
+
+    await act(() => chromeProps().onConfirm!(""));
+
+    expect(chromeProps().costNote).toBe("A provider is picked automatically. Billing starts when the lease starts.");
+  });
+
   it("labels each service's rows and leaves out what the action doesn't carry", () => {
     const worker: Action["services"][number] = { service: "worker", image: null, resources: { cpu: 1, memory: "1Gi", storage: [], gpu: null, count: 3 } };
     const { chromeProps } = setup({ action: { name: null, templateId: null, providersAbleToBid: null, runtimeLimitHours: null, services: [WEB, worker] } });
@@ -326,7 +357,7 @@ describe("CreateDeploymentCard", () => {
     expect(screen.queryByRole("button", { name: "Open in editor" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { action?: Partial<Action>; decisionStatus?: ActionCardDecision["status"] } = {}) {
+  function setup(input: { action?: Partial<Action>; decisionStatus?: ActionCardDecision["status"]; picksProviderAutomatically?: boolean } = {}) {
     const action: Action = {
       type: "create_deployment",
       tier: "confirm",
@@ -346,6 +377,7 @@ describe("CreateDeploymentCard", () => {
     const queryClient = mock<QueryClient>({ invalidateQueries: vi.fn(async () => undefined) });
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const recordOneClickDeploy = vi.fn();
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(() => input.picksProviderAutomatically ?? true);
     const sealSdlSecrets = vi.fn<typeof DEPENDENCIES.sealSdlSecrets>(async () => "empty-seal");
     const createConfigureDraft = vi.fn<typeof DEPENDENCIES.createConfigureDraft>(() => "draft-1");
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
@@ -364,6 +396,7 @@ describe("CreateDeploymentCard", () => {
             useQueryClient: () => queryClient,
             useRouter: () => router,
             useRecordOneClickDeploy: () => recordOneClickDeploy,
+            useFlag,
             ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome,
             NoBidsYetNotice,
             sealSdlSecrets,
@@ -385,6 +418,7 @@ describe("CreateDeploymentCard", () => {
       createDeployment,
       sealSdlSecrets,
       recordOneClickDeploy,
+      useFlag,
       queryClient,
       router,
       createConfigureDraft,

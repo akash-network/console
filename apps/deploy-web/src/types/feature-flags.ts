@@ -18,4 +18,5 @@ export type FeatureFlag =
   | "user_feedback_loop"
   | "affiliate_program"
   | "affiliate_open_enrollment"
-  | "template_marketplace";
+  | "template_marketplace"
+  | "background_auto_lease";

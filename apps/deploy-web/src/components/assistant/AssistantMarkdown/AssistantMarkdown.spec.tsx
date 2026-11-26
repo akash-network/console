@@ -28,16 +28,30 @@ describe(AssistantMarkdown.name, () => {
     expect(link).not.toHaveAttribute("rel");
   });
 
-  it.each(["/deployments", "/templates", "/templates/akash-network-awesome_akash-comfyui", "/alerts", "/billing", "/usage"])(
-    "navigates to %s in the same tab",
-    href => {
-      const { navigateInApp } = setup({ markdown: `[page](${href})` });
+  it.each([
+    "/deployments",
+    "/templates",
+    "/templates/akash-network-awesome_akash-comfyui",
+    "/templates/akash-network-awesome-akash-DeepSeek-V3.1",
+    "/projects",
+    "/projects/0b9a6c1e-4f7d-4c55-9d1e-2f1a7d1c9e01",
+    "/providers",
+    "/providers/akash1g7az2pus6atgeufgttlcnl0wzlzwd0lrsy6d7s",
+    "/alerts",
+    "/billing",
+    "/usage",
+    "/activity",
+    "/members",
+    "/payment-methods",
+    "/new-deployment",
+    "/user/api-keys"
+  ])("navigates to %s in the same tab", href => {
+    const { navigateInApp } = setup({ markdown: `[page](${href})` });
 
-      fireEvent.click(screen.getByRole("link", { name: "page" }));
+    fireEvent.click(screen.getByRole("link", { name: "page" }));
 
-      expect(navigateInApp).toHaveBeenCalledWith(href);
-    }
-  );
+    expect(navigateInApp).toHaveBeenCalledWith(href);
+  });
 
   it.each([
     "https://akash.network",
@@ -76,11 +90,18 @@ describe(AssistantMarkdown.name, () => {
     "/deployments/1x",
     "/deployments/abc",
     "x/templates/a",
-    "/templates/a.b",
+    "/templates/..",
+    "/templates/.hidden",
     "/templates/a/b",
     "/alertsx",
     "/billing/x",
     "/xusage",
+    "/projects/a/b",
+    "/projects/a.b",
+    "/providers/example",
+    "/providers/akash1abc/leases",
+    "/user/settings",
+    "/new-deployment/configure",
     "mailto:support@example.com"
   ])("shows %j as plain text after the link text instead of a link", href => {
     const { container } = setup({ markdown: `See [the guide](<${href}>) first.` });
