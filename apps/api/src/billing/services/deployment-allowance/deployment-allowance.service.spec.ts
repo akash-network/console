@@ -26,7 +26,8 @@ describe(DeploymentAllowanceService.name, () => {
       expect(managedUserWalletService.authorizeDeploymentSpendingOnly).toHaveBeenCalledWith(managedSignerService, {
         address: wallet.address,
         derivationIndex: wallet.id,
-        limit: 300_000
+        limit: 300_000,
+        readGranter: GRANTER
       });
       expect(result).toEqual({ previousLimit: 500_000, nextLimit: 300_000, txHash: "GRANT_HASH" });
       expect(scheduledCheck(jobQueueService)).toEqual({

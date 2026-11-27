@@ -1,7 +1,7 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { createMongoAbility, type MongoAbility } from "@casl/ability";
 import { context, trace } from "@opentelemetry/api";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { once } from "lodash";
 import { Err } from "ts-results";
 import { container } from "tsyringe";
@@ -236,7 +236,7 @@ program
 program
   .command("add-standby-funding-wallet")
   .description("Record a funding wallet the signer already holds the key of, so it can be promoted later")
-  .requiredOption("-a, --address <string>", "Address of the wallet to keep on standby", value => AkashAddressSchema.parse(value))
+  .requiredOption("-a, --address <string>", "Address of the wallet to keep on standby", parseAkashAddress)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(FundingWalletRotationService).addStandby(options.address);
@@ -246,7 +246,7 @@ program
 program
   .command("promote-funding-wallet")
   .description("Issue new grants from a standby funding wallet; the wallet it replaces keeps backing its users until each of them is moved")
-  .requiredOption("-a, --address <string>", "Address of the standby wallet to promote", value => AkashAddressSchema.parse(value))
+  .requiredOption("-a, --address <string>", "Address of the standby wallet to promote", parseAkashAddress)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(FundingWalletRotationService).promote(options.address);
@@ -263,6 +263,14 @@ program
   });
 
 const logger = createOtelLogger({ context: "CLI" });
+
+function parseAkashAddress(value: string) {
+  const address = AkashAddressSchema.safeParse(value);
+
+  if (!address.success) throw new InvalidArgumentError("must be a valid akash address");
+
+  return address.data;
+}
 
 async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {

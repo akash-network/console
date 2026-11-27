@@ -91,7 +91,8 @@ export class PaymentCreditService {
       const tx = await this.managedUserWalletService.authorizeDeploymentSpendingOnly(this.managedSignerService, {
         address: wallet.address,
         derivationIndex: wallet.id,
-        limit
+        limit,
+        readGranter: read.granter
       });
 
       if (tx?.code === COSMOS_TX_CODE_OK) await watch(tx.hash);

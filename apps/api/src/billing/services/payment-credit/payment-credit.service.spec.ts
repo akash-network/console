@@ -38,7 +38,8 @@ describe(PaymentCreditService.name, () => {
       expect(managedUserWalletService.authorizeDeploymentSpendingOnly).toHaveBeenCalledWith(managedSignerService, {
         address: credit.wallet.address,
         derivationIndex: credit.wallet.id,
-        limit: 500_000 + credit.amountCents * 10000
+        limit: 500_000 + credit.amountCents * 10000,
+        readGranter: GRANTER
       });
       expect(paymentCreditRepository.markLanded).toHaveBeenCalledWith(credit.transactionId, "GRANT_HASH");
       expect(deploymentAllowanceService.watch).toHaveBeenCalledWith(credit.wallet, {
