@@ -1107,6 +1107,13 @@
       "when": 1795752971559,
       "tag": "0157_refused_signups",
       "breakpoints": true
+    },
+    {
+      "idx": 158,
+      "version": "7",
+      "when": 1795806354396,
+      "tag": "0158_funding_wallets",
+      "breakpoints": true
     }
   ]
 }

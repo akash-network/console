@@ -6,3 +6,4 @@ export * from "./deployment-deposit/deployment-deposit.schema";
 export * from "./first-purchase-bonus-win-back/first-purchase-bonus-win-back.schema";
 export * from "./payment-credit/payment-credit.schema";
 export * from "./refund-debit/refund-debit.schema";
+export * from "./funding-wallet/funding-wallet.schema";
