@@ -22,9 +22,9 @@ export class CreditReturnedEscrowHandler implements JobHandler<CreditReturnedEsc
     return [];
   }
 
-  /** Fails, and is retried later, while the chain index has not stored the close it was queued for, since reading before that would find nothing and end the job. */
+  /** Fails, and is retried later, while the chain index has not processed the close it was queued for, since reading before that would find nothing and end the job. */
   async handle({ userWalletId, closeTxHash }: JobPayload<CreditReturnedEscrow>): Promise<void> {
-    if (closeTxHash && !(await this.deploymentAllowanceHistoryRepository.findTx(closeTxHash))) {
+    if (closeTxHash && !(await this.deploymentAllowanceHistoryRepository.isTxProcessed(closeTxHash))) {
       throw createError(503, "The chain index has not reached this close yet", { closeTxHash });
     }
 

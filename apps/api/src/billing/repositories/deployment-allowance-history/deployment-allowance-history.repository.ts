@@ -39,6 +39,16 @@ export class DeploymentAllowanceHistoryRepository {
     return row && { height: row.height, txIndex: row.txIndex, isSucceeded: !row.hasProcessingError };
   }
 
+  /** The indexer stores a transaction first and ties its messages to their deployments when it processes it, so a stored close is not yet one `findRefundsLeftWithGranter` can find. */
+  async isTxProcessed(hash: string): Promise<boolean> {
+    const rows = await this.#chainDb.query(`/* deployment-allowance:txProcessed */ SELECT 1 FROM transaction WHERE hash = :hash AND "isProcessed" LIMIT 1`, {
+      type: QueryTypes.SELECT,
+      replacements: { hash }
+    });
+
+    return rows.length > 0;
+  }
+
   /** Oldest first, from the block after `afterHeight` up to the transaction at `before`; typed event values are stored JSON-encoded, and the fenced laterals keep the event tables read by transaction. */
   async findChanges({
     granter,

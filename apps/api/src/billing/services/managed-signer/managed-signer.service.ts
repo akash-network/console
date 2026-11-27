@@ -134,6 +134,7 @@ export class ManagedSignerService {
     }
 
     await this.depositLedger.recordLanded(deposits, tx);
+    await this.#queueReturnedEscrowCreditOnClose(walletIndex, messages, tx);
 
     return tx;
   }
@@ -218,7 +219,6 @@ export class ManagedSignerService {
     await this.#followUpLeases(userWallet, { dseqs: leasedDseqs, isFirstLease, actingUserId });
     await this.followUpLandedTx(userWallet, messages, { actingUserId, filingProjectId: options?.filingProjectId });
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
-    await this.#queueReturnedEscrowCreditOnClose(userWallet, messages, tx.hash);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
 
@@ -387,12 +387,12 @@ export class ManagedSignerService {
   }
 
   /** The escrow a close returns goes to the funding wallet that paid it, which credits nobody once its user has moved to another one. */
-  async #queueReturnedEscrowCreditOnClose(userWallet: UserWalletOutput, messages: EncodeObject[], txHash: string) {
-    if (!messages.some(message => message.typeUrl.endsWith(".MsgCloseDeployment"))) {
+  async #queueReturnedEscrowCreditOnClose(userWalletId: number, messages: readonly EncodeObject[], tx: { code: number; hash: string }) {
+    if (tx.code !== COSMOS_TX_CODE_OK || !messages.some(message => message.typeUrl.endsWith(".MsgCloseDeployment"))) {
       return;
     }
 
-    await this.returnedEscrowQueue.queueAfterClose(userWallet.id, txHash);
+    await this.returnedEscrowQueue.queueAfterClose(userWalletId, tx.hash);
   }
 
   #hasSpendingTx(messages: EncodeObject[]): boolean {

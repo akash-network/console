@@ -90,6 +90,16 @@ describe(CreditReturnedEscrowHandler.name, () => {
     expect(chain.limit).toBe(1_000_000);
   });
 
+  it("fails, to be retried, while the chain index holds the close it was queued for and has not tied it to its deployment yet", async () => {
+    const { chain, index, handle, findRefunds } = await setup();
+    const close = await index.refund({ amount: 500_000, height: chain.readHeight + 5, isProcessed: false, isTiedToDeployment: false });
+
+    await expect(handle({ closeTxHash: close.txHash })).rejects.toMatchObject({ status: 503, closeTxHash: close.txHash });
+
+    expect(chain.limit).toBe(1_000_000);
+    await expect(findRefunds()).resolves.toEqual([]);
+  });
+
   it("queues a check for every user moved off a funding wallet, each of which credits that user", async () => {
     const { chain, draining, index, findRefunds } = await setup();
     const close = await index.refund({ amount: 500_000, height: chain.readHeight + 5 });
@@ -140,7 +150,7 @@ describe(CreditReturnedEscrowHandler.name, () => {
     });
 
     const index = {
-      refund: (at: { amount: number; height: number; isGrantSavedAgain?: boolean }) =>
+      refund: (at: { amount: number; height: number; isGrantSavedAgain?: boolean; isProcessed?: boolean; isTiedToDeployment?: boolean }) =>
         indexRefundLeftWithGranter({ granter: draining.address, owner: wallet.address, denom, ...at })
     };
 

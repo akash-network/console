@@ -1316,6 +1316,7 @@ describe(ManagedSignerService.name, () => {
 
       expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: wallet.id });
       expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+      expect(returnedEscrowQueue.queueAfterClose).toHaveBeenCalledTimes(1);
       expect(returnedEscrowQueue.queueAfterClose).toHaveBeenCalledWith(wallet.id, "tx-hash");
     });
 
@@ -1693,7 +1694,7 @@ describe(ManagedSignerService.name, () => {
     it("records the deposits pending before signing and settles them with the landed transaction", async () => {
       const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })] };
       const tx = { code: 0, hash: "TX-HASH", rawLog: "[]" };
-      const { service, depositLedger, txManagerService } = setup({ signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue(tx) });
+      const { service, depositLedger, txManagerService, returnedEscrowQueue } = setup({ signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue(tx) });
       depositLedger.recordPending.mockResolvedValue(deposits);
       const messages = [createMessageFor(123)];
 
@@ -1706,6 +1707,31 @@ describe(ManagedSignerService.name, () => {
       );
       expect(depositLedger.recordLanded).toHaveBeenCalledWith(deposits, tx);
       expect(depositLedger.recordFailed).not.toHaveBeenCalled();
+      expect(returnedEscrowQueue.queueAfterClose).not.toHaveBeenCalled();
+    });
+
+    it("asks for the credit of returned escrow after a landed close, whichever caller signed it", async () => {
+      const closeMessage = { typeUrl: `/${MsgCloseDeployment.$type}`, value: { id: { dseq: "123", owner: createAkashAddress() } } };
+      const { service, returnedEscrowQueue, depositLedger } = setup({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "CLOSE-HASH", rawLog: "[]" })
+      });
+
+      await service.executeDerivedTx(7, [closeMessage]);
+
+      expect(returnedEscrowQueue.queueAfterClose).toHaveBeenCalledTimes(1);
+      expect(returnedEscrowQueue.queueAfterClose).toHaveBeenCalledWith(7, "CLOSE-HASH");
+      expect(depositLedger.recordLanded.mock.invocationCallOrder[0]).toBeLessThan(returnedEscrowQueue.queueAfterClose.mock.invocationCallOrder[0]);
+    });
+
+    it("asks for no credit of returned escrow when the close landed with a failure code", async () => {
+      const closeMessage = { typeUrl: `/${MsgCloseDeployment.$type}`, value: { id: { dseq: "123", owner: createAkashAddress() } } };
+      const { service, returnedEscrowQueue } = setup({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 5, hash: "CLOSE-HASH", rawLog: "insufficient funds" })
+      });
+
+      await service.executeDerivedTx(7, [closeMessage]);
+
+      expect(returnedEscrowQueue.queueAfterClose).not.toHaveBeenCalled();
     });
 
     it("hands the signer's own error to the ledger before mapping it for the caller", async () => {
@@ -1722,6 +1748,15 @@ describe(ManagedSignerService.name, () => {
 
       expect(depositLedger.recordFailed).toHaveBeenCalledWith(deposits, signerError);
       expect(depositLedger.recordLanded).not.toHaveBeenCalled();
+    });
+
+    it("asks for no credit of returned escrow for a close the signer refused", async () => {
+      const closeMessage = { typeUrl: `/${MsgCloseDeployment.$type}`, value: { id: { dseq: "123", owner: createAkashAddress() } } };
+      const { service, returnedEscrowQueue } = setup({ signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(new Error("refused")) });
+
+      await expect(service.executeDerivedTx(7, [closeMessage])).rejects.toBeDefined();
+
+      expect(returnedEscrowQueue.queueAfterClose).not.toHaveBeenCalled();
     });
   });
 
