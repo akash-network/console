@@ -135,7 +135,7 @@ describe(StripeController.name, () => {
     it("throws a retriable 409 without redeeming when the wallet is still provisioning", async () => {
       const { controller, couponRedemptionService, trialActivationJobService, userWalletRepository, user } = setup();
       userWalletRepository.findOneUsedBy.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
-      trialActivationJobService.assertActivatedOrTrialRefused.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
 
       await expect(controller.applyCoupon({ couponId: faker.string.alphanumeric(10), userId: user.id })).rejects.toMatchObject({
         status: 409,
@@ -435,7 +435,7 @@ describe(StripeController.name, () => {
 
       await controller.applyCoupon({ couponId: "coupon_1", userId: team.user.id });
 
-      expect(trialActivationJobService.assertActivatedOrTrialRefused).not.toHaveBeenCalled();
+      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
       expect(couponRedemptionService.redeemCoupon).toHaveBeenCalledWith(team, "coupon_1");
     });
 

@@ -33,7 +33,7 @@ export class TrialActivationJobService {
   }
 
   /**
-   * Guards a managed-wallet spend that needs the trial's on-chain grants in place. When the wallet isn't activated yet it (best-effort) re-requests activation and throws a retriable
+   * Guards a managed-wallet action (a deployment spend, a coupon) that needs the trial's on-chain grants in place. When the wallet isn't activated yet it (best-effort) re-requests activation and throws a retriable
    * `wallet_provisioning` 409, so the client waits for provisioning to land instead of hitting a bare chain/funding
    * error. A failed re-enqueue is logged but still yields the 409 — the next client retry re-requests it.
    * A suspended or terminated account is refused with its own 403 instead, and a user whose trial is refused gets
@@ -47,7 +47,7 @@ export class TrialActivationJobService {
     await this.#requestActivation(wallet.userId);
   }
 
-  /** Guards a payment into a personal wallet: it waits for a trial still on its way, so paying does not forfeit it, and lets through an account refused its trial, whose wallet the payment activates. */
+  /** Guards a paid top-up only: it waits for a trial still on its way, so paying does not forfeit it, and lets through an account refused its trial, whose wallet the payment activates. A coupon is free credit, so it stays behind assertActivated. */
   async assertActivatedOrTrialRefused(wallet: { userId: UserOutput["id"]; activatedAt?: Date | null }): Promise<void> {
     if (wallet.activatedAt) return;
 
