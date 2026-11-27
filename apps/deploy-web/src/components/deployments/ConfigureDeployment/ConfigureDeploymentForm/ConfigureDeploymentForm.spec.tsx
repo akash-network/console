@@ -709,6 +709,22 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", expect.objectContaining({ variant: "trial_credit_below_minimum" }));
   });
 
+  it("tells an account that was given no free trial why it needs credits, rather than that its trial credit is used up", () => {
+    const message = "A free trial isn't available for this account, so deploying needs credits.";
+    const { analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message, kind: "needs-funds", isTrialUnavailable: true },
+      isTrialing: true,
+      deployBalanceUsd: 0,
+      minimumDepositUsd: 0.5
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Your free trial credit is used up");
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", { category: "deployments", variant: "trial_unavailable" });
+  });
+
   it("reads the trial's remaining credit from the wallet when the refusal reports no amounts", () => {
     const { analyticsService } = setup({
       initialSdl: undefined,

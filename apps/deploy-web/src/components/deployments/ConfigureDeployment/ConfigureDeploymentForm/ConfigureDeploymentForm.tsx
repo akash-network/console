@@ -671,8 +671,11 @@ function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; f
   return { title: "Couldn't get bids from providers", fallback: "Something went wrong. Please adjust your deployment and try again." };
 }
 
-function needsFundsVariantOfRefusal({ shortfall }: FlowError, { isTrialing, deployBalanceUsd, minimumDepositUsd }: DeployFunds): NeedsFundsVariant {
-  return needsFundsVariantOf({ isTrialing, availableAmountUsd: shortfall?.availableAmountUsd ?? deployBalanceUsd, minimumDepositUsd });
+function needsFundsVariantOfRefusal(
+  { shortfall, isTrialUnavailable }: FlowError,
+  { isTrialing, deployBalanceUsd, minimumDepositUsd }: DeployFunds
+): NeedsFundsVariant {
+  return needsFundsVariantOf({ isTrialing, isTrialUnavailable, availableAmountUsd: shortfall?.availableAmountUsd ?? deployBalanceUsd, minimumDepositUsd });
 }
 
 function shortfallPropertiesOf({ shortfall }: FlowError) {

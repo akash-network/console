@@ -41,6 +41,13 @@ describe(NeedsFundsAlert.name, () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Add funds to unlock GPU interconnect");
   });
 
+  it("gives an account without a free trial the refusal's own reason under the ask for credits", () => {
+    setup({ variant: { name: "trial_unavailable" }, message: "A free trial isn't available for this account, so deploying needs credits." });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Add credits to deploy");
+    expect(screen.getByRole("alert")).toHaveTextContent("A free trial isn't available for this account, so deploying needs credits.");
+  });
+
   it("falls back to a plain explanation when the refusal carries no reason", () => {
     setup({});
 

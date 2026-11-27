@@ -252,6 +252,17 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.error).toEqual({ kind: "needs-funds", message });
   });
 
+  it("marks a create the api refused because the account was given no free trial", async () => {
+    const message = "A free trial isn't available for this account, so deploying needs credits.";
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(402, { message, code: "trial_unavailable" }, "POST /v1/deployments → 402")));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() => expect(result.current.phase).toBe("error"));
+    expect(result.current.error).toStrictEqual({ kind: "needs-funds", message, shortfall: undefined, isTrialUnavailable: true });
+  });
+
   it("carries how far the balance falls short so the user is told what is missing", async () => {
     const message = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
     const refusal = new ApiError(
