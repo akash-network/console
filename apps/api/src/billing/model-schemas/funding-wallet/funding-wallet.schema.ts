@@ -28,7 +28,7 @@ export const FundingWallets = pgTable(
   })
 );
 
-/** One row per user wallet ever granted on a network; `user_wallet_id` has no foreign key, since the row is written on its own connection while the caller's transaction may hold that user wallet locked. */
+/** One row per user wallet ever granted on a network; `user_wallet_id` has no foreign key, since assigning every existing user wallet at once would wait on each one another transaction holds locked. */
 export const UserWalletGranters = pgTable(
   "user_wallet_granters",
   {
