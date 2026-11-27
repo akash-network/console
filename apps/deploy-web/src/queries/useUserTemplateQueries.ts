@@ -3,7 +3,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { isClientError, SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
-import type { CommunityTemplateGallery, CurrentTemplatePublisher, MarketplaceTemplate, TemplatePublisherPage } from "@src/types/marketplace-template";
+import type {
+  CommunityTemplateGallery,
+  CurrentTemplatePublisher,
+  MarketplaceTemplate,
+  TemplateInsightPeriod,
+  TemplateInsights,
+  TemplatePublisherPage
+} from "@src/types/marketplace-template";
 
 /** A template link outlives its template, and the page answers a deleted, removed or private one itself. */
 const SKIP_REPORTING_UNREADABLE_TEMPLATE = { skipErrorReporting: isClientError };
@@ -32,6 +39,23 @@ export function useTemplateVersion(id: string | undefined, version: number | und
   return api.v1.getUserTemplateVersion.useQuery(
     { id: id ?? "", version: version ?? 0 },
     { enabled: !!id && version !== undefined, meta: SKIP_REPORTING_UNREADABLE_TEMPLATE, select: response => response.data }
+  );
+}
+
+export function useRecordTemplateViewMutation() {
+  const { api } = useServices();
+
+  return api.v1.createUserTemplateView.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
+}
+
+const INSIGHT_DAYS_PARAM = { 7: "7", 30: "30", 90: "90" } as const satisfies Record<TemplateInsightPeriod, string>;
+
+export function useTemplateInsights(id: string, days: TemplateInsightPeriod, { enabled }: { enabled: boolean }) {
+  const { api } = useServices();
+
+  return api.v1.getUserTemplateInsights.useQuery(
+    { id, days: INSIGHT_DAYS_PARAM[days] },
+    { enabled, meta: SKIP_REPORTING_UNREADABLE_TEMPLATE, select: (response): TemplateInsights => response.data }
   );
 }
 

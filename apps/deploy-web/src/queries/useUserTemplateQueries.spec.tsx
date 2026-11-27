@@ -22,7 +22,9 @@ import {
   useMyTemplates,
   useOrganizationTemplates,
   usePublishTemplateMutation,
+  useRecordTemplateViewMutation,
   useReportTemplateMutation,
+  useTemplateInsights,
   useTemplatePublisher,
   useTemplatePublishReadiness,
   useTemplateVersion,
@@ -41,6 +43,7 @@ const TEMPLATE_KEY = ["v1", "getUserTemplate", { id: "tpl-1" }];
 const VERSIONS_KEY = ["v1", "listUserTemplateVersions", { id: "tpl-1" }];
 const PUBLISHER_KEY = ["v1", "getTemplatePublisher", { handle: "lambda-garage" }];
 const OWN_PUBLISHER_KEY = ["v1", "getCurrentTemplatePublisher"];
+const INSIGHTS = { days: 30, from: "2026-10-29", to: "2026-11-27", daily: [], versions: [], hints: [] };
 const READINESS_KEY = ["v1", "getUserTemplatePublishReadiness", { id: "tpl-1" }];
 const READINESS = {
   termsVersion: "2026-11",
@@ -558,6 +561,36 @@ describe("useUserTemplateQueries", () => {
     });
   });
 
+  describe(useTemplateInsights.name, () => {
+    it.each([7, 30, 90] as const)("loads the insights of the last %i days", async days => {
+      const { result, getUserTemplateInsights } = setup({ useHook: () => useTemplateInsights("tpl-1", days, { enabled: true }) });
+
+      await waitFor(() => expect(result.current.data).toEqual(INSIGHTS));
+      expect(getUserTemplateInsights).toHaveBeenCalledWith({ id: "tpl-1", days: String(days) });
+    });
+
+    it("does not load while disabled", () => {
+      const { result, getUserTemplateInsights } = setup({ useHook: () => useTemplateInsights("tpl-1", 30, { enabled: false }) });
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(getUserTemplateInsights).not.toHaveBeenCalled();
+    });
+  });
+
+  describe(useRecordTemplateViewMutation.name, () => {
+    it("records the view and keeps a refused one out of error reporting", async () => {
+      const { result, queryClient, createUserTemplateView } = setup({ useHook: () => useRecordTemplateViewMutation() });
+
+      await act(async () => {
+        await result.current.mutateAsync({ id: "tpl-1", data: { kind: "page_view" } });
+      });
+
+      const [mutation] = queryClient.getMutationCache().getAll();
+      expect(createUserTemplateView).toHaveBeenCalledWith({ id: "tpl-1", data: { kind: "page_view" } });
+      expect(shouldReportError(new ApiError(404, { message: "Not found" }, "404"), mutation.meta)).toBe(false);
+    });
+  });
+
   function setup<T>(input: { useHook: () => T; hasOrganizations?: boolean; listedTemplates?: (typeof LIST_ITEM)[][]; readinessError?: Error }) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const getUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
@@ -578,6 +611,8 @@ describe("useUserTemplateQueries", () => {
     const getCurrentTemplatePublisher = vi.fn().mockResolvedValue({ data: OWN_PUBLISHER });
     const updateCurrentTemplatePublisher = vi.fn().mockResolvedValue({ data: OWN_PUBLISHER });
     const createUserTemplateReport = vi.fn().mockResolvedValue({ data: { id: "report-1", reason: "spam", createdAt: "2026-11-19T10:00:00.000Z" } });
+    const getUserTemplateInsights = vi.fn().mockResolvedValue({ data: INSIGHTS });
+    const createUserTemplateView = vi.fn().mockResolvedValue(undefined);
     const api = createProxy({
       v1: {
         getUserTemplate,
@@ -592,6 +627,8 @@ describe("useUserTemplateQueries", () => {
         getUserTemplatePublishReadiness,
         publishUserTemplate,
         createUserTemplateReport,
+        getUserTemplateInsights,
+        createUserTemplateView,
         getTemplatePublisher,
         getCurrentTemplatePublisher,
         updateCurrentTemplatePublisher
@@ -651,6 +688,8 @@ describe("useUserTemplateQueries", () => {
       getUserTemplatePublishReadiness,
       publishUserTemplate,
       createUserTemplateReport,
+      getUserTemplateInsights,
+      createUserTemplateView,
       getTemplatePublisher,
       getCurrentTemplatePublisher,
       updateCurrentTemplatePublisher
