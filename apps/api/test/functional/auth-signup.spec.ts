@@ -1,9 +1,14 @@
+import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
+import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
+import { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 
 const { TURNSTILE_SECRET_KEY } = vi.hoisted(() => {
   const TURNSTILE_SECRET_KEY = "functional-test-turnstile-secret";
@@ -16,6 +21,7 @@ describe("Signup", () => {
   const auth0Domain = container.resolve(AuthConfigService).get("AUTH0_M2M_DOMAIN");
 
   afterEach(() => {
+    vi.restoreAllMocks();
     nock.cleanAll();
   });
 
@@ -34,6 +40,32 @@ describe("Signup", () => {
       expect(response.status).toBe(204);
       expect(turnstileRequestBodies).toEqual([expect.objectContaining({ secret: TURNSTILE_SECRET_KEY, response: captchaToken })]);
       expect(auth0CreateUserScope.isDone()).toBe(true);
+    });
+
+    it("returns 422 for a blocked email domain without creating the user, and remembers the browser it refused", async () => {
+      const blockedDomain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;
+      await container.resolve(BlockedEmailDomainRepository).create({ domain: blockedDomain, status: "blocked", source: "manual" });
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag === FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT);
+      const { password, captchaToken, auth0CreateUserScope } = setup({ auth0CreateUserResponse: { status: 201, body: { user_id: "auth0|created" } } });
+      const browser = { ip: faker.internet.ipv4(), userAgent: `Mozilla/5.0 Chrome/${faker.number.int({ min: 100, max: 999 })}.0` };
+      const otherBrowser = { ip: faker.internet.ipv4(), userAgent: browser.userAgent };
+
+      const response = await signup({ email: `someone@${blockedDomain}`, password, captchaToken }, browser);
+
+      expect(response.status).toBe(422);
+      expect(auth0CreateUserScope.isDone()).toBe(false);
+      expect(await container.resolve(RefusedSignupService).wasRecentlyRefused(browser)).toBe(true);
+      expect(await container.resolve(RefusedSignupService).wasRecentlyRefused(otherBrowser)).toBe(false);
+    });
+
+    it("remembers no refusal for a browser whose sign-up goes ahead", async () => {
+      const { email, password, captchaToken } = setup({ auth0CreateUserResponse: { status: 201, body: { user_id: "auth0|created" } } });
+      const browser = { ip: faker.internet.ipv4(), userAgent: `Mozilla/5.0 Chrome/${faker.number.int({ min: 100, max: 999 })}.0` };
+
+      const response = await signup({ email, password, captchaToken }, browser);
+
+      expect(response.status).toBe(204);
+      expect(await container.resolve(RefusedSignupService).wasRecentlyRefused(browser)).toBe(false);
     });
 
     it("returns 400 with the captcha error code without creating the user when turnstile refuses the token", async () => {
@@ -147,12 +179,16 @@ describe("Signup", () => {
     });
   });
 
-  function signup(body: { email: string; password: string; captchaToken?: string }) {
-    return app.request("/v1/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body)
-    });
+  function signup(body: { email: string; password: string; captchaToken?: string }, browser?: { ip: string; userAgent: string }) {
+    return app.request(
+      "/v1/auth/signup",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(browser ? { "cf-connecting-ip": browser.ip, "User-Agent": browser.userAgent } : {}) },
+        body: JSON.stringify(body)
+      },
+      browser ? { incoming: { socket: { remoteAddress: browser.ip, remotePort: 443, remoteFamily: "IPv4" } } } : undefined
+    );
   }
 
   function setup(input: {

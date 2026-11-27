@@ -19,6 +19,7 @@ import type { DataKeyService } from "@src/secret/services/data-key/data-key.serv
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import type { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
@@ -72,9 +73,20 @@ describe(UserService.name, () => {
         expect(userRepository.upsertOnExternalIdConflict).not.toHaveBeenCalled();
       });
 
+      it("remembers the browser the new account was refused in", async () => {
+        const { service, userRepository, blockedEmailDomainService, refusedSignupService } = setup();
+        blockedEmailDomainService.isBlockedEmail.mockResolvedValue(true);
+        userRepository.findByUserId.mockResolvedValue(undefined);
+        const input = createRegisterInput();
+
+        await expect(service.registerUser(input)).rejects.toMatchObject({ status: 403 });
+
+        expect(refusedSignupService.remember).toHaveBeenCalledWith({ ip: input.ip, userAgent: input.userAgent });
+      });
+
       it("registers an account that already exists, so a later block never locks an established user out", async () => {
         const user = createUser({ emailVerified: true });
-        const { service, userRepository, notificationService, blockedEmailDomainService } = setup();
+        const { service, userRepository, notificationService, blockedEmailDomainService, refusedSignupService } = setup();
         blockedEmailDomainService.isBlockedEmail.mockResolvedValue(true);
         userRepository.findByUserId.mockResolvedValue(user);
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
@@ -83,6 +95,7 @@ describe(UserService.name, () => {
         const result = await service.registerUser(createRegisterInput());
 
         expect(result.id).toBe(user.id);
+        expect(refusedSignupService.remember).not.toHaveBeenCalled();
       });
     });
 
@@ -746,6 +759,7 @@ describe(UserService.name, () => {
 
     const hardwareRequestClaimService = mock<HardwareRequestClaimService>({ claimForVerifiedEmail: vi.fn().mockResolvedValue(undefined) });
     const accountStatusService = mock<AccountStatusService>({ terminateIfVerifiedEmailWasTerminated: vi.fn(async user => user) });
+    const refusedSignupService = mock<RefusedSignupService>();
     const service = new UserService(
       userRepository,
       analyticsService,
@@ -761,10 +775,12 @@ describe(UserService.name, () => {
       verifiedEmailService,
       hardwareRequestClaimService,
       accountStatusService,
-      referralService
+      referralService,
+      refusedSignupService
     );
 
     return {
+      refusedSignupService,
       accountStatusService,
       hardwareRequestClaimService,
       blockedEmailDomainService,

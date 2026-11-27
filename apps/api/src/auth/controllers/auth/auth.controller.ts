@@ -13,7 +13,9 @@ import {
   CaptchaVerifierService
 } from "@src/auth/services/captcha-verifier/captcha-verifier.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import type { Browser } from "@src/workload-abuse/lib/account-hashes/account-hashes";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 
 /** Auth0 being down is not the caller's fault, and its internal message is not useful to them. */
 const AUTH_PROVIDER_UNAVAILABLE_MESSAGE = "Unable to create the account right now. Please try again.";
@@ -27,15 +29,17 @@ export class AuthController {
     private readonly auth0: Auth0Service,
     private readonly emailVerificationCodeService: EmailVerificationCodeService,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
-    private readonly captchaVerifierService: CaptchaVerifierService
+    private readonly captchaVerifierService: CaptchaVerifierService,
+    private readonly refusedSignupService: RefusedSignupService
   ) {}
 
-  async signup(input: SignupInput, captchaContext: CaptchaVerificationContext) {
+  async signup(input: SignupInput, captchaContext: CaptchaVerificationContext, browser: Browser) {
     if (!(await this.captchaVerifierService.verify(input.captchaToken, captchaContext))) {
       throw createError(400, CAPTCHA_VERIFICATION_FAILED_MESSAGE, { errorCode: CAPTCHA_VERIFICATION_FAILED_ERROR_CODE });
     }
 
     if (await this.blockedEmailDomainService.isBlockedEmail(input.email)) {
+      await this.refusedSignupService.remember(browser);
       throw createError(422, ACCOUNT_UNAVAILABLE_MESSAGE);
     }
 

@@ -18,6 +18,7 @@ import { ProjectRepository } from "@src/organization/repositories/project/projec
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
+import { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
@@ -93,6 +94,20 @@ describe("User registration", () => {
       expect(await userRepository.findByUserId(externalUserId)).toBeUndefined();
     });
 
+    it("remembers the browser a new account on a blocked domain was refused in", async () => {
+      const blockedDomain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;
+      await blockedEmailDomainRepository.create({ domain: blockedDomain, status: "blocked", source: "manual" });
+      const { register } = setup({ auth0User: { email: `someone@${blockedDomain}`, emailVerified: true } });
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag === FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT);
+      const browser = { ip: faker.internet.ipv4(), userAgent: `Mozilla/5.0 Chrome/${faker.number.int({ min: 100, max: 999 })}.0` };
+
+      const response = await register({}, browser);
+
+      expect(response.status).toBe(403);
+      expect(await container.resolve(RefusedSignupService).wasRecentlyRefused(browser)).toBe(true);
+      expect(await container.resolve(RefusedSignupService).wasRecentlyRefused({ ...browser, ip: faker.internet.ipv4() })).toBe(false);
+    });
+
     it("creates nothing new when the same user registers again", async () => {
       const { register } = setup();
       const first = (await (await register()).json()) as RegisteredUserBody;
@@ -155,12 +170,20 @@ describe("User registration", () => {
     vi.spyOn(container.resolve(NotificationService), "createDefaultChannel").mockResolvedValue(undefined);
     vi.spyOn(container.resolve(NotificationService), "createNotification").mockResolvedValue(undefined);
 
-    const register = (body: { email?: string; emailVerified?: boolean } = {}) =>
-      app.request("/v1/register-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ wantedUsername, email: auth0User.email, emailVerified: auth0User.emailVerified, subscribedToNewsletter: false, ...body })
-      });
+    const register = (body: { email?: string; emailVerified?: boolean } = {}, browser?: { ip: string; userAgent: string }) =>
+      app.request(
+        "/v1/register-user",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: `Bearer ${token}`,
+            ...(browser ? { "cf-connecting-ip": browser.ip, "User-Agent": browser.userAgent } : {})
+          },
+          body: JSON.stringify({ wantedUsername, email: auth0User.email, emailVerified: auth0User.emailVerified, subscribedToNewsletter: false, ...body })
+        },
+        browser ? { incoming: { socket: { remoteAddress: browser.ip, remotePort: 443, remoteFamily: "IPv4" } } } : undefined
+      );
 
     return { externalUserId, wantedUsername, register };
   }

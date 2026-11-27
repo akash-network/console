@@ -74,3 +74,17 @@ export function buildNewEmailDomainReviewMessage(input: {
 
   return { text: messageLines.join("\n") };
 }
+
+export function buildTrialAfterRefusedSignupReviewMessage(input: {
+  account: ReviewedAccount;
+  windowMinutes: number;
+  adminUrl?: string;
+}): TrialSignupReviewMessage {
+  const messageLines = [
+    ":no_entry: *Trial held after a refused sign-up*",
+    describeAccount(input.account, input.adminUrl),
+    `A sign-up from this browser was refused in the ${input.windowMinutes} min before this account asked for its trial.`
+  ];
+
+  return { text: messageLines.join("\n") };
+}

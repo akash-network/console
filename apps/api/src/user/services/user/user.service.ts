@@ -20,7 +20,9 @@ import { PersonalOrganizationService } from "@src/organization/services/personal
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import { toIanaTimeZone } from "@src/utils/date/date";
+import type { Browser } from "@src/workload-abuse/lib/account-hashes/account-hashes";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
@@ -42,7 +44,8 @@ export class UserService {
     private readonly verifiedEmailService: VerifiedEmailService,
     private readonly hardwareRequestClaimService: HardwareRequestClaimService,
     private readonly accountStatusService: AccountStatusService,
-    private readonly referralService: ReferralService
+    private readonly referralService: ReferralService,
+    private readonly refusedSignupService: RefusedSignupService
   ) {
     this.logger = createLogger({ context: UserService.name });
   }
@@ -65,7 +68,7 @@ export class UserService {
     const signInEmail = await this.verifiedEmailService.getEmail(data.userId);
     assert(signInEmail, 400, "The account has no email address");
 
-    await this.assertDomainNotBlockedForNewUser({ userId: data.userId, email: signInEmail.email });
+    await this.assertDomainNotBlockedForNewUser({ userId: data.userId, email: signInEmail.email, browser: { ip: data.ip, userAgent: data.userAgent } });
 
     const userDetails = {
       userId: data.userId,
@@ -164,9 +167,11 @@ export class UserService {
    * unconditionally would ban an established user whose domain was blocked for somebody else's abuse —
    * and the Auth0 callback swallows this error, so they would get a session with no account behind it.
    */
-  private async assertDomainNotBlockedForNewUser(data: { userId: string; email: string }): Promise<void> {
+  private async assertDomainNotBlockedForNewUser(data: { userId: string; email: string; browser: Browser }): Promise<void> {
     if (!(await this.blockedEmailDomainService.isBlockedEmail(data.email))) return;
     if (await this.userRepository.findByUserId(data.userId)) return;
+
+    await this.refusedSignupService.remember(data.browser);
 
     this.logger.warn({ event: "REGISTRATION_BLOCKED_EMAIL_DOMAIN", userId: data.userId });
 

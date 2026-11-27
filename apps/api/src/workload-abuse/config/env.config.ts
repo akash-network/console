@@ -160,6 +160,12 @@ export const envSchema = z.object({
   /** `report` grants the trial and only logs the hold it would have placed; the hold needs the review window above to be set. */
   WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(2)),
+  /** `report` grants the trial and only logs the hold a browser refused at sign-up moments earlier would have met; `off` also stops recording refusals. */
+  WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
+  WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES: z.preprocess(
+    blankToUndefined,
+    z.number({ coerce: true }).int().positive().max(MAX_SIGNUP_REVIEW_WINDOW_MINUTES).default(60)
+  ),
   /** `report` grants the trial and only logs; unlike the device hold, `enforce` holds without a review window or fingerprint. */
   WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   /** `report` grants the trial and only logs the email domain signals that would have held it. */

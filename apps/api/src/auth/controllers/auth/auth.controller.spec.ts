@@ -9,6 +9,7 @@ import { AUTH0_DB_CONNECTION } from "@src/auth/services/auth0/auth0.service";
 import type { CaptchaVerifierService } from "@src/auth/services/captcha-verifier/captcha-verifier.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import type { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 import { AuthController } from "./auth.controller";
 
 import { createUser } from "@test/seeders/user.seeder";
@@ -22,6 +23,8 @@ function createManagementApiError(statusCode: number, message: string, error = "
   return new ManagementApiError("auth0_idp_error", error, statusCode, body, new Headers(), message);
 }
 
+const BROWSER = { ip: "203.0.113.7", userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/142.0" };
+
 describe(AuthController.name, () => {
   describe("signup", () => {
     it("creates user via auth0 service", async () => {
@@ -29,7 +32,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockResolvedValue(undefined);
 
-      await controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {});
+      await controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER);
 
       expect(auth0Service.createUser).toHaveBeenCalledWith({
         email: "user@example.com",
@@ -41,7 +44,11 @@ describe(AuthController.name, () => {
     it("verifies the captcha with the caller's client context", async () => {
       const { controller, captchaVerifierService } = setup();
 
-      await controller.signup({ email: "user@example.com", password: "StrongPassword123!", captchaToken: "captcha-token" }, { remoteIp: "203.0.113.7" });
+      await controller.signup(
+        { email: "user@example.com", password: "StrongPassword123!", captchaToken: "captcha-token" },
+        { remoteIp: "203.0.113.7" },
+        BROWSER
+      );
 
       expect(captchaVerifierService.verify).toHaveBeenCalledWith("captcha-token", { remoteIp: "203.0.113.7" });
     });
@@ -49,7 +56,9 @@ describe(AuthController.name, () => {
     it("refuses an unverified captcha with its own error code, without reaching auth0", async () => {
       const { controller, auth0Service, blockedEmailDomainService } = setup({ isCaptchaVerified: false });
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!", captchaToken: "captcha-token" }, {})).rejects.toMatchObject({
+      await expect(
+        controller.signup({ email: "user@example.com", password: "StrongPassword123!", captchaToken: "captcha-token" }, {}, BROWSER)
+      ).rejects.toMatchObject({
         status: 400,
         message: "Captcha verification failed. Please try again.",
         errorCode: "captcha_verification_failed"
@@ -61,11 +70,39 @@ describe(AuthController.name, () => {
     it("refuses a blocked email domain with the same response as an existing account, without reaching auth0", async () => {
       const { controller, auth0Service } = setup({ isBlockedEmail: true });
 
-      await expect(controller.signup({ email: "miner@attacker.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "miner@attacker.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({
         status: 422,
         message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
       expect(auth0Service.createUser).not.toHaveBeenCalled();
+    });
+
+    it("remembers the browser a blocked email domain was refused in, before answering", async () => {
+      const { controller, refusedSignupService } = setup({ isBlockedEmail: true });
+
+      await expect(controller.signup({ email: "miner@attacker.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({ status: 422 });
+
+      expect(refusedSignupService.remember).toHaveBeenCalledWith(BROWSER);
+    });
+
+    it("remembers no refusal for a sign-up that goes ahead, a failed captcha, an existing account or an auth0 refusal", async () => {
+      const created = setup();
+      const captchaFailed = setup({ isCaptchaVerified: false, isBlockedEmail: true });
+      const existing = setup();
+      existing.auth0Service.createUser.mockRejectedValue(createManagementApiError(409, "The user already exists.", "Conflict"));
+      const refusedByAction = setup();
+      refusedByAction.auth0Service.createUser.mockRejectedValue(createManagementApiError(400, "Sandbox Error: action.email_dedup.duplicate_email"));
+      const input = { email: "user@example.com", password: "StrongPassword123!" };
+
+      await created.controller.signup(input, {}, BROWSER);
+      await expect(captchaFailed.controller.signup(input, {}, BROWSER)).rejects.toMatchObject({ status: 400 });
+      await expect(existing.controller.signup(input, {}, BROWSER)).rejects.toMatchObject({ status: 422 });
+      await expect(refusedByAction.controller.signup(input, {}, BROWSER)).rejects.toMatchObject({ status: 422 });
+
+      expect(created.refusedSignupService.remember).not.toHaveBeenCalled();
+      expect(captchaFailed.refusedSignupService.remember).not.toHaveBeenCalled();
+      expect(existing.refusedSignupService.remember).not.toHaveBeenCalled();
+      expect(refusedByAction.refusedSignupService.remember).not.toHaveBeenCalled();
     });
 
     it("converts 409 (user exists) to a 422 that does not confirm the email is registered", async () => {
@@ -73,7 +110,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(createManagementApiError(409, "The user already exists.", "Conflict"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({
         status: 422,
         message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
@@ -84,7 +121,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(createManagementApiError(400, "PasswordStrengthError: Password is too weak"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "weak" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "user@example.com", password: "weak" }, {}, BROWSER)).rejects.toMatchObject({
         status: 400,
         message: "PasswordStrengthError: Password is too weak"
       });
@@ -95,7 +132,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(createManagementApiError(400, "Sandbox Error: action.email_dedup.duplicate_email"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({
         status: 422,
         message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
@@ -106,7 +143,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(createManagementApiError(403, "Sandbox Error: action.example.refused", "Forbidden"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({
         status: 422,
         message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
@@ -117,7 +154,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(createManagementApiError(429, "Too many requests", "Too Many Requests"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({
         status: 429,
         message: "Too many requests"
       });
@@ -128,7 +165,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(createManagementApiError(503, "Service temporarily unavailable", "Service Unavailable"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({
         status: 502,
         message: "Unable to create the account right now. Please try again."
       });
@@ -139,7 +176,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(new ResponseError(409, "<html>Conflict</html>", new Headers(), "Response returned an error code"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toMatchObject({
         status: 422,
         message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
@@ -150,7 +187,7 @@ describe(AuthController.name, () => {
 
       auth0Service.createUser.mockRejectedValue(new Error("Network failure"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toThrow("Network failure");
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {}, BROWSER)).rejects.toThrow("Network failure");
     });
   });
 
@@ -202,15 +239,17 @@ describe(AuthController.name, () => {
     const emailVerificationCodeService = mock<EmailVerificationCodeService>();
     const blockedEmailDomainService = mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input.isBlockedEmail ?? false) });
     const captchaVerifierService = mock<CaptchaVerifierService>({ verify: vi.fn().mockResolvedValue(input.isCaptchaVerified ?? true) });
+    const refusedSignupService = mock<RefusedSignupService>();
 
     const controller = new AuthController(
       rootContainer.resolve(AuthService),
       auth0Service,
       emailVerificationCodeService,
       blockedEmailDomainService,
-      captchaVerifierService
+      captchaVerifierService,
+      refusedSignupService
     );
 
-    return { controller, auth0Service, emailVerificationCodeService, blockedEmailDomainService, captchaVerifierService };
+    return { controller, auth0Service, emailVerificationCodeService, blockedEmailDomainService, captchaVerifierService, refusedSignupService };
   }
 });
