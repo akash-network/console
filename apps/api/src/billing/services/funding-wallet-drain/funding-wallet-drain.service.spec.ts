@@ -1,5 +1,5 @@
 import type { AuthzHttpService, DepositDeploymentGrant, FeeAllowance } from "@akashnetwork/http-sdk";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -18,8 +18,13 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 const NETWORK = "sandbox";
 const DRAINING_SINCE = new Date("2026-11-27T12:00:00.000Z");
 const MOVES_START_AT = new Date("2026-11-27T12:04:00.000Z");
+const NOW = new Date("2026-11-27T13:00:00.000Z");
 
 describe(FundingWalletDrainService.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe("queueMoves", () => {
     it("refuses when no funding wallet is draining", async () => {
       const { service, jobQueueService } = setup({ isDraining: false });
@@ -143,7 +148,13 @@ describe(FundingWalletDrainService.name, () => {
         left: { depositGrants: 40, feeAllowances: 65 },
         moves: { completed: 4100, failed: 3, revoking: 2 }
       });
-      const status = { address: draining.address, depositGrantsLeft: 40, feeAllowancesLeft: 65, moves: { completed: 4100, failed: 3, revoking: 2 } };
+      const status = {
+        address: draining.address,
+        lateGrantsEndAt: MOVES_START_AT.toISOString(),
+        depositGrantsLeft: 40,
+        feeAllowancesLeft: 65,
+        moves: { completed: 4100, failed: 3, revoking: 2 }
+      };
 
       await expect(service.describe()).resolves.toEqual(status);
 
@@ -157,12 +168,40 @@ describe(FundingWalletDrainService.name, () => {
   describe("retire", () => {
     it("retires the draining wallet once the chain shows nothing of it, whatever moves finished or need a review", async () => {
       const { service, draining, fundingWalletRepository, logger } = setup({ moves: { completed: 4100, failed: 3 } });
-      const status = { address: draining.address, depositGrantsLeft: 0, feeAllowancesLeft: 0, moves: { completed: 4100, failed: 3 } };
+      const status = {
+        address: draining.address,
+        lateGrantsEndAt: MOVES_START_AT.toISOString(),
+        depositGrantsLeft: 0,
+        feeAllowancesLeft: 0,
+        moves: { completed: 4100, failed: 3 }
+      };
 
       await expect(service.retire(draining.address)).resolves.toEqual(status);
 
       expect(fundingWalletRepository.updateStatus).toHaveBeenCalledWith(draining.id, "retired");
       expect(logger.info).toHaveBeenCalledWith({ event: "FUNDING_WALLET_RETIRED", ...status });
+    });
+
+    it("refuses while a grant signed before the promotion can still land, even though the chain shows nothing yet", async () => {
+      const lateGrantsEndAt = new Date(NOW.getTime() + 1);
+      const { service, draining, fundingWalletRepository, logger } = setup({ lateGrantsEndAt });
+
+      await expect(service.retire(draining.address)).rejects.toMatchObject({
+        status: 503,
+        message: "A grant signed before the promotion can still land on the draining funding wallet",
+        retryAt: lateGrantsEndAt.toISOString()
+      });
+
+      expect(fundingWalletRepository.updateStatus).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("retires from the moment such a grant can no longer land", async () => {
+      const { service, draining, fundingWalletRepository } = setup({ lateGrantsEndAt: NOW });
+
+      await service.retire(draining.address);
+
+      expect(fundingWalletRepository.updateStatus).toHaveBeenCalledWith(draining.id, "retired");
     });
 
     it("refuses a wallet that is not the one draining", async () => {
@@ -223,8 +262,11 @@ describe(FundingWalletDrainService.name, () => {
       strangers?: { withDepositGrant?: number; withFeeAllowance?: number };
       left?: { depositGrants?: number; feeAllowances?: number };
       moves?: Partial<Record<FundingWalletMoveStatus, number>>;
+      lateGrantsEndAt?: Date;
     } = {}
   ) {
+    vi.useFakeTimers({ now: NOW });
+
     const draining = { id: crypto.randomUUID(), network: NETWORK, address: createAkashAddress(), status: "draining" as const, drainingSince: DRAINING_SINCE };
     const users = (input.users ?? []).map(user => ({ ...user, address: createAkashAddress() }));
     const addressesOf = (count = 0) => Array.from({ length: count }, () => createAkashAddress());
@@ -258,7 +300,7 @@ describe(FundingWalletDrainService.name, () => {
 
     fundingWalletRepository.findDraining.mockResolvedValue(input.isDraining === false ? undefined : draining);
     fundingWalletMoveRepository.countByStatus.mockResolvedValue(input.moves ?? {});
-    fundingWalletMoveService.lateGrantsEndAt.mockReturnValue(MOVES_START_AT);
+    fundingWalletMoveService.lateGrantsEndAt.mockReturnValue(input.lateGrantsEndAt ?? MOVES_START_AT);
     userWalletRepository.findByAddresses.mockImplementation(async addresses =>
       users.filter(user => addresses.includes(user.address)).map(user => mock<UserWalletOutput>({ id: user.id, address: user.address }))
     );

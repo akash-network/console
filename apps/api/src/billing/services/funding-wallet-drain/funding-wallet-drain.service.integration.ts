@@ -30,7 +30,7 @@ describe(FundingWalletDrainService.name, () => {
   });
 
   it("queues a move for every user wallet the chain shows a grant of, the ones with a running deployment first, to start once late grants have landed", async () => {
-    const { service, network, findQueuedMoves, seedGrantee } = await setup();
+    const { service, network, findQueuedMoves, seedGrantee } = await setup({ drainingSince: sql`now()` });
     const withDeployment = await seedGrantee({ hasDepositGrant: true, hasFeeAllowance: true, hasOpenDeployment: true });
     const withClosedDeployment = await seedGrantee({ hasDepositGrant: true, hasClosedDeployment: true });
     const withFeesOnly = await seedGrantee({ hasFeeAllowance: true });
@@ -71,6 +71,7 @@ describe(FundingWalletDrainService.name, () => {
 
     await expect(service.describe()).resolves.toEqual({
       address: draining.address,
+      lateGrantsEndAt: expect.any(String),
       depositGrantsLeft: 1,
       feeAllowancesLeft: 2,
       moves: { completed: 2, failed: 1 }
@@ -91,6 +92,14 @@ describe(FundingWalletDrainService.name, () => {
     await expect(findStatus()).resolves.toBe("draining");
   });
 
+  it("keeps a wallet that only just started draining, since a grant signed before the promotion can still land on it", async () => {
+    const { service, draining, findStatus } = await setup({ drainingSince: sql`now()` });
+
+    await expect(service.retire(draining.address)).rejects.toMatchObject({ status: 503, retryAt: expect.any(String) });
+
+    await expect(findStatus()).resolves.toBe("draining");
+  });
+
   it("retires the drained wallet, after which another standby can take over", async () => {
     const { service, draining, network, findStatus, seedMove } = await setup();
     await seedMove("completed");
@@ -103,7 +112,7 @@ describe(FundingWalletDrainService.name, () => {
     await expect(service.describe()).rejects.toMatchObject({ status: 409 });
   });
 
-  async function setup() {
+  async function setup(input: { drainingSince?: ReturnType<typeof sql> } = {}) {
     await jobWorkers();
     const network = container.resolve(CoreConfigService).get("NETWORK");
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -111,6 +120,10 @@ describe(FundingWalletDrainService.name, () => {
     const fundingWalletsTable = resolveTable("FundingWallets");
     const draining = await fundingWallets.create({ network, address: createAkashAddress(), status: "draining" });
     const active = await fundingWallets.create({ network, address: createAkashAddress(), status: "active" });
+    await db
+      .update(fundingWalletsTable)
+      .set({ updatedAt: input.drainingSince ?? sql`now() - interval '1 hour'` })
+      .where(eq(fundingWalletsTable.id, draining.id));
     const chain = { depositGrantees: new Set<string>(), feeGrantees: new Set<string>() };
     const authz = container.resolve(AuthzHttpService);
     const depositGrantOf = (grantee: string): DepositDeploymentGrant => ({

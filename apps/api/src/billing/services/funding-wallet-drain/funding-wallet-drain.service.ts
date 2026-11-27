@@ -26,6 +26,7 @@ type DrainingWallet = FundingWalletOutput & { drainingSince: Date };
 
 export type FundingWalletDrainStatus = {
   address: string;
+  lateGrantsEndAt: string;
   depositGrantsLeft: number;
   feeAllowancesLeft: number;
   moves: Partial<Record<FundingWalletMoveStatus, number>>;
@@ -101,7 +102,7 @@ export class FundingWalletDrainService {
     return status;
   }
 
-  /** Refused while the chain still shows a grant of the wallet: its user would read as never assigned, get a grant from the active wallet too, and hold a balance on both. */
+  /** Refused while the chain shows a grant of the wallet, or could still come to show one signed before the promotion: its user would read as never assigned, get a grant from the active wallet too, and hold a balance on both. */
   async retire(address: string): Promise<FundingWalletDrainStatus> {
     const draining = await this.#findDraining();
 
@@ -110,6 +111,11 @@ export class FundingWalletDrainService {
     }
 
     const status = await this.#readStatus(draining);
+
+    if (new Date() < new Date(status.lateGrantsEndAt)) {
+      throw createError(503, "A grant signed before the promotion can still land on the draining funding wallet", { retryAt: status.lateGrantsEndAt });
+    }
+
     const unfinishedMoves = UNFINISHED_MOVE_STATUSES.reduce((count, moveStatus) => count + (status.moves[moveStatus] ?? 0), 0);
 
     if (status.depositGrantsLeft > 0 || status.feeAllowancesLeft > 0 || unfinishedMoves > 0) {
@@ -140,6 +146,7 @@ export class FundingWalletDrainService {
 
     return {
       address: draining.address,
+      lateGrantsEndAt: this.fundingWalletMoveService.lateGrantsEndAt(draining.drainingSince).toISOString(),
       depositGrantsLeft: depositGrants.pagination.total,
       feeAllowancesLeft: feeAllowances.pagination.total,
       moves
