@@ -27,6 +27,7 @@ describe(FundingWalletRegistryService.name, () => {
       await expect(service.assignGranterAddress(USER_WALLET_ID)).resolves.toBe(configuredAddress);
 
       expect(fundingWalletRepository.findActive).not.toHaveBeenCalled();
+      expect(fundingWalletRepository.findActiveOrAny).not.toHaveBeenCalled();
       expect(fundingWalletRepository.findGranterOf).not.toHaveBeenCalled();
       expect(fundingWalletRepository.findGranterOfAddress).not.toHaveBeenCalled();
       expect(fundingWalletRepository.assignUnlessAssigned).not.toHaveBeenCalled();
@@ -49,8 +50,7 @@ describe(FundingWalletRegistryService.name, () => {
 
       await expect(service.getActiveAddress()).resolves.toBe(active.address);
 
-      expect(fundingWalletRepository.findActive).toHaveBeenCalledWith(NETWORK);
-      expect(fundingWalletRepository.hasAny).not.toHaveBeenCalled();
+      expect(fundingWalletRepository.findActiveOrAny).toHaveBeenCalledWith(NETWORK);
     });
 
     it("returns the configured wallet and registers nothing when the network has no funding wallet yet", async () => {
@@ -58,14 +58,14 @@ describe(FundingWalletRegistryService.name, () => {
 
       await expect(service.getActiveAddress()).resolves.toBe(configuredAddress);
 
-      expect(fundingWalletRepository.hasAny).toHaveBeenCalledWith(NETWORK);
+      expect(fundingWalletRepository.findActiveOrAny).toHaveBeenCalledWith(NETWORK);
       expect(fundingWalletRepository.create).not.toHaveBeenCalled();
       expect(fundingWalletRepository.lockNetwork).not.toHaveBeenCalled();
       expect(txService.transaction).not.toHaveBeenCalled();
     });
 
     it("refuses with 503 when the network has wallets but none is active", async () => {
-      const { service, txManagerService } = setup({ hasAny: true });
+      const { service, txManagerService } = setup({ hasNoneActive: true });
 
       await expect(service.getActiveAddress()).rejects.toMatchObject({ status: 503, message: "No funding wallet is active", network: NETWORK });
 
@@ -103,7 +103,7 @@ describe(FundingWalletRegistryService.name, () => {
     });
 
     it("refuses with 503 for an unassigned user wallet when the network has wallets but none is active", async () => {
-      const { service } = setup({ hasAny: true });
+      const { service } = setup({ hasNoneActive: true });
 
       await expect(service.getGranterAddressByWalletId(USER_WALLET_ID)).rejects.toMatchObject({ status: 503 });
     });
@@ -208,7 +208,8 @@ describe(FundingWalletRegistryService.name, () => {
     it("assigns the wallet another process registered while this one waited for the lock", async () => {
       const registeredElsewhere = fundingWallet({ status: "active" });
       const { service, fundingWalletRepository } = setup({ granterAfterAssigning: registeredElsewhere });
-      fundingWalletRepository.findActive.mockResolvedValueOnce(undefined).mockResolvedValueOnce(registeredElsewhere);
+      fundingWalletRepository.findActive.mockResolvedValue(undefined);
+      fundingWalletRepository.findActiveOrAny.mockResolvedValue(registeredElsewhere);
 
       await expect(service.assignGranterAddress(USER_WALLET_ID)).resolves.toBe(registeredElsewhere.address);
 
@@ -218,11 +219,11 @@ describe(FundingWalletRegistryService.name, () => {
     });
 
     it("refuses with 503 rather than registering when the network has wallets but none is active", async () => {
-      const { service, fundingWalletRepository } = setup({ hasAny: true });
+      const { service, fundingWalletRepository } = setup({ hasNoneActive: true });
 
       await expect(service.assignGranterAddress(USER_WALLET_ID)).rejects.toMatchObject({ status: 503, network: NETWORK });
 
-      expect(fundingWalletRepository.hasAny).toHaveBeenCalledWith(NETWORK);
+      expect(fundingWalletRepository.findActiveOrAny).toHaveBeenCalledWith(NETWORK);
       expect(fundingWalletRepository.create).not.toHaveBeenCalled();
       expect(fundingWalletRepository.assignUnlessAssigned).not.toHaveBeenCalled();
     });
@@ -240,7 +241,7 @@ describe(FundingWalletRegistryService.name, () => {
       granterAfterAssigning?: FundingWalletOutput;
       granterOfAddress?: FundingWalletOutput;
       registered?: FundingWalletOutput;
-      hasAny?: boolean;
+      hasNoneActive?: boolean;
     } = {}
   ) {
     const calls: string[] = [];
@@ -254,7 +255,7 @@ describe(FundingWalletRegistryService.name, () => {
     txManagerService.getFundingWalletAddress.mockResolvedValue(configuredAddress);
     featureFlagsService.isEnabledForSubject.mockReturnValue(input.isEnabled ?? true);
     fundingWalletRepository.findActive.mockResolvedValue(input.active);
-    fundingWalletRepository.hasAny.mockResolvedValue(input.hasAny ?? false);
+    fundingWalletRepository.findActiveOrAny.mockResolvedValue(input.active ?? (input.hasNoneActive ? fundingWallet({ status: "draining" }) : undefined));
     fundingWalletRepository.findGranterOf.mockImplementation(async () => {
       const isAfterAssigning = calls.includes("assignUnlessAssigned");
       calls.push("findGranterOf");
