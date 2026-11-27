@@ -425,7 +425,8 @@ describe(FundingWalletMoveService.name, () => {
 
     it.each([
       ["a revoke hash but no time it was sent", { revokeTxHash: "REVOKE_HASH", revokeSentAt: null }],
-      ["a time it was sent but no revoke hash", { revokeTxHash: null, revokeSentAt: NOW }]
+      ["a time it was sent but no revoke hash", { revokeTxHash: null, revokeSentAt: NOW }],
+      ["neither a revoke hash nor a time it was sent", { revokeTxHash: null, revokeSentAt: null }]
     ])("asks for a review of a credited move that has %s", async (_case, record) => {
       const { service, wallet, deploymentAllowanceService } = setup({ move: { status: "revoked", readLimit: 4_000_000, readHeight: 900, ...record } });
 
