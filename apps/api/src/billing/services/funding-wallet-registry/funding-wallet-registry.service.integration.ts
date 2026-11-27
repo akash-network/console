@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
+import type { FundingWalletMoveQueueService } from "@src/billing/services/funding-wallet-move-queue/funding-wallet-move-queue.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import type { CoreConfig } from "@src/core/config/env.config";
@@ -202,7 +203,8 @@ describe(FundingWalletRegistryService.name, () => {
       txManagerService,
       featureFlagsService,
       mockConfigService<CoreConfigService>({ NETWORK: network }),
-      container.resolve(TxService)
+      container.resolve(TxService),
+      mock<FundingWalletMoveQueueService>()
     );
 
     return { service, repository, network, configuredAddress };

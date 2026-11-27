@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { FundingWalletOutput, FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
+import type { FundingWalletMoveQueueService } from "@src/billing/services/funding-wallet-move-queue/funding-wallet-move-queue.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { TxService } from "@src/core/services";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -159,6 +160,23 @@ describe(FundingWalletRegistryService.name, () => {
       expect(fundingWalletRepository.assignUnlessAssigned).not.toHaveBeenCalled();
     });
 
+    it("moves a user wallet it refused a grant ahead of the others, so the retry soon succeeds", async () => {
+      const { service, fundingWalletMoveQueue } = setup({ active: fundingWallet({ status: "active" }), granter: fundingWallet({ status: "draining" }) });
+
+      await expect(service.assignGranterAddress(USER_WALLET_ID)).rejects.toMatchObject({ status: 503 });
+
+      expect(fundingWalletMoveQueue.queueAheadOfOthers).toHaveBeenCalledTimes(1);
+      expect(fundingWalletMoveQueue.queueAheadOfOthers).toHaveBeenCalledWith(NETWORK, USER_WALLET_ID);
+    });
+
+    it.each(["active", "standby"] as const)("queues no move for a user wallet on a funding wallet that is %s", async status => {
+      const { service, fundingWalletMoveQueue } = setup({ active: fundingWallet({ status: "active" }), granter: fundingWallet({ status }) });
+
+      await service.assignGranterAddress(USER_WALLET_ID);
+
+      expect(fundingWalletMoveQueue.queueAheadOfOthers).not.toHaveBeenCalled();
+    });
+
     it("returns the wallet the user is already assigned to and writes nothing", async () => {
       const granter = fundingWallet({ status: "active" });
       const { service, fundingWalletRepository, txService } = setup({ active: fundingWallet({ status: "active" }), granter });
@@ -266,6 +284,7 @@ describe(FundingWalletRegistryService.name, () => {
     const featureFlagsService = mock<FeatureFlagsService>();
     const coreConfigService = mockConfigService<CoreConfigService>({ NETWORK });
     const txService = mock<TxService>();
+    const fundingWalletMoveQueue = mock<FundingWalletMoveQueueService>();
 
     txManagerService.getFundingWalletAddress.mockResolvedValue(configuredAddress);
     featureFlagsService.isEnabledForSubject.mockReturnValue(input.isEnabled ?? true);
@@ -292,9 +311,16 @@ describe(FundingWalletRegistryService.name, () => {
       return await cb();
     });
 
-    const service = new FundingWalletRegistryService(fundingWalletRepository, txManagerService, featureFlagsService, coreConfigService, txService);
+    const service = new FundingWalletRegistryService(
+      fundingWalletRepository,
+      txManagerService,
+      featureFlagsService,
+      coreConfigService,
+      txService,
+      fundingWalletMoveQueue
+    );
 
-    return { service, fundingWalletRepository, txManagerService, featureFlagsService, txService, configuredAddress, calls };
+    return { service, fundingWalletRepository, txManagerService, featureFlagsService, txService, fundingWalletMoveQueue, configuredAddress, calls };
   }
 });
 

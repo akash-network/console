@@ -11,14 +11,16 @@ import {
   MoveUserToActiveFundingWallet,
   moveUserToActiveFundingWalletKeyFor
 } from "@src/billing/services/funding-wallet-move/move-user-to-active-funding-wallet.job";
+import {
+  FUNDING_WALLET_MOVE_PRIORITY,
+  FundingWalletMoveQueueService,
+  type QueuedFundingWalletMove
+} from "@src/billing/services/funding-wallet-move-queue/funding-wallet-move-queue.service";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 
 const GRANTEES_PAGE_SIZE = 500;
-
-/** pg-boss runs a higher priority first: a move that stopped halfway can have left its user without a balance, and a running deployment needs its next top-up soonest. */
-const MOVE_PRIORITY = { rest: 0, hasOpenDeployment: 1, isUnfinished: 2 };
 
 const UNFINISHED_MOVE_STATUSES: FundingWalletMoveStatus[] = ["revoking", "revoked", "crediting"];
 
@@ -34,7 +36,9 @@ export type FundingWalletDrainStatus = {
 
 export type FundingWalletMovesQueued = { queued: number; alreadyQueued: number; withOpenDeployments: number; unfinished: number; unknownGrantees: number };
 
-type MovesToQueue = { priorityByUserWalletId: Map<number, number>; unknownGrantees: number };
+type MovePriority = QueuedFundingWalletMove["priority"];
+
+type MovesToQueue = { priorityByUserWalletId: Map<number, MovePriority>; unknownGrantees: number };
 
 /** Empties the funding wallet a promotion replaced: queues a move for every user it still backs, reports how far that is, and retires it once nothing is left. */
 @singleton()
@@ -49,6 +53,7 @@ export class FundingWalletDrainService {
     private readonly deploymentRepository: DeploymentRepository,
     private readonly authzHttpService: AuthzHttpService,
     private readonly jobQueueService: JobQueueService,
+    private readonly fundingWalletMoveQueue: FundingWalletMoveQueueService,
     private readonly coreConfigService: CoreConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -72,10 +77,10 @@ export class FundingWalletDrainService {
         continue;
       }
 
-      await this.jobQueueService.enqueue(new MoveUserToActiveFundingWallet({ userWalletId }), { singletonKey, startAfter, priority });
+      await this.fundingWalletMoveQueue.queue({ network: draining.network, userWalletId, priority, startAfter });
       queued.queued += 1;
-      queued.withOpenDeployments += priority === MOVE_PRIORITY.hasOpenDeployment ? 1 : 0;
-      queued.unfinished += priority === MOVE_PRIORITY.isUnfinished ? 1 : 0;
+      queued.withOpenDeployments += priority === FUNDING_WALLET_MOVE_PRIORITY.hasOpenDeployment ? 1 : 0;
+      queued.unfinished += priority === FUNDING_WALLET_MOVE_PRIORITY.isUnfinished ? 1 : 0;
     }
 
     this.#logger.info({ event: "FUNDING_WALLET_MOVES_QUEUED", address: draining.address, startAfter: startAfter.toISOString(), ...queued });
@@ -148,7 +153,7 @@ export class FundingWalletDrainService {
       this.#findGrantees(draining.address),
       this.fundingWalletMoveRepository.findUserWalletIdsByStatus(draining.id, UNFINISHED_MOVE_STATUSES)
     ]);
-    const priorityByUserWalletId = new Map(unfinished.map(userWalletId => [userWalletId, MOVE_PRIORITY.isUnfinished]));
+    const priorityByUserWalletId = new Map<number, MovePriority>(unfinished.map(userWalletId => [userWalletId, FUNDING_WALLET_MOVE_PRIORITY.isUnfinished]));
     let unknownGrantees = 0;
 
     for (const addresses of chunk(grantees, GRANTEES_PAGE_SIZE)) {
@@ -162,7 +167,7 @@ export class FundingWalletDrainService {
         if (priorityByUserWalletId.has(wallet.id)) continue;
 
         const hasOpenDeployment = ownersWithOpenDeployments.some(owner => owner === wallet.address);
-        priorityByUserWalletId.set(wallet.id, hasOpenDeployment ? MOVE_PRIORITY.hasOpenDeployment : MOVE_PRIORITY.rest);
+        priorityByUserWalletId.set(wallet.id, hasOpenDeployment ? FUNDING_WALLET_MOVE_PRIORITY.hasOpenDeployment : FUNDING_WALLET_MOVE_PRIORITY.rest);
       }
     }
 
