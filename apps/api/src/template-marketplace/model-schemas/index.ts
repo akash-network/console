@@ -7,3 +7,4 @@ export * from "./template-terms-acceptance/template-terms-acceptance.schema";
 export * from "./template-tombstone/template-tombstone.schema";
 export * from "./template-usage-event/template-usage-event.schema";
 export * from "./template-version/template-version.schema";
+export * from "./template-view-event/template-view-event.schema";

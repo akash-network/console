@@ -52,6 +52,7 @@ const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "GET /v1/template-publishers/{handle}",
   "GET /v1/user-templates",
   "GET /v1/user-templates/{id}",
+  "GET /v1/user-templates/{id}/insights",
   "GET /v1/user-templates/{id}/publish-readiness",
   "GET /v1/user-templates/{id}/versions",
   "GET /v1/user-templates/{id}/versions/{version}",
@@ -60,7 +61,8 @@ const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "POST /v1/user-templates",
   "POST /v1/user-templates/{id}/publish",
   "POST /v1/user-templates/{id}/reports",
-  "POST /v1/user-templates/{id}/versions"
+  "POST /v1/user-templates/{id}/versions",
+  "POST /v1/user-templates/{id}/views"
 ];
 
 const UNRELEASED_GPU_WAITLIST_ROUTES = ["DELETE /v1/gpu-waitlist/{id}", "GET /v1/gpu-waitlist", "POST /v1/gpu-waitlist", "POST /v1/gpu-waitlist/{id}/keep"];

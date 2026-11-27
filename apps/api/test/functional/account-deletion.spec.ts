@@ -23,6 +23,7 @@ import { app } from "@src/rest-app";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
+import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
@@ -38,6 +39,8 @@ interface ErrorBody {
 }
 
 const STRIPE_API = "https://api.stripe.com";
+
+const E2E_EMAIL_DOMAIN = "e2e.akash.test";
 
 describe("Account deletion", () => {
   const userRepository = container.resolve(UserRepository);
@@ -147,6 +150,55 @@ describe("Account deletion", () => {
       expect(((await response.json()) as ErrorBody).code).toBe("expired_deletion_token");
       expect(await userRepository.findById(user.id)).toBeDefined();
     });
+
+    it("records a deleted trial account so its browser is not handed another trial", async () => {
+      const { address, linkToken } = await setupIssuedTrialAccountLink({ email: `jane-${faker.string.alphanumeric(8).toLowerCase()}@example.com` });
+
+      const response = await confirm(linkToken);
+
+      expect(response.status).toBe(204);
+      expect(await findDeletedTrialAccountsOf(address)).toHaveLength(1);
+    });
+
+    it("records nothing for a trial account on the e2e inbox domain", async () => {
+      const { address, linkToken } = await setupIssuedTrialAccountLink({
+        email: `e2e-${faker.string.alphanumeric(8).toLowerCase()}@${E2E_EMAIL_DOMAIN}`
+      });
+
+      const response = await confirm(linkToken);
+
+      expect(response.status).toBe(204);
+      expect(await findDeletedTrialAccountsOf(address)).toEqual([]);
+    });
+
+    async function setupIssuedTrialAccountLink(input: { email: string }) {
+      const { user, address } = await seedUserWithWallet({
+        isTrialing: true,
+        activatedAt: new Date(),
+        user: { userId: `auth0|${faker.string.alphanumeric(24)}`, email: input.email, emailVerified: true }
+      });
+      const linkToken = faker.string.alphanumeric(43);
+      await tokenRepository.replaceForUser({ userId: user.id, tokenHash: sha256(linkToken), acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });
+      answerActiveDeployments([]);
+      answerBalanceOf(address, undefined);
+
+      const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
+      const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
+      vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
+        key === "WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN" ? E2E_EMAIL_DOMAIN : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);
+
+      return { user, address, linkToken };
+    }
+
+    async function findDeletedTrialAccountsOf(walletAddress: string) {
+      const deletedTrialAccounts = resolveTable("DeletedTrialAccounts");
+
+      return await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .select()
+        .from(deletedTrialAccounts)
+        .where(eq(deletedTrialAccounts.walletAddress, walletAddress));
+    }
   });
 
   describe("for a member of a team organization", () => {
@@ -450,18 +502,6 @@ describe("Account deletion", () => {
 
       return organization;
     }
-
-    function answerBalanceOf(address: string, balanceUakt: string | undefined) {
-      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
-        .persist()
-        .get(uri => uri.includes("/cosmos/authz/v1beta1/grants") && uri.includes(address))
-        .reply(
-          200,
-          balanceUakt
-            ? createDeploymentGrantResponseSeed({ grantee: address, amount: balanceUakt, grantType: "/akash.escrow.v1.DepositAuthorization" })
-            : { grants: [], pagination: { next_key: null, total: "0" } }
-        );
-    }
   });
 
   function sha256(value: string) {
@@ -482,6 +522,18 @@ describe("Account deletion", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: { token } })
     });
+  }
+
+  function answerBalanceOf(address: string, balanceUakt: string | undefined) {
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(uri => uri.includes("/cosmos/authz/v1beta1/grants") && uri.includes(address))
+      .reply(
+        200,
+        balanceUakt
+          ? createDeploymentGrantResponseSeed({ grantee: address, amount: balanceUakt, grantType: "/akash.escrow.v1.DepositAuthorization" })
+          : { grants: [], pagination: { next_key: null, total: "0" } }
+      );
   }
 
   async function setupSignedInUser(input: { withWallet?: boolean } = {}) {

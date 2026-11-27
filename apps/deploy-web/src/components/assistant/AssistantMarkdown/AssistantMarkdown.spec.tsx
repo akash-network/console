@@ -142,6 +142,22 @@ describe(AssistantMarkdown.name, () => {
     expect(container).toHaveTextContent("click (javascript:void(0))");
   });
 
+  it("lets the answer take the direction of the language it is written in", () => {
+    const { container } = setup({ markdown: "السجلات تعيد هذا الخطأ باستمرار:" });
+
+    expect(container.firstElementChild).toHaveAttribute("dir", "auto");
+  });
+
+  it("keeps inline code and code blocks left to right inside a right-to-left answer", () => {
+    const { container } = setup({ markdown: "الخطأ `Error: pull model manifest: 412:`\n\n```\nollama/ollama:latest\n```" });
+
+    const [inlineCode, blockCode] = Array.from(container.querySelectorAll("code"));
+    expect(inlineCode).toHaveAttribute("dir", "ltr");
+    expect(blockCode).toHaveAttribute("dir", "ltr");
+    expect(container.querySelector("pre")).toHaveAttribute("dir", "ltr");
+    expect(container.querySelector("p")).not.toHaveAttribute("dir");
+  });
+
   function setup(input: { markdown: string }) {
     const navigateInApp = vi.fn();
     const Link = ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
