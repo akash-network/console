@@ -49,10 +49,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const NO_COHORT: DeployCohortCounts = { deploys: 0, leases: 0, decidedLeases: 0, stillRunning: 0 };
 
-export function isInsightPeriod(days: number): days is InsightPeriodDays {
-  return (INSIGHT_PERIODS as readonly number[]).includes(days);
-}
-
 export function insightWindowOf(now: Date, days: InsightPeriodDays): InsightWindow {
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 

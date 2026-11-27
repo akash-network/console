@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTemplateInsights, type InsightSources, insightWindowOf, isInsightPeriod, ratesOf } from "./template-insights";
+import { buildTemplateInsights, type InsightSources, insightWindowOf, ratesOf } from "./template-insights";
 
 describe("template insights", () => {
   describe(insightWindowOf.name, () => {
@@ -15,17 +15,6 @@ describe("template insights", () => {
 
     it("crosses month boundaries", () => {
       expect(insightWindowOf(new Date("2026-03-01T00:00:00Z"), 30)).toEqual({ days: 30, from: "2026-01-31", to: "2026-03-01", previousFrom: "2026-01-01" });
-    });
-  });
-
-  describe(isInsightPeriod.name, () => {
-    it.each([
-      [7, true],
-      [30, true],
-      [90, true],
-      [14, false]
-    ])("answers %s for %s", (days, expected) => {
-      expect(isInsightPeriod(days)).toBe(expected);
     });
   });
 
