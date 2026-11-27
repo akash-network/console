@@ -484,7 +484,7 @@ export class ManagedSignerService {
       return;
     }
 
-    await this.trialActivationJobService.assertActivated({ userId: userWallet.userId, activatedAt: userWallet.activatedAt });
+    await this.trialActivationJobService.assertActivatedForSpend({ userId: userWallet.userId, activatedAt: userWallet.activatedAt });
   }
 
   /** Fee allowance always comes from the chain and the deployment allowance only when a create is present, since the row can lag behind the chain. */

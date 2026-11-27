@@ -149,6 +149,72 @@ describe(TrialActivationJobService.name, () => {
     });
   });
 
+  describe("assertActivatedForSpend", () => {
+    it("returns without asking anything when the wallet is already activated", async () => {
+      const { service, jobQueueService, trialEligibilityService, userRepository } = setup({ isTrialRefused: true });
+
+      await service.assertActivatedForSpend({ userId: faker.string.uuid(), activatedAt: new Date() });
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(trialEligibilityService.isRefused).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("schedules activation and throws a retriable 409 while the trial is still on its way", async () => {
+      const { service, jobQueueService, trialEligibilityService } = setup();
+      const userId = faker.string.uuid();
+
+      await expect(service.assertActivatedForSpend({ userId, activatedAt: null })).rejects.toMatchObject({
+        status: 409,
+        message: "Wallet is still being provisioned, please retry shortly",
+        errorCode: "wallet_provisioning"
+      });
+      expect(trialEligibilityService.isRefused).toHaveBeenCalledWith(userId);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(ActivateTrial), { singletonKey: `${ActivateTrial.name}.${userId}` });
+    });
+
+    it("asks an account refused its trial for credits with a 402, and requests no activation", async () => {
+      const { service, jobQueueService } = setup({ isTrialRefused: true });
+
+      await expect(service.assertActivatedForSpend({ userId: faker.string.uuid(), activatedAt: null })).rejects.toMatchObject({
+        status: 402,
+        message: "A free trial isn't available for this account, so deploying needs credits. Contact support if you think this is a mistake.",
+        errorCode: "trial_unavailable"
+      });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("refuses a suspended user before asking whether the trial is refused", async () => {
+      const { service, trialEligibilityService } = setup({ accountStatus: "suspended", isTrialRefused: true });
+
+      await expect(service.assertActivatedForSpend({ userId: faker.string.uuid(), activatedAt: null })).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(trialEligibilityService.isRefused).not.toHaveBeenCalled();
+    });
+
+    it("passes on the request to confirm the email address", async () => {
+      const emailRequired = createError(403, "Confirm your email address to start your trial.", { errorCode: "email_verification_required" });
+      const { service, jobQueueService } = setup({ eligibilityError: emailRequired });
+
+      await expect(service.assertActivatedForSpend({ userId: faker.string.uuid(), activatedAt: null })).rejects.toBe(emailRequired);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("still throws the 409 and logs when the re-enqueue fails", async () => {
+      const enqueueError = new Error("queue unavailable");
+      const { service, logger } = setup({ enqueueError });
+      const userId = faker.string.uuid();
+
+      await expect(service.assertActivatedForSpend({ userId, activatedAt: null })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "wallet_provisioning"
+      });
+      expect(logger.error).toHaveBeenCalledWith({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId, error: enqueueError });
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
