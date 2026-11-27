@@ -81,31 +81,31 @@ export function PrivacyPolicy() {
         </ul>
 
         <Title subTitle className="my-4">
-          AI assistant and feedback
+          AI assistant (Sidekick) and feedback
         </Title>
 
         <p>
-          Akash Console has an in-app AI assistant, and asks for your feedback through a rating card after a deployment and a feedback form. When you use the
-          assistant, it processes your messages and the account, deployment and billing details it looks up to answer you.
+          Akash Console has an in-app AI assistant, Sidekick, and asks for your feedback through a rating card after a deployment and a feedback form. When you
+          use Sidekick, it processes your messages and the account, deployment and billing details it looks up to answer you.
         </p>
         <p>We use these AI services to process this data:</p>
         <ul className="list-disc py-4 pl-8">
           <li>
-            AkashML, Akash&apos;s own AI inference service, runs the assistant, checks each message for misuse, and sorts feedback, problem reports and saved
-            conversations into topics. Repeated misuse pauses the assistant for your account until the end of the day (UTC).
+            AkashML, Akash&apos;s own AI inference service, runs Sidekick, checks each message for misuse, and sorts feedback, problem reports and saved
+            conversations into topics. Repeated misuse pauses Sidekick for your account until the end of the day (UTC).
           </li>
           <li>TypeSafe may also be used to sort feedback, problem reports and saved conversations into topics.</li>
         </ul>
         <p>
           Before anything is sent to these services or stored, we remove the secrets we recognize in environment variables and SDL, such as passwords, tokens
-          and API keys. This is automatic and may miss a secret in an unusual format, so don&apos;t share secrets with the assistant.
+          and API keys. This is automatic and may miss a secret in an unusual format, so don&apos;t share secrets with Sidekick.
         </p>
         <p>We store:</p>
         <ul className="list-disc py-4 pl-8">
-          <li>Your assistant conversations, only if you let the Akash team review them, or when you send us a problem report about one.</li>
+          <li>Your Sidekick conversations, only if you let the Akash team review them, or when you send us a problem report about one.</li>
           <li>The feedback you submit.</li>
           <li>
-            For every assistant answer, a usage record that does not contain the text of your messages or of the answer. We keep these records for 90 days.
+            For every Sidekick answer, a usage record that does not contain the text of your messages or of the answer. We keep these records for 90 days.
           </li>
         </ul>
         <p>

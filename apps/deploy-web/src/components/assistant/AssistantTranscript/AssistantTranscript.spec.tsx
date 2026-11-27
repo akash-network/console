@@ -23,7 +23,7 @@ describe("AssistantTranscript", () => {
     });
 
     expect(screen.getByText("Why no bids?")).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "What the assistant read" })).getByRole("listitem")).toHaveTextContent(/^deployment, bids$/);
+    expect(within(screen.getByRole("list", { name: "What Sidekick read" })).getByRole("listitem")).toHaveTextContent(/^deployment, bids$/);
     expect(screen.getByText("No provider has 8 GPUs free.")).toBeInTheDocument();
   });
 
@@ -201,11 +201,11 @@ describe("AssistantTranscript", () => {
   });
 
   it.each([
-    ["unavailable", "The assistant is unavailable right now."],
+    ["unavailable", "Sidekick is unavailable right now."],
     ["rate_limited", "You're sending messages too quickly. Wait a minute, then try again."],
     ["daily_limit", "You've reached today's message limit. It resets tomorrow."],
-    ["trial_limit", "You've used all your free assistant messages. Add credits to keep using the assistant."],
-    ["blocked", "The assistant is turned off for your account."]
+    ["trial_limit", "You've used all your free Sidekick messages. Add credits to keep using Sidekick."],
+    ["blocked", "Sidekick is turned off for your account."]
   ] as const)("points to Discord when the assistant is %s", (problem, text) => {
     const { DiscordHelpCard } = setup({ problem });
 

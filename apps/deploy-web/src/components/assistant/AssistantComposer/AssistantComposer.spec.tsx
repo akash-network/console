@@ -8,7 +8,7 @@ import userEvent from "@testing-library/user-event";
 describe("AssistantComposer", () => {
   it("starts with the prefilled question and sends it with Enter, then empties", async () => {
     const { onSend } = setup({ initialValue: "Why no bids?" });
-    const box = screen.getByRole("textbox", { name: "Message the assistant" });
+    const box = screen.getByRole("textbox", { name: "Message Sidekick" });
 
     expect(box).toHaveValue("Why no bids?");
     await userEvent.type(box, "{Enter}");
@@ -28,7 +28,7 @@ describe("AssistantComposer", () => {
 
   it("adds a line with Shift+Enter instead of sending", async () => {
     const { onSend } = setup({});
-    const box = screen.getByRole("textbox", { name: "Message the assistant" });
+    const box = screen.getByRole("textbox", { name: "Message Sidekick" });
 
     await userEvent.type(box, "one{Shift>}{Enter}{/Shift}two");
 
@@ -62,7 +62,7 @@ describe("AssistantComposer", () => {
 
   it("keeps the box and the button disabled and sends nothing while the composer is disabled", async () => {
     const { onSend } = setup({ initialValue: "Hello", isDisabled: true });
-    const box = screen.getByRole("textbox", { name: "Message the assistant" });
+    const box = screen.getByRole("textbox", { name: "Message Sidekick" });
 
     expect(box).toBeDisabled();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();

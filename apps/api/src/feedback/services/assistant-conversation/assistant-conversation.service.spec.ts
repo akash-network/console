@@ -197,7 +197,7 @@ describe(AssistantConversationService.name, () => {
       await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi", context: { page: "/deployments/42" } })).rejects.toMatchObject({
         status: 403,
         errorCode: ASSISTANT_ERROR_CODES.blocked,
-        message: "The assistant is turned off for your account."
+        message: "Sidekick is turned off for your account."
       });
 
       expect(userBlockService.isBlocked).toHaveBeenCalledWith("user-1");

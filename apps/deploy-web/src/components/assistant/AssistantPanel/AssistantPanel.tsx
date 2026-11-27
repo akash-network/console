@@ -162,7 +162,7 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
     >
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
         <h2 id={titleId} className="text-base font-semibold">
-          Console assistant
+          Sidekick
         </h2>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="font-normal text-muted-foreground">
@@ -201,7 +201,7 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
           {privacy.isError && !privacy.data && (
             <div className="flex flex-col gap-3">
               <p role="alert" className="text-sm text-destructive">
-                Couldn&apos;t load the assistant. Close the panel and try again.
+                Couldn&apos;t load Sidekick. Close the panel and try again.
               </p>
               <d.DiscordHelpCard />
             </div>

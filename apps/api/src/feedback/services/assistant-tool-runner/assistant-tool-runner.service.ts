@@ -159,7 +159,7 @@ function failedSummaryOf(name: string): string {
   if (Object.hasOwn(FAILED_SUMMARIES, name)) return FAILED_SUMMARIES[name as keyof typeof FAILED_SUMMARIES];
 
   const type = proposalActionTypeOf(name);
-  return type ? `Could not propose ${type.replaceAll("_", " ")}` : "Could not use a tool the assistant does not have";
+  return type ? `Could not propose ${type.replaceAll("_", " ")}` : "Could not use a tool Sidekick does not have";
 }
 
 /** Evidence is quoted from logs and events the user's workload wrote, so it is redacted like any tool result before the user or the team sees it. */

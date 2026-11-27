@@ -80,7 +80,7 @@ export const SecureSecretInput: FC<Props> = ({ label, secret, disabled }) => (
       endIcon={<LockKeyhole className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
     />
     <p className="text-xs text-muted-foreground">
-      Sealed in your browser and sent straight to your deployment. The assistant never sees it, and it isn&apos;t saved in this conversation.
+      Sealed in your browser and sent straight to your deployment. Sidekick never sees it, and it isn&apos;t saved in this conversation.
     </p>
   </div>
 );

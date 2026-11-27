@@ -9,7 +9,7 @@ describe(AssistantLauncherButton.name, () => {
   it("opens the assistant when clicked", async () => {
     const { onClick } = setup();
 
-    await userEvent.click(screen.getByRole("button", { name: "Ask the assistant" }));
+    await userEvent.click(screen.getByRole("button", { name: "Ask Sidekick" }));
 
     expect(onClick).toHaveBeenCalledTimes(1);
   });
@@ -17,7 +17,7 @@ describe(AssistantLauncherButton.name, () => {
   it("strokes the sparkles icon with the gradient it defines", () => {
     setup();
 
-    const button = screen.getByRole("button", { name: "Ask the assistant" });
+    const button = screen.getByRole("button", { name: "Ask Sidekick" });
     const gradient = button.querySelector("linearGradient");
 
     expect(button.querySelector("svg.lucide-sparkles")).toHaveAttribute("stroke", `url(#${gradient?.id})`);

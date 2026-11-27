@@ -225,7 +225,7 @@ describe(AssistantTurnService.name, () => {
 
     expect(await run({ stored: true })).toEqual([
       { type: "text_delta", text: "Your dep" },
-      { type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." }
+      { type: "error", code: "assistant_unavailable", message: "Sidekick is unavailable right now. Ask on Discord for live help." }
     ]);
     expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_MODEL_FAILED", error });
     expect(transcriptService.record).not.toHaveBeenCalled();
@@ -784,7 +784,7 @@ describe(AssistantTurnService.name, () => {
     akashMlClient.streamChatCompletion.mockRejectedValue(error);
 
     expect(await run({})).toEqual([
-      { type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." }
+      { type: "error", code: "assistant_unavailable", message: "Sidekick is unavailable right now. Ask on Discord for live help." }
     ]);
     expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_MODEL_FAILED", error });
   });
@@ -815,7 +815,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.at(-1)).toEqual({
       type: "error",
       code: "assistant_daily_limit",
-      message: "You reached today's assistant limit. Try again tomorrow, or ask on Discord."
+      message: "You reached today's Sidekick limit. Try again tomorrow, or ask on Discord."
     });
     expect(traceRepository.finish).toHaveBeenCalledWith("trace-1", expect.objectContaining({ outcome: "limited" }));
     expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_LIMITED" });
@@ -1076,7 +1076,7 @@ describe(AssistantTurnService.name, () => {
 
     expect(events).toEqual([
       { type: "text_delta", text: "Your dep" },
-      { type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." }
+      { type: "error", code: "assistant_unavailable", message: "Sidekick is unavailable right now. Ask on Discord for live help." }
     ]);
   });
 

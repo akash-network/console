@@ -63,7 +63,7 @@ export const AssistantPrivacySection: FC<Props> = ({ dependencies: d = DEPENDENC
   return (
     <SettingsSection title="Privacy">
       <SettingsCard>
-        <SettingsRow label="Improve Console with my assistant conversations" htmlFor={switchId} description={describeConsent(consent)}>
+        <SettingsRow label="Improve Console with my Sidekick conversations" htmlFor={switchId} description={describeConsent(consent)}>
           <Switch id={switchId} checked={isOptedIn} disabled={!consent || isUpdating} onCheckedChange={changeReviewOptIn} />
         </SettingsRow>
         <SettingsRow
@@ -89,7 +89,7 @@ export const AssistantPrivacySection: FC<Props> = ({ dependencies: d = DEPENDENC
 type Consent = NonNullable<NonNullable<ReturnType<typeof useAssistantPrivacyQuery>["data"]>["consent"]>;
 
 function describeConsent(consent: Consent | null) {
-  if (!consent) return "You haven't used the assistant yet. You can choose this the first time you open it.";
+  if (!consent) return "You haven't used Sidekick yet. You can choose this the first time you open it.";
 
   return (
     <>

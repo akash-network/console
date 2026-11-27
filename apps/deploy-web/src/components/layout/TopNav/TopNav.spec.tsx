@@ -87,7 +87,7 @@ describe(TopNav.name, () => {
     it("opens the assistant from the header for a signed-in user when it is on", async () => {
       const { openAssistant, useFlag } = setup({ isAuthenticated: true, isFeedbackLoopEnabled: true });
 
-      await userEvent.click(screen.getByRole("button", { name: "Ask the assistant" }));
+      await userEvent.click(screen.getByRole("button", { name: "Ask Sidekick" }));
 
       expect(useFlag).toHaveBeenCalledWith("user_feedback_loop");
       expect(openAssistant).toHaveBeenCalledWith();
@@ -107,7 +107,7 @@ describe(TopNav.name, () => {
       setup({ isAuthenticated: false, isFeedbackLoopEnabled: true });
       setup({ isAuthenticated: true, minimal: true, isFeedbackLoopEnabled: true });
 
-      expect(screen.queryByRole("button", { name: "Ask the assistant" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Ask Sidekick" })).not.toBeInTheDocument();
     });
   });
 

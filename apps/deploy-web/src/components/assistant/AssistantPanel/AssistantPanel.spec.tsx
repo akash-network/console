@@ -26,7 +26,7 @@ describe("AssistantPanel", () => {
   it("docks beside the page without a modal or backdrop, so the page stays usable", async () => {
     const { onPageAction } = setup({ consent: CURRENT_CONSENT });
 
-    expect(screen.getByRole("complementary", { name: "Console assistant" })).not.toHaveAttribute("aria-modal");
+    expect(screen.getByRole("complementary", { name: "Sidekick" })).not.toHaveAttribute("aria-modal");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Page action" }));
     expect(onPageAction).toHaveBeenCalledTimes(1);
@@ -46,12 +46,12 @@ describe("AssistantPanel", () => {
 
   it("moves focus into the panel when it opens and on every new open request", () => {
     const { rerenderOpen } = setup({ consent: CURRENT_CONSENT });
-    expect(screen.getByRole("complementary", { name: "Console assistant" })).toHaveFocus();
+    expect(screen.getByRole("complementary", { name: "Sidekick" })).toHaveFocus();
 
     screen.getByRole("button", { name: "Page action" }).focus();
     rerenderOpen(true, 2);
 
-    expect(screen.getByRole("complementary", { name: "Console assistant" })).toHaveFocus();
+    expect(screen.getByRole("complementary", { name: "Sidekick" })).toHaveFocus();
   });
 
   it("returns focus to where it was once closed, even after a new open request", () => {
@@ -82,7 +82,7 @@ describe("AssistantPanel", () => {
 
   it("closes on Escape pressed inside the panel or on the page unless something handled it", () => {
     const { onOpenChange } = setup({ consent: CURRENT_CONSENT });
-    const panel = screen.getByRole("complementary", { name: "Console assistant" });
+    const panel = screen.getByRole("complementary", { name: "Sidekick" });
     const handled = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
     handled.preventDefault();
 
@@ -124,7 +124,7 @@ describe("AssistantPanel", () => {
   it("asks for consent before the first message", () => {
     const { dependencies } = setup({ consent: null });
 
-    expect(screen.getByRole("complementary", { name: "Console assistant" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Sidekick" })).toBeInTheDocument();
     expect(dependencies.AssistantConsentCard).toHaveBeenCalled();
     expect(dependencies.AssistantTranscript).not.toHaveBeenCalled();
     expect(dependencies.AssistantComposer).not.toHaveBeenCalled();
@@ -343,7 +343,7 @@ describe("AssistantPanel", () => {
   it("points to Discord when consent cannot load", () => {
     const { dependencies } = setup({ isError: true });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load the assistant. Close the panel and try again.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load Sidekick. Close the panel and try again.");
     expect(dependencies.DiscordHelpCard).toHaveBeenCalled();
   });
 
@@ -351,7 +351,7 @@ describe("AssistantPanel", () => {
     const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true, refetchFailed: true });
 
     expect(dependencies.AssistantTranscript).toHaveBeenCalled();
-    expect(screen.queryByText("Couldn't load the assistant. Close the panel and try again.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Couldn't load Sidekick. Close the panel and try again.")).not.toBeInTheDocument();
   });
 
   it("offers a new chat only once the conversation has messages", () => {

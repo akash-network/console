@@ -6,11 +6,11 @@ export class AssistantPanelPage {
   constructor(private readonly page: Page) {}
 
   panel(): Locator {
-    return this.page.locator("aside").filter({ has: this.page.getByRole("heading", { name: "Console assistant" }) });
+    return this.page.locator("aside").filter({ has: this.page.getByRole("heading", { name: "Sidekick" }) });
   }
 
   launcher(): Locator {
-    return this.page.getByRole("button", { name: "Ask the assistant" });
+    return this.page.getByRole("button", { name: "Ask Sidekick" });
   }
 
   async isOpen(): Promise<boolean> {
@@ -50,7 +50,7 @@ export class AssistantPanelPage {
   }
 
   composer(): Locator {
-    return this.panel().getByRole("textbox", { name: "Message the assistant" });
+    return this.panel().getByRole("textbox", { name: "Message Sidekick" });
   }
 
   async send(message: string): Promise<void> {
@@ -113,7 +113,7 @@ export class AssistantPanelPage {
   }
 
   async chipLabels(): Promise<string[]> {
-    return this.panel().getByRole("list", { name: "What the assistant read" }).locator("li").allInnerTexts();
+    return this.panel().getByRole("list", { name: "What Sidekick read" }).locator("li").allInnerTexts();
   }
 
   async screenshot(file: string): Promise<void> {

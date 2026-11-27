@@ -26,11 +26,11 @@ export const PASTE_REDACTED_NOTICE = "Looks like you pasted a secret. We removed
 export const SECURE_FIELD_REQUEST = "Help me add that secret to this deployment with the secure field.";
 
 const PROBLEM_MESSAGES: Record<Exclude<AssistantProblem, "consent">, string> = {
-  unavailable: "The assistant is unavailable right now.",
+  unavailable: "Sidekick is unavailable right now.",
   rate_limited: "You're sending messages too quickly. Wait a minute, then try again.",
   daily_limit: "You've reached today's message limit. It resets tomorrow.",
-  trial_limit: "You've used all your free assistant messages. Add credits to keep using the assistant.",
-  blocked: "The assistant is turned off for your account.",
+  trial_limit: "You've used all your free Sidekick messages. Add credits to keep using Sidekick.",
+  blocked: "Sidekick is turned off for your account.",
   error: "Something went wrong with that answer. Try sending it again."
 };
 
@@ -171,7 +171,7 @@ const AssistantAnswer: FC<AnswerProps> = ({ message, conversationId, isStreaming
   return (
     <div className="flex flex-col gap-3">
       {reads.length > 0 && (
-        <ul aria-label="What the assistant read" className="flex flex-wrap gap-1.5">
+        <ul aria-label="What Sidekick read" className="flex flex-wrap gap-1.5">
           {reads.map(read => (
             <ReadChip key={read.id} read={read} />
           ))}

@@ -157,7 +157,7 @@ describe("Assistant conversations", () => {
       const response = await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Hi" });
 
       expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "assistant_blocked", message: "The assistant is turned off for your account." });
+      expect(await response.json()).toMatchObject({ code: "assistant_blocked", message: "Sidekick is turned off for your account." });
       expect(await tracesOf(conversationId)).toEqual([expect.objectContaining({ outcome: "blocked", flag: null })]);
     });
 

@@ -19,7 +19,7 @@ describe(SecureSecretInput.name, () => {
 
     expect(screen.getByLabelText("Value")).toHaveAttribute("type", "password");
     expect(screen.getByLabelText("Value")).toHaveAttribute("autocomplete", "new-password");
-    expect(screen.getByText(/The assistant never sees it/)).toBeInTheDocument();
+    expect(screen.getByText(/Sidekick never sees it/)).toBeInTheDocument();
   });
 
   it("tells the card when a value was typed", async () => {

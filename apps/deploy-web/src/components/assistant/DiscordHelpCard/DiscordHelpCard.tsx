@@ -7,8 +7,8 @@ import type { AssistantLiveHelpReason } from "@src/types/assistant";
 
 export const LIVE_HELP_REASON_MESSAGES: Record<AssistantLiveHelpReason, string> = {
   provider_side_issue: "This needs someone who can look at the provider side",
-  not_supported_here: "The assistant can't do this from Console",
-  no_confident_answer: "The assistant isn't sure about this one",
+  not_supported_here: "Sidekick can't do this from Console",
+  no_confident_answer: "Sidekick isn't sure about this one",
   user_asked_for_a_person: "Talk to the Akash team and community"
 };
 

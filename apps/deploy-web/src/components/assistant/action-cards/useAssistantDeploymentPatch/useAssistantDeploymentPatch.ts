@@ -18,7 +18,7 @@ const HTTP_CONFLICT = 409;
 const DEFINITION_CHANGED_ERROR_CODE = "deployment_definition_changed";
 const RESOURCES_CHANGED_ERROR_CODE = "deployment_resources_changed";
 
-export const DEFINITION_CHANGED_MESSAGE = "This deployment changed since this card was shown. Ask again so the assistant reads its current setup.";
+export const DEFINITION_CHANGED_MESSAGE = "This deployment changed since this card was shown. Ask again so Sidekick reads its current setup.";
 
 type PatchDeploymentInput = Parameters<ReturnType<ReturnType<typeof useServices>["api"]["v1"]["patchDeployment"]["useMutation"]>["mutateAsync"]>[0];
 

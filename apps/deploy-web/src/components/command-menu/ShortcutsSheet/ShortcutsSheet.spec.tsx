@@ -31,14 +31,14 @@ describe(ShortcutsSheet.name, () => {
   it("lists the assistant shortcut only while the assistant is available", () => {
     setup({ hasAssistant: true });
 
-    expect(rowLabels("Assistant")).toEqual(["Ask the assistant"]);
-    expect(keysOf("Assistant", "Ask the assistant")).toEqual(["Shift", "A"]);
+    expect(rowLabels("Sidekick")).toEqual(["Ask Sidekick"]);
+    expect(keysOf("Sidekick", "Ask Sidekick")).toEqual(["Shift", "A"]);
   });
 
   it("leaves the assistant group out while the assistant is off", () => {
     setup({});
 
-    expect(screen.queryByRole("region", { name: "Assistant" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Sidekick" })).not.toBeInTheDocument();
   });
 
   it("prints each row's keys", () => {
