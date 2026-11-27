@@ -6,7 +6,7 @@ import type { UserWalletOutput, UserWalletRepository } from "@src/billing/reposi
 import type { FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
 import type { FundingWalletMoveRepository, FundingWalletMoveStatus } from "@src/billing/repositories/funding-wallet-move/funding-wallet-move.repository";
 import type { FundingWalletMoveService } from "@src/billing/services/funding-wallet-move/funding-wallet-move.service";
-import { MoveUserToActiveFundingWallet } from "@src/billing/services/funding-wallet-move/move-user-to-active-funding-wallet.job";
+import type { FundingWalletMoveQueueService } from "@src/billing/services/funding-wallet-move-queue/funding-wallet-move-queue.service";
 import type { CreateLogger, JobQueueService } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
@@ -27,15 +27,15 @@ describe(FundingWalletDrainService.name, () => {
 
   describe("queueMoves", () => {
     it("refuses when no funding wallet is draining", async () => {
-      const { service, jobQueueService } = setup({ isDraining: false });
+      const { service, fundingWalletMoveQueue } = setup({ isDraining: false });
 
       await expect(service.queueMoves()).rejects.toMatchObject({ status: 409, message: "No funding wallet is draining", network: NETWORK });
 
-      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(fundingWalletMoveQueue.queue).not.toHaveBeenCalled();
     });
 
     it("queues one move for each user the chain shows a deposit grant or a fee allowance of, to start once late grants have landed", async () => {
-      const { service, draining, jobQueueService, authzHttpService, fundingWalletMoveService } = setup({
+      const { service, draining, jobQueueService, fundingWalletMoveQueue, authzHttpService, fundingWalletMoveService } = setup({
         users: [
           { id: 11, hasDepositGrant: true, hasFeeAllowance: true },
           { id: 12, hasDepositGrant: true },
@@ -49,17 +49,13 @@ describe(FundingWalletDrainService.name, () => {
       expect(authzHttpService.getPaginatedFeeAllowancesForGranter).toHaveBeenCalledWith(draining.address, 500, 0);
       expect(fundingWalletMoveService.lateGrantsEndAt).toHaveBeenCalledWith(DRAINING_SINCE);
       expect(jobQueueService.findPendingSingletonKeys).toHaveBeenCalledWith("MoveUserToActiveFundingWallet");
-      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(3);
-      expect(jobQueueService.enqueue.mock.calls.map(([job, options]) => [job, options])).toEqual(
-        [11, 12, 13].map(userWalletId => [
-          new MoveUserToActiveFundingWallet({ userWalletId }),
-          { singletonKey: `${NETWORK}.${userWalletId}`, startAfter: MOVES_START_AT, priority: 0 }
-        ])
+      expect(fundingWalletMoveQueue.queue.mock.calls).toEqual(
+        [11, 12, 13].map(userWalletId => [{ network: NETWORK, userWalletId, priority: 0, startAfter: MOVES_START_AT }])
       );
     });
 
     it("puts the users who have a deployment running ahead of the rest", async () => {
-      const { service, jobQueueService } = setup({
+      const { service, fundingWalletMoveQueue } = setup({
         users: [
           { id: 11, hasDepositGrant: true },
           { id: 12, hasDepositGrant: true, hasOpenDeployment: true }
@@ -68,12 +64,12 @@ describe(FundingWalletDrainService.name, () => {
 
       await expect(service.queueMoves()).resolves.toMatchObject({ queued: 2, withOpenDeployments: 1 });
 
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new MoveUserToActiveFundingWallet({ userWalletId: 11 }), expect.objectContaining({ priority: 0 }));
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new MoveUserToActiveFundingWallet({ userWalletId: 12 }), expect.objectContaining({ priority: 1 }));
+      expect(fundingWalletMoveQueue.queue).toHaveBeenCalledWith(expect.objectContaining({ userWalletId: 11, priority: 0 }));
+      expect(fundingWalletMoveQueue.queue).toHaveBeenCalledWith(expect.objectContaining({ userWalletId: 12, priority: 1 }));
     });
 
     it("queues nothing more for a user whose move is still queued or running, and does not count them as going first", async () => {
-      const { service, jobQueueService } = setup({
+      const { service, fundingWalletMoveQueue } = setup({
         users: [
           { id: 11, hasDepositGrant: true, hasOpenDeployment: true, isAlreadyQueued: true },
           { id: 12, hasDepositGrant: true }
@@ -82,19 +78,19 @@ describe(FundingWalletDrainService.name, () => {
 
       await expect(service.queueMoves()).resolves.toEqual({ queued: 1, alreadyQueued: 1, withOpenDeployments: 0, unknownGrantees: 0 });
 
-      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new MoveUserToActiveFundingWallet({ userWalletId: 12 }), expect.anything());
+      expect(fundingWalletMoveQueue.queue).toHaveBeenCalledTimes(1);
+      expect(fundingWalletMoveQueue.queue).toHaveBeenCalledWith(expect.objectContaining({ userWalletId: 12 }));
     });
 
     it("counts the grantees that are no user wallet of this console and queues nothing for them", async () => {
-      const { service, jobQueueService } = setup({
+      const { service, fundingWalletMoveQueue } = setup({
         users: [{ id: 11, hasDepositGrant: true }],
         strangers: { withDepositGrant: 2, withFeeAllowance: 1 }
       });
 
       await expect(service.queueMoves()).resolves.toEqual({ queued: 1, alreadyQueued: 0, withOpenDeployments: 0, unknownGrantees: 3 });
 
-      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(fundingWalletMoveQueue.queue).toHaveBeenCalledTimes(1);
     });
 
     it.each([
@@ -295,6 +291,7 @@ describe(FundingWalletDrainService.name, () => {
     const deploymentRepository = mock<DeploymentRepository>();
     const authzHttpService = mock<AuthzHttpService>();
     const jobQueueService = mock<JobQueueService>();
+    const fundingWalletMoveQueue = mock<FundingWalletMoveQueueService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -326,6 +323,7 @@ describe(FundingWalletDrainService.name, () => {
       deploymentRepository,
       authzHttpService,
       jobQueueService,
+      fundingWalletMoveQueue,
       mockConfigService<CoreConfigService>({ NETWORK }),
       createLogger
     );
@@ -340,6 +338,7 @@ describe(FundingWalletDrainService.name, () => {
       deploymentRepository,
       authzHttpService,
       jobQueueService,
+      fundingWalletMoveQueue,
       logger,
       createLogger
     };

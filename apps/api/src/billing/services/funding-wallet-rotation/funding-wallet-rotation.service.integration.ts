@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
+import type { FundingWalletMoveQueueService } from "@src/billing/services/funding-wallet-move-queue/funding-wallet-move-queue.service";
 import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { CreateLogger } from "@src/core";
@@ -105,7 +106,14 @@ describe(FundingWalletRotationService.name, () => {
     txManagerService.getFundingWalletAddress.mockResolvedValue(configuredAddress);
     featureFlagsService.isEnabledForSubject.mockReturnValue(true);
 
-    const registry = new FundingWalletRegistryService(repository, txManagerService, featureFlagsService, coreConfigService, txService);
+    const registry = new FundingWalletRegistryService(
+      repository,
+      txManagerService,
+      featureFlagsService,
+      coreConfigService,
+      txService,
+      mock<FundingWalletMoveQueueService>()
+    );
     const rotation = new FundingWalletRotationService(
       repository,
       registry,

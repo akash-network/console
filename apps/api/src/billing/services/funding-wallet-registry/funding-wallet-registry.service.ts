@@ -2,6 +2,7 @@ import createError, { isHttpError } from "http-errors";
 import { singleton } from "tsyringe";
 
 import { type FundingWalletOutput, FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
+import { FundingWalletMoveQueueService } from "@src/billing/services/funding-wallet-move-queue/funding-wallet-move-queue.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { TxService } from "@src/core/services";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -22,7 +23,8 @@ export class FundingWalletRegistryService {
     private readonly txManagerService: TxManagerService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly coreConfigService: CoreConfigService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly fundingWalletMoveQueue: FundingWalletMoveQueueService
   ) {}
 
   get #network() {
@@ -78,7 +80,7 @@ export class FundingWalletRegistryService {
     if (!this.isEnabled) return await this.txManagerService.getFundingWalletAddress();
 
     const assigned = await this.fundingWalletRepository.findGranterOf(userWalletId, this.#network);
-    if (assigned) return this.#assertIssuesGrants(assigned).address;
+    if (assigned) return (await this.#assertIssuesGrants(assigned, userWalletId)).address;
 
     const active = await this.findOrRegisterActive();
     await this.fundingWalletRepository.assignUnlessAssigned({ userWalletId, network: this.#network, fundingWalletId: active.id });
@@ -87,9 +89,11 @@ export class FundingWalletRegistryService {
     return (granter ?? active).address;
   }
 
-  /** A grant issued from a draining wallet could land after its user was moved off it, which would leave that user with a second balance. */
-  #assertIssuesGrants(wallet: FundingWalletOutput): FundingWalletOutput {
+  /** A grant issued from a draining wallet could land after its user was moved off it, which would leave that user with a second balance; the user is moved ahead of the others instead, so a retry soon succeeds. */
+  async #assertIssuesGrants(wallet: FundingWalletOutput, userWalletId: number): Promise<FundingWalletOutput> {
     if (wallet.status === "draining") {
+      await this.fundingWalletMoveQueue.queueAheadOfOthers(this.#network, userWalletId);
+
       throw createError(503, "This balance is being moved to another funding wallet, try again shortly", {
         network: this.#network,
         errorCode: FUNDING_WALLET_DRAINING_ERROR_CODE

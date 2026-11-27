@@ -11,14 +11,12 @@ import {
   MoveUserToActiveFundingWallet,
   moveUserToActiveFundingWalletKeyFor
 } from "@src/billing/services/funding-wallet-move/move-user-to-active-funding-wallet.job";
+import { FUNDING_WALLET_MOVE_PRIORITY, FundingWalletMoveQueueService } from "@src/billing/services/funding-wallet-move-queue/funding-wallet-move-queue.service";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 
 const GRANTEES_PAGE_SIZE = 500;
-
-/** pg-boss runs a higher priority first, so the users whose deployments need their next top-up soonest are moved before the rest. */
-const OPEN_DEPLOYMENT_PRIORITY = 1;
 
 const UNFINISHED_MOVE_STATUSES: FundingWalletMoveStatus[] = ["revoking", "revoked", "crediting"];
 
@@ -47,6 +45,7 @@ export class FundingWalletDrainService {
     private readonly deploymentRepository: DeploymentRepository,
     private readonly authzHttpService: AuthzHttpService,
     private readonly jobQueueService: JobQueueService,
+    private readonly fundingWalletMoveQueue: FundingWalletMoveQueueService,
     private readonly coreConfigService: CoreConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -79,10 +78,11 @@ export class FundingWalletDrainService {
           continue;
         }
 
-        await this.jobQueueService.enqueue(new MoveUserToActiveFundingWallet({ userWalletId: wallet.id }), {
-          singletonKey,
-          startAfter,
-          priority: hasOpenDeployment ? OPEN_DEPLOYMENT_PRIORITY : 0
+        await this.fundingWalletMoveQueue.queue({
+          network: draining.network,
+          userWalletId: wallet.id,
+          priority: hasOpenDeployment ? FUNDING_WALLET_MOVE_PRIORITY.hasOpenDeployment : FUNDING_WALLET_MOVE_PRIORITY.rest,
+          startAfter
         });
         queued.queued += 1;
         queued.withOpenDeployments += hasOpenDeployment ? 1 : 0;

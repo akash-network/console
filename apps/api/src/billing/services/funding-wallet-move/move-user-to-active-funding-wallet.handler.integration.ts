@@ -189,14 +189,18 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
     await expect(container.resolve(FundingWalletRepository).findGranterOf(wallet.id, network)).resolves.toMatchObject({ id: active.id });
   });
 
-  it("refuses a new grant for a user who is still on the draining wallet, and grants from the active one after the move", async () => {
-    const { wallet, active, handle } = await setup({ deposit: 5_000_000 });
+  it("refuses a new grant for a user who is still on the draining wallet, moves that user without being asked, and then grants from the active one", async () => {
+    const { chain, wallet, draining, active, network } = await setup({ deposit: 5_000_000 });
     const registry = container.resolve(FundingWalletRegistryService);
+    const { startWorkers } = await jobWorkers();
 
-    await expect(registry.assignGranterAddress(wallet.id)).rejects.toMatchObject({ status: 503 });
+    await expect(registry.assignGranterAddress(wallet.id)).rejects.toMatchObject({ status: 503, errorCode: "funding_wallet_draining" });
 
-    await handle();
+    await startWorkers();
+    await expectJobCompleted(MOVE, { singletonKey: `${network}.${wallet.id}`, state: "completed" });
 
+    expect(chain.depositOf(draining.address)).toBe(0);
+    expect(chain.depositOf(active.address)).toBe(5_000_000);
     await expect(registry.assignGranterAddress(wallet.id)).resolves.toBe(active.address);
   });
 
