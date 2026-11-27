@@ -87,6 +87,17 @@ describe(TrialCardService.name, () => {
       expect(repository.claim).not.toHaveBeenCalled();
     });
 
+    it.each(["unknown", "", "charge"])("refuses a card whose funding is %j as unsupported, without spending it", async funding => {
+      const { service, user, repository } = setup({ card: { fingerprint: "fp_unknown", funding } });
+
+      await expect(service.verify(user, SETUP_INTENT_ID)).rejects.toMatchObject({
+        status: 422,
+        errorCode: "trial_card_unsupported",
+        message: TRIAL_CARD_REFUSALS.trial_card_unsupported
+      });
+      expect(repository.claim).not.toHaveBeenCalled();
+    });
+
     it.each([
       { name: "the setup intent has not succeeded", setupIntent: { status: "requires_action" as const } },
       { name: "the setup intent was not created for a trial card", setupIntent: { metadata: {} } },

@@ -73,6 +73,18 @@ describe(TrialCardService.name, () => {
     expect(await findCardStep(account)).toBe("required");
   });
 
+  it("refuses a card whose funding Stripe cannot tell", async () => {
+    const { seedHeldAccount, verifyCard, findCardStep } = await setup();
+    const account = await seedHeldAccount();
+
+    await expect(verifyCard(account, { fingerprint: `fp_${faker.string.alphanumeric(16)}`, funding: "unknown" })).rejects.toMatchObject({
+      status: 422,
+      errorCode: "trial_card_unsupported"
+    });
+
+    expect(await findCardStep(account)).toBe("required");
+  });
+
   it("keeps a card spent after the account that used it is deleted", async () => {
     const { seedHeldAccount, verifyCard, deleteAccount } = await setup();
     const fingerprint = `fp_${faker.string.alphanumeric(16)}`;

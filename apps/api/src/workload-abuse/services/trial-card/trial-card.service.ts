@@ -18,6 +18,9 @@ export const TRIAL_CARD_REFUSALS = {
 
 export type TrialCardRefusal = keyof typeof TRIAL_CARD_REFUSALS;
 
+/** An allowlist, so a card whose funding Stripe cannot tell is refused along with the prepaid ones. */
+const TRIAL_CARD_FUNDINGS = ["credit", "debit"];
+
 type CardHolder = Pick<UserOutput, "id" | "stripeCustomerId">;
 
 @singleton()
@@ -42,12 +45,13 @@ export class TrialCardService {
     return this.isOffered() && (await this.trialCardRepository.existsForUser(userId));
   }
 
-  /** Spends the card on the user's trial: one the issuer verified through a trial card setup intent, not prepaid, and never used for another account's trial. */
+  /** Spends the card on the user's trial: a credit or debit card the issuer verified through a trial card setup intent, never used for another account's trial. */
   async verify(user: CardHolder, setupIntentId: string): Promise<void> {
     if (!this.isOffered()) throw createError(404, "Not Found");
 
     const card = await this.#findVerifiedCard(user, setupIntentId);
     if (card.funding === "prepaid") this.#refuse(user, "trial_card_prepaid");
+    if (!TRIAL_CARD_FUNDINGS.includes(card.funding)) this.#refuse(user, "trial_card_unsupported");
 
     const claim = await this.trialCardRepository.claim({
       cardHash: hashCard(this.config.get("WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET"), card.fingerprint),
