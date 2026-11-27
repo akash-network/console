@@ -292,6 +292,56 @@ describe("CreateDeploymentCard", () => {
     expect(createConfigureDraft).not.toHaveBeenCalled();
   });
 
+  it("leaves the provider pick to Console unless the user asks to choose it", () => {
+    setup();
+
+    expect(screen.getByRole("checkbox", { name: "Let me choose the provider" })).not.toBeChecked();
+  });
+
+  it("deploys without a background lease and points to choosing a provider when the user asks to choose it", async () => {
+    const { chromeProps, createDeployment, recordOneClickDeploy } = setup({ action: { cost: null } });
+    createDeployment.mockResolvedValue({ data: { dseq: "1234", manifest: "m", activityId: "activity-1" } });
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Let me choose the provider" }));
+
+    expect(chromeProps().costNote).toBe("You choose a provider after Deploy. Billing starts when the lease starts.");
+    await expect(act(() => chromeProps().onConfirm!(""))).resolves.toEqual({ dseq: "1234", followUrl: "/new-deployment/configure/1234?draftId=draft-1" });
+    expect(createDeployment).toHaveBeenCalledWith({
+      async: "true",
+      data: { sdl: SDL, sealedSecrets: "empty-seal", name: "llama-8b-vllm", templateId: "akash-network-awesome-akash-vllm", runtimeLimitHours: 4 }
+    });
+    expect(recordOneClickDeploy).not.toHaveBeenCalled();
+  });
+
+  it("asks for the background lease again when the user unticks choosing the provider", async () => {
+    const { chromeProps, createDeployment } = setup();
+    const choose = screen.getByRole("checkbox", { name: "Let me choose the provider" });
+
+    await userEvent.click(choose);
+    await userEvent.click(choose);
+    await act(() => chromeProps().onConfirm!(""));
+
+    expect(createDeployment).toHaveBeenCalledWith(expect.objectContaining({ autoLease: "true" }));
+  });
+
+  it("offers no provider choice when Console can't pick providers for the user", () => {
+    setup({ picksProviderAutomatically: false });
+
+    expect(screen.queryByRole("checkbox", { name: "Let me choose the provider" })).not.toBeInTheDocument();
+  });
+
+  it.each(["running", "succeeded"] as const)("stops offering the provider choice once the card is %s", decisionStatus => {
+    setup({ decisionStatus });
+
+    expect(screen.queryByRole("checkbox", { name: "Let me choose the provider" })).not.toBeInTheDocument();
+  });
+
+  it("offers the provider choice again after a failed deploy", () => {
+    setup({ decisionStatus: "failed" });
+
+    expect(screen.getByRole("checkbox", { name: "Let me choose the provider" })).toBeInTheDocument();
+  });
+
   it("watches the new deployment for bids, offering to ask why when none arrive", async () => {
     const { chromeProps, NoBidsYetNotice, continueConversation } = setup();
     expect(NoBidsYetNotice).not.toHaveBeenCalled();
