@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { CHAIN_DB } from "@src/chain";
 import { JOB_NAME } from "@src/core";
 import { MAX_CHECK_ATTEMPTS, MAX_FOLLOW_UP_WRITES, ReconcileDeploymentAllowanceHandler } from "./reconcile-deployment-allowance.handler";
@@ -318,7 +318,7 @@ describe(ReconcileDeploymentAllowanceHandler.name, () => {
     };
     const followUpHash = chain.nextHash();
 
-    vi.spyOn(container.resolve(TxManagerService), "getFundingWalletAddress").mockResolvedValue(granter);
+    vi.spyOn(container.resolve(FundingWalletRegistryService), "getGranterAddressByWalletId").mockResolvedValue(granter);
     vi.spyOn(container.resolve(BalancesService), "retrieveDeploymentLimitAtLatestHeight").mockImplementation(async () => ({
       limit: chain.limit,
       height: chain.height

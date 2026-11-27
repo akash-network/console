@@ -37,6 +37,7 @@ import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { createAkashAddress } from "../../../../test/seeders";
+import type { FundingWalletRegistryService } from "../funding-wallet-registry/funding-wallet-registry.service";
 import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
 
@@ -46,6 +47,8 @@ import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder"
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
+
+const FEE_GRANTER = createAkashAddress();
 
 describe(ManagedSignerService.name, () => {
   describe("executeDerivedDecodedTxByUserId", () => {
@@ -421,7 +424,7 @@ describe(ManagedSignerService.name, () => {
         transactionHash: "tx-hash-123"
       };
 
-      const { service, txManagerService, balancesService } = setup({
+      const { service, txManagerService, balancesService, fundingWalletRegistry } = setup({
         findOneUsedBy: vi.fn().mockResolvedValue(wallet),
         findById: vi.fn().mockResolvedValue(user),
         signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue(txResult),
@@ -430,7 +433,8 @@ describe(ManagedSignerService.name, () => {
 
       const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(wallet.id, messages, { fee: { granter: expect.any(String) } });
+      expect(fundingWalletRegistry.getGranterAddressByWalletId).toHaveBeenCalledWith(wallet.id);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(wallet.id, messages, { fee: { granter: FEE_GRANTER } });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
       expect(result).toEqual({
         code: 0,
@@ -2634,6 +2638,9 @@ describe(ManagedSignerService.name, () => {
       managedUserWalletService: mock<ManagedUserWalletService>({
         refillWalletFees: vi.fn()
       }),
+      fundingWalletRegistry: mock<FundingWalletRegistryService>({
+        getGranterAddressByWalletId: vi.fn().mockResolvedValue(FEE_GRANTER)
+      }),
       trialActivationJobService: mock<TrialActivationJobService>(),
       deploymentSettingRepository: mock<DeploymentSettingRepository>({
         markClosed: input?.markClosed ?? vi.fn(),
@@ -2675,6 +2682,7 @@ describe(ManagedSignerService.name, () => {
       mocks.chainErrorService,
       mocks.anonymousValidateService,
       mocks.txManagerService,
+      mocks.fundingWalletRegistry,
       mocks.domainEvents,
       mocks.leaseHttpService,
       mocks.deploymentHttpService,

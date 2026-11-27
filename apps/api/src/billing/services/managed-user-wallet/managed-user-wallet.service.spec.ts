@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
+import type { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
@@ -214,7 +215,7 @@ describe(ManagedUserWalletService.name, () => {
 
   describe("deployment spending authorization", () => {
     it("grants the deposit authorization at the requested limit to the wallet at the given derivation index", async () => {
-      const { service, signer, config, rpcMessageService, authzHttpService } = setup();
+      const { service, signer, config, rpcMessageService, authzHttpService, fundingWalletRegistry, granter } = setup();
       const address = createAkashAddress();
       const derivationIndex = faker.number.int({ min: 1 });
       const grantMsg = { typeUrl: "/deposit-grant", value: {} } as unknown as EncodeObject;
@@ -222,17 +223,18 @@ describe(ManagedUserWalletService.name, () => {
 
       await service.authorizeSpending(signer, { address, derivationIndex, limits: { deployment: 110_000_000, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
 
+      expect(fundingWalletRegistry.assignGranterAddress).toHaveBeenCalledWith(derivationIndex);
       expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(
-        expect.objectContaining({ grantee: address, denom: config.DEPLOYMENT_GRANT_DENOM, limit: 110_000_000 })
+        expect.objectContaining({ granter, grantee: address, denom: config.DEPLOYMENT_GRANT_DENOM, limit: 110_000_000 })
       );
+      expect(rpcMessageService.getFeesAllowanceGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ granter, grantee: address }));
       expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg], { granteeDerivationIndex: derivationIndex });
       expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).not.toHaveBeenCalled();
     });
 
     it("revokes the deposit authorization instead of granting a zero limit", async () => {
-      const { service, signer, config, rpcMessageService, authzHttpService, txManagerService } = setup();
+      const { service, signer, config, rpcMessageService, authzHttpService, granter } = setup();
       const address = createAkashAddress();
-      const granter = await txManagerService.getFundingWalletAddress();
       const revokeMsg = { typeUrl: "/deposit-revoke", value: {} } as unknown as EncodeObject;
       rpcMessageService.getRevokeDepositDeploymentGrantMsg.mockReturnValue(revokeMsg);
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(mock<ExactDepositDeploymentGrant>());
@@ -265,10 +267,9 @@ describe(ManagedUserWalletService.name, () => {
     });
 
     it("grants only the deposit authorization and returns its funding tx when asked for the deployment allowance alone", async () => {
-      const { service, signer, config, rpcMessageService, txManagerService } = setup();
+      const { service, signer, config, rpcMessageService, fundingWalletRegistry, granter } = setup();
       const address = createAkashAddress();
       const derivationIndex = faker.number.int({ min: 1 });
-      const granter = await txManagerService.getFundingWalletAddress();
       const grantMsg = { typeUrl: "/deposit-grant", value: {} } as unknown as EncodeObject;
       const tx = { code: 0, hash: "GRANT_HASH", rawLog: "" };
       rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(grantMsg);
@@ -282,6 +283,7 @@ describe(ManagedUserWalletService.name, () => {
         denom: config.DEPLOYMENT_GRANT_DENOM,
         limit: 110_000_000
       });
+      expect(fundingWalletRegistry.assignGranterAddress).toHaveBeenCalledWith(derivationIndex);
       expect(signer.executeFundingTx).toHaveBeenCalledTimes(1);
       expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg], { granteeDerivationIndex: derivationIndex });
       expect(rpcMessageService.getFeesAllowanceGrantMsg).not.toHaveBeenCalled();
@@ -324,7 +326,9 @@ describe(ManagedUserWalletService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    txManagerService.getFundingWalletAddress.mockResolvedValue(createAkashAddress());
+    const granter = createAkashAddress();
+    const fundingWalletRegistry = mock<FundingWalletRegistryService>();
+    fundingWalletRegistry.assignGranterAddress.mockResolvedValue(granter);
     authzHttpService.hasFeeAllowance.mockResolvedValue(false);
     rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue({ typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject);
     rpcMessageService.getRevokeAllowanceMsg.mockReturnValue({ typeUrl: "/fee-revoke", value: {} } as unknown as EncodeObject);
@@ -332,8 +336,8 @@ describe(ManagedUserWalletService.name, () => {
     rpcMessageService.getRevokeDepositDeploymentGrantMsg.mockReturnValue({ typeUrl: "/deposit-revoke", value: {} } as unknown as EncodeObject);
     signer.executeFundingTx.mockResolvedValue({ code: 0, hash: "hash", rawLog: "[]" } as never);
 
-    const service = new ManagedUserWalletService(config, txManagerService, rpcMessageService, authzHttpService, createLogger);
+    const service = new ManagedUserWalletService(config, txManagerService, fundingWalletRegistry, rpcMessageService, authzHttpService, createLogger);
 
-    return { service, signer, config, txManagerService, rpcMessageService, authzHttpService, logger, createLogger };
+    return { service, signer, config, txManagerService, fundingWalletRegistry, granter, rpcMessageService, authzHttpService, logger, createLogger };
   }
 });

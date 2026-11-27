@@ -4,9 +4,9 @@ import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import type { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletGrantRevokerService } from "@src/billing/services/wallet-grant-revoker/wallet-grant-revoker.service";
 import type { CreateLogger, TxService } from "@src/core";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -196,8 +196,8 @@ describe(TrialAbuseEnforcementService.name, () => {
       return result;
     });
 
-    const txManagerService = mock<TxManagerService>();
-    txManagerService.getFundingWalletAddress.mockResolvedValue(GRANTER);
+    const fundingWalletRegistry = mock<FundingWalletRegistryService>();
+    fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue(GRANTER);
     const authzHttpService = mock<AuthzHttpService>();
     authzHttpService.hasDepositDeploymentGrant.mockResolvedValue(input.hasDepositGrant ?? true);
     authzHttpService.hasFeeAllowance.mockResolvedValue(input.hasFeeGrant ?? true);
@@ -241,7 +241,7 @@ describe(TrialAbuseEnforcementService.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new TrialAbuseEnforcementService(
-      new WalletGrantRevokerService(txManagerService, authzHttpService, rpcMessageService, signerService),
+      new WalletGrantRevokerService(fundingWalletRegistry, authzHttpService, rpcMessageService, signerService),
       new CloseWalletDeploymentsService(deploymentHttpService, deploymentWriterService, chainErrorService),
       userWalletRepository,
       detectionRepository,

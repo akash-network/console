@@ -2,9 +2,9 @@ import type { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletGrantRevokerService } from "./wallet-grant-revoker.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -16,10 +16,11 @@ const REVOKE_FEE = mock<ReturnType<RpcMessageService["getRevokeAllowanceMsg"]>>(
 describe(WalletGrantRevokerService.name, () => {
   describe("revokeDepositGrant", () => {
     it("revokes the deposit grant the funding wallet gave the grantee", async () => {
-      const { service, authzHttpService, rpcMessageService, signerService, grantee } = setup({ hasDepositGrant: true });
+      const { service, authzHttpService, rpcMessageService, signerService, fundingWalletRegistry, grantee } = setup({ hasDepositGrant: true });
 
       await expect(service.revokeDepositGrant(grantee)).resolves.toBe(true);
 
+      expect(fundingWalletRegistry.getGranterAddressByWalletAddress).toHaveBeenCalledWith(grantee);
       expect(authzHttpService.hasDepositDeploymentGrant).toHaveBeenCalledWith(GRANTER, grantee);
       expect(rpcMessageService.getRevokeDepositDeploymentGrantMsg).toHaveBeenCalledWith({ granter: GRANTER, grantee });
       expect(signerService.executeFundingTx).toHaveBeenCalledWith([REVOKE_DEPOSIT]);
@@ -36,10 +37,11 @@ describe(WalletGrantRevokerService.name, () => {
 
   describe("revokeFeeGrant", () => {
     it("revokes the fee grant the funding wallet gave the grantee", async () => {
-      const { service, authzHttpService, rpcMessageService, signerService, grantee } = setup({ hasFeeGrant: true });
+      const { service, authzHttpService, rpcMessageService, signerService, fundingWalletRegistry, grantee } = setup({ hasFeeGrant: true });
 
       await expect(service.revokeFeeGrant(grantee)).resolves.toBe(true);
 
+      expect(fundingWalletRegistry.getGranterAddressByWalletAddress).toHaveBeenCalledWith(grantee);
       expect(authzHttpService.hasFeeAllowance).toHaveBeenCalledWith(GRANTER, grantee);
       expect(rpcMessageService.getRevokeAllowanceMsg).toHaveBeenCalledWith({ granter: GRANTER, grantee });
       expect(signerService.executeFundingTx).toHaveBeenCalledWith([REVOKE_FEE]);
@@ -77,8 +79,8 @@ describe(WalletGrantRevokerService.name, () => {
 
   function setup(input: { hasDepositGrant?: boolean; hasFeeGrant?: boolean }) {
     const grantee = createAkashAddress();
-    const txManagerService = mock<TxManagerService>();
-    txManagerService.getFundingWalletAddress.mockResolvedValue(GRANTER);
+    const fundingWalletRegistry = mock<FundingWalletRegistryService>();
+    fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue(GRANTER);
     const authzHttpService = mock<AuthzHttpService>();
     authzHttpService.hasDepositDeploymentGrant.mockResolvedValue(input.hasDepositGrant ?? false);
     authzHttpService.hasFeeAllowance.mockResolvedValue(input.hasFeeGrant ?? false);
@@ -87,8 +89,8 @@ describe(WalletGrantRevokerService.name, () => {
     rpcMessageService.getRevokeAllowanceMsg.mockReturnValue(REVOKE_FEE);
     const signerService = mock<ManagedSignerService>();
     signerService.executeFundingTx.mockResolvedValue(mock<Awaited<ReturnType<ManagedSignerService["executeFundingTx"]>>>());
-    const service = new WalletGrantRevokerService(txManagerService, authzHttpService, rpcMessageService, signerService);
+    const service = new WalletGrantRevokerService(fundingWalletRegistry, authzHttpService, rpcMessageService, signerService);
 
-    return { service, grantee, authzHttpService, rpcMessageService, signerService };
+    return { service, grantee, authzHttpService, rpcMessageService, signerService, fundingWalletRegistry };
   }
 });

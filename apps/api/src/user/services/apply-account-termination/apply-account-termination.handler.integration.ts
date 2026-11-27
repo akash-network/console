@@ -9,8 +9,8 @@ import { mock } from "vitest-mock-extended";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { singletonKeyOf } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import { WalletCreditsLowCheckHandler } from "@src/billing/services/wallet-credits-low-check/wallet-credits-low-check.handler";
 import type { ApiPgDatabase } from "@src/core";
@@ -140,7 +140,7 @@ describe(ApplyAccountTerminationHandler.name, () => {
       calls.push(`close:${dseq}`);
       return true;
     });
-    vi.spyOn(container.resolve(TxManagerService), "getFundingWalletAddress").mockResolvedValue(FUNDING_WALLET);
+    vi.spyOn(container.resolve(FundingWalletRegistryService), "getGranterAddressByWalletAddress").mockResolvedValue(FUNDING_WALLET);
     vi.spyOn(container.resolve(AuthzHttpService), "hasDepositDeploymentGrant").mockResolvedValue(input.grantsOnChain ?? true);
     vi.spyOn(container.resolve(AuthzHttpService), "hasFeeAllowance").mockResolvedValue(input.grantsOnChain ?? true);
     const executeFundingTx = vi.spyOn(container.resolve(ManagedSignerService), "executeFundingTx").mockImplementation(async ([message]) => {

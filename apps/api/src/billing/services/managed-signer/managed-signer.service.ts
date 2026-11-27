@@ -25,6 +25,7 @@ import {
 } from "@src/billing/lib/spending-messages/spending-messages";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
@@ -97,6 +98,7 @@ export class ManagedSignerService {
     private readonly chainErrorService: ChainErrorService,
     private readonly anonymousValidateService: TrialValidationService,
     private readonly txManagerService: TxManagerService,
+    private readonly fundingWalletRegistry: FundingWalletRegistryService,
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
     private readonly deploymentHttpService: DeploymentHttpService,
@@ -120,7 +122,7 @@ export class ManagedSignerService {
     let tx: Awaited<ReturnType<TxManagerService["signAndBroadcastWithDerivedWallet"]>>;
 
     try {
-      const granter = await this.txManagerService.getFundingWalletAddress();
+      const granter = await this.fundingWalletRegistry.getGranterAddressByWalletId(walletIndex);
       tx = await this.txManagerService.signAndBroadcastWithDerivedWallet(walletIndex, messages, {
         fee: { granter }
       });
