@@ -38,17 +38,16 @@ export class FundingWalletMoveQueueService {
     });
   }
 
-  /** Replaces the move this user wallet has queued, outside the caller's transaction, which the refusal that follows rolls back; a failure is logged and not thrown, so the caller still gets that refusal. */
+  /** Raises the move this user wallet has waiting, or queues one, outside the caller's transaction, which the refusal that follows rolls back; a failure is logged and not thrown, so the caller still gets that refusal. */
   async queueAheadOfOthers(network: string, userWalletId: number): Promise<void> {
     const singletonKey = moveUserToActiveFundingWalletKeyFor(network, userWalletId);
+    const priority = FUNDING_WALLET_MOVE_PRIORITY.isWaiting;
 
     try {
       await this.txService.outsideTransaction(async () => {
-        await this.jobQueueService.cancelCreatedBy({ name: MoveUserToActiveFundingWallet[JOB_NAME], singletonKey });
-        await this.jobQueueService.enqueue(new MoveUserToActiveFundingWallet({ userWalletId }), {
-          singletonKey,
-          priority: FUNDING_WALLET_MOVE_PRIORITY.isWaiting
-        });
+        const raised = await this.jobQueueService.prioritizeWaitingBy({ name: MoveUserToActiveFundingWallet[JOB_NAME], singletonKey, priority });
+
+        if (raised === 0) await this.jobQueueService.enqueue(new MoveUserToActiveFundingWallet({ userWalletId }), { singletonKey, priority });
       });
     } catch (error) {
       this.#logger.error({ event: "FUNDING_WALLET_MOVE_QUEUE_AHEAD_FAILED", network, userWalletId, error });
