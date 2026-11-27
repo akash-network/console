@@ -1,5 +1,5 @@
 {
-  "id": "eb86b1e1-f017-4d98-a052-71ac57d57c17",
+  "id": "a9922614-42a9-4e44-8cb7-e476218619e0",
   "prevId": "6449381e-1ee8-4519-afb5-e5bb4061a40c",
   "version": "7",
   "dialect": "postgresql",
@@ -1615,6 +1615,12 @@
         "failure": {
           "name": "failure",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_until": {
+          "name": "claimed_until",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

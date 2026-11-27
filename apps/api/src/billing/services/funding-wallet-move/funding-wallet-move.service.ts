@@ -5,7 +5,11 @@ import { inject, singleton } from "tsyringe";
 
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { type FundingWalletOutput, FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
-import { type FundingWalletMoveOutput, FundingWalletMoveRepository } from "@src/billing/repositories/funding-wallet-move/funding-wallet-move.repository";
+import {
+  type FundingWalletMoveOutput,
+  type FundingWalletMovePatch,
+  FundingWalletMoveRepository
+} from "@src/billing/repositories/funding-wallet-move/funding-wallet-move.repository";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { DeploymentAllowanceService } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
@@ -19,6 +23,9 @@ import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 /** Clock-skew slack on the time a grant signed before the promotion can still land, which holds only while TX_SIGNER_REQUEST_TIMEOUT_MS stays above tx-signer's SIGN_AND_BROADCAST_DEADLINE_MS. */
 const LATE_GRANT_MARGIN_IN_MIN = 1;
+
+/** A run waits on the signer at most three times (revoke, fee allowance, credit), each up to TX_SIGNER_REQUEST_TIMEOUT_MS, so a claim this many timeouts long outlives any run that can still send. */
+const CLAIM_LENGTH_IN_SIGNER_TIMEOUTS = 4;
 
 export type FundingWalletMoveOutcome = "moved" | "nothing_to_move" | "needs_review";
 
@@ -58,8 +65,23 @@ export class FundingWalletMoveService {
     if (!rotation || !wallet?.address) return "nothing_to_move";
 
     const movedWallet = { id: wallet.id, address: wallet.address };
-    let move = await this.#findOrStart(movedWallet, rotation);
+    const started = await this.#findOrStart(movedWallet, rotation);
+    const move = await this.fundingWalletMoveRepository.claim(started.id, this.#claimSeconds);
 
+    if (!move) throw createError(409, "Another run is moving this user wallet", { userWalletId });
+
+    try {
+      return await this.#resume(move, movedWallet, rotation);
+    } finally {
+      await this.fundingWalletMoveRepository.release(move.id);
+    }
+  }
+
+  get #claimSeconds(): number {
+    return Math.ceil((CLAIM_LENGTH_IN_SIGNER_TIMEOUTS * this.billingConfigService.get("TX_SIGNER_REQUEST_TIMEOUT_MS")) / 1000);
+  }
+
+  async #resume(move: FundingWalletMoveOutput, movedWallet: MovedWallet, rotation: Rotation): Promise<FundingWalletMoveOutcome> {
     if (move.status === "revoking") move = await this.#revoke(move, movedWallet, rotation.from);
     if (move.status === "revoked") return await this.#credit(move, movedWallet, rotation);
     if (move.status === "crediting")
@@ -120,20 +142,29 @@ export class FundingWalletMoveService {
       ...(hasFeeAllowance ? [this.rpcMessageService.getRevokeAllowanceMsg(grant)] : [])
     ];
 
-    if (messages.length === 0) return await this.fundingWalletMoveRepository.update(move.id, { status: "revoked" });
+    if (messages.length === 0) return await this.#endRevokeWithNothingLeft(move);
 
-    await this.fundingWalletMoveRepository.update(move.id, { revokeSentAt: new Date() });
+    const sending = await this.#advance(move, { revokeSentAt: new Date() });
 
     try {
       const tx = await this.managedSignerService.executeFundingTx(messages);
 
       if (tx.code !== COSMOS_TX_CODE_OK) throw createError(502, "The chain refused to revoke the grants of the draining funding wallet", { txHash: tx.hash });
 
-      return await this.fundingWalletMoveRepository.update(move.id, { status: "revoked", revokeTxHash: tx.hash });
+      return await this.#advance(sending, { status: "revoked", revokeTxHash: tx.hash });
     } catch (error) {
-      if (isUnknownTxOutcome(error) && error.txHash) await this.fundingWalletMoveRepository.update(move.id, { revokeTxHash: error.txHash });
+      if (isUnknownTxOutcome(error) && error.txHash) await this.#advance(sending, { revokeTxHash: error.txHash });
       throw error;
     }
+  }
+
+  /** Grants that were read but are gone without a revoke of ours ended some other way, with no transaction to replay their last changes up to, so their balance is not credited. */
+  async #endRevokeWithNothingLeft(move: FundingWalletMoveOutput): Promise<FundingWalletMoveOutput> {
+    const hadNothing = move.readLimit === 0 && move.feeLimit === 0;
+
+    if (hadNothing || move.revokeSentAt) return await this.#advance(move, { status: "revoked" });
+
+    return await this.#flagForReview(move, "the grants read on the draining funding wallet were gone before a revoke was sent, so nothing was credited");
   }
 
   async #credit(move: FundingWalletMoveOutput, wallet: MovedWallet, { from, to }: Rotation): Promise<FundingWalletMoveOutcome> {
@@ -142,30 +173,34 @@ export class FundingWalletMoveService {
 
     if (move.readLimit === 0) return await this.#complete(move, wallet);
 
-    if (!(await this.#creditBalance(move, wallet))) return "needs_review";
+    const credited = await this.#creditBalance(move, wallet);
 
-    if (!move.revokeTxHash || !move.revokeSentAt) {
+    if (!credited) return "needs_review";
+
+    if (!credited.revokeTxHash || !credited.revokeSentAt) {
       await this.#flagForReview(
-        move,
+        credited,
         "the balance read before the revoke was credited, but what changed on the old grant between that read and the revoke was not replayed"
       );
       return "needs_review";
     }
 
     await this.deploymentAllowanceService.watch(wallet, {
-      txHash: move.revokeTxHash,
-      readHeight: move.readHeight,
-      readLimit: move.readLimit,
-      sentAt: move.revokeSentAt.toISOString(),
+      txHash: credited.revokeTxHash,
+      readHeight: credited.readHeight,
+      readLimit: credited.readLimit,
+      sentAt: credited.revokeSentAt.toISOString(),
       granter: from.address
     });
 
-    return await this.#complete(move, wallet);
+    return await this.#complete(credited, wallet);
   }
 
-  /** Sets the allowance rather than adding to it, so sending it again on a retry changes nothing. */
+  /** Sets the allowance rather than adding to it, so sending it again on a retry changes nothing; one that expired since it was read is left out, as the chain refuses an expiry in the past. */
   async #grantFeeAllowance(move: FundingWalletMoveOutput, wallet: MovedWallet): Promise<void> {
-    if (move.feeLimit === 0) return;
+    const hasExpired = !!move.feeExpiresAt && move.feeExpiresAt <= new Date();
+
+    if (move.feeLimit === 0 || hasExpired) return;
 
     await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: wallet.address,
@@ -176,27 +211,36 @@ export class FundingWalletMoveService {
   }
 
   /** Marked as crediting before the grant is sent, so a run that dies in between is never mistaken for one that sent nothing. */
-  async #creditBalance(move: FundingWalletMoveOutput, wallet: MovedWallet): Promise<boolean> {
-    await this.fundingWalletMoveRepository.update(move.id, { status: "crediting" });
+  async #creditBalance(move: FundingWalletMoveOutput, wallet: MovedWallet): Promise<FundingWalletMoveOutput | undefined> {
+    const crediting = await this.#advance(move, { status: "crediting" });
 
     try {
-      await this.deploymentAllowanceService.adjust(wallet, move.readLimit, { redo: true });
-      return true;
+      await this.deploymentAllowanceService.adjust(wallet, crediting.readLimit, { redo: true });
+      return crediting;
     } catch (error) {
       if (!isUnknownTxOutcome(error)) {
-        await this.fundingWalletMoveRepository.update(move.id, { status: "revoked" });
+        await this.#advance(crediting, { status: "revoked" });
         throw error;
       }
 
-      if (error.txHash) return true;
+      if (error.txHash) return crediting;
 
-      await this.#flagForReview(move, "the signer could not tell whether the credit on the new funding wallet was sent");
-      return false;
+      await this.#flagForReview(crediting, "the signer could not tell whether the credit on the new funding wallet was sent");
+      return undefined;
     }
   }
 
+  /** Refuses a change to a move another run has moved on since this run last saw it, so a step is never undone or taken twice. */
+  async #advance(move: FundingWalletMoveOutput, patch: FundingWalletMovePatch): Promise<FundingWalletMoveOutput> {
+    const advanced = await this.fundingWalletMoveRepository.updateFrom(move.id, move.status, patch);
+
+    if (!advanced) throw createError(409, "Another run changed this move", { moveId: move.id, expectedStatus: move.status });
+
+    return advanced;
+  }
+
   async #complete(move: FundingWalletMoveOutput, wallet: MovedWallet): Promise<FundingWalletMoveOutcome> {
-    await this.fundingWalletMoveRepository.update(move.id, { status: "completed" });
+    await this.#advance(move, { status: "completed" });
     this.#logger.info({ event: "FUNDING_WALLET_MOVE_COMPLETED", userWalletId: wallet.id, moveId: move.id, readLimit: move.readLimit });
 
     return "moved";
@@ -205,7 +249,7 @@ export class FundingWalletMoveService {
   async #flagForReview(move: FundingWalletMoveOutput, failure: string): Promise<FundingWalletMoveOutput> {
     this.#logger.error({ event: "FUNDING_WALLET_MOVE_NEEDS_REVIEW", userWalletId: move.userWalletId, moveId: move.id, readLimit: move.readLimit, failure });
 
-    return await this.fundingWalletMoveRepository.update(move.id, { status: "failed", failure });
+    return await this.#advance(move, { status: "failed", failure });
   }
 }
 

@@ -15,7 +15,7 @@ describe(FundingWalletMoveRepository.name, () => {
 
       const move = await repository.createUnlessStarted(input);
 
-      expect(move).toMatchObject({ ...input, id: expect.any(String), revokeSentAt: null, revokeTxHash: null, failure: null });
+      expect(move).toMatchObject({ ...input, id: expect.any(String), revokeSentAt: null, revokeTxHash: null, failure: null, claimedUntil: null });
     });
 
     it("returns the move a user wallet already has for that source wallet, with the read it saved first", async () => {
@@ -49,17 +49,100 @@ describe(FundingWalletMoveRepository.name, () => {
     });
   });
 
-  describe("update", () => {
-    it("changes the given fields of one move and returns it", async () => {
+  describe("updateFrom", () => {
+    it("changes the given fields of one move that is in the expected state and returns it", async () => {
       const { repository, moveInput } = await setup();
       const move = await repository.createUnlessStarted(moveInput());
       const untouched = await repository.createUnlessStarted(moveInput({ userWalletId: move.userWalletId + 1 }));
       const revokeSentAt = new Date("2026-11-27T12:00:00.000Z");
 
-      const updated = await repository.update(move.id, { status: "revoked", revokeTxHash: "AB".repeat(32), revokeSentAt });
+      const updated = await repository.updateFrom(move.id, "revoking", { status: "revoked", revokeTxHash: "AB".repeat(32), revokeSentAt });
 
       expect(updated).toMatchObject({ id: move.id, status: "revoked", revokeTxHash: "AB".repeat(32), revokeSentAt, readLimit: move.readLimit });
       await expect(repository.findBySource(untouched)).resolves.toEqual(untouched);
+    });
+
+    it("changes nothing and returns nothing when the move has left the expected state", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput({ status: "completed" }));
+
+      await expect(repository.updateFrom(move.id, "crediting", { status: "revoked" })).resolves.toBeUndefined();
+
+      await expect(repository.findBySource(move)).resolves.toEqual(move);
+    });
+
+    it("lets only one of two runs take the same step", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput({ status: "revoked" }));
+
+      const steps = await Promise.all([1, 2, 3, 4].map(() => repository.updateFrom(move.id, "revoked", { status: "crediting" })));
+
+      expect(steps.filter(Boolean)).toHaveLength(1);
+    });
+  });
+
+  describe("claim", () => {
+    it("gives a free move to the run that asks, with its current state", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput({ status: "revoked" }));
+
+      const claimed = await repository.claim(move.id, 600);
+
+      expect(claimed).toMatchObject({ id: move.id, status: "revoked" });
+      expect(claimed!.claimedUntil!.getTime() - Date.now()).toBeGreaterThan(540_000);
+      expect(claimed!.claimedUntil!.getTime() - Date.now()).toBeLessThan(660_000);
+    });
+
+    it("refuses a move another run holds, and leaves that claim as it is", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput());
+      const held = await repository.claim(move.id, 600);
+
+      await expect(repository.claim(move.id, 6000)).resolves.toBeUndefined();
+
+      await expect(repository.findBySource(move)).resolves.toMatchObject({ claimedUntil: held!.claimedUntil });
+    });
+
+    it("gives a move to one of several runs asking at once", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput());
+
+      const claims = await Promise.all([1, 2, 3, 4].map(() => repository.claim(move.id, 600)));
+
+      expect(claims.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("gives a move whose claim has lapsed to the next run", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput());
+      await repository.claim(move.id, -1);
+
+      await expect(repository.claim(move.id, 600)).resolves.toMatchObject({ id: move.id });
+    });
+
+    it("claims only the move it is asked for", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput());
+      const other = await repository.createUnlessStarted(moveInput({ userWalletId: move.userWalletId + 1 }));
+
+      await repository.claim(move.id, 600);
+
+      await expect(repository.findBySource(other)).resolves.toMatchObject({ claimedUntil: null });
+    });
+  });
+
+  describe("release", () => {
+    it("frees a held move for the next run and leaves other claims alone", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput());
+      const other = await repository.createUnlessStarted(moveInput({ userWalletId: move.userWalletId + 1 }));
+      await repository.claim(move.id, 600);
+      await repository.claim(other.id, 600);
+
+      await repository.release(move.id);
+
+      await expect(repository.claim(move.id, 600)).resolves.toMatchObject({ id: move.id });
+      await expect(repository.claim(other.id, 600)).resolves.toBeUndefined();
     });
   });
 
@@ -67,8 +150,8 @@ describe(FundingWalletMoveRepository.name, () => {
     it("counts the moves off one source wallet by state", async () => {
       const { repository, moveInput, otherSource } = await setup();
       const [first, second] = await Promise.all([1, 2, 3].map(offset => repository.createUnlessStarted(moveInput({ userWalletId: 1000 + offset }))));
-      await repository.update(first.id, { status: "completed" });
-      await repository.update(second.id, { status: "completed" });
+      await repository.updateFrom(first.id, "revoking", { status: "completed" });
+      await repository.updateFrom(second.id, "revoking", { status: "completed" });
       await repository.createUnlessStarted(moveInput({ fromFundingWalletId: otherSource.id, status: "failed" }));
 
       await expect(repository.countByStatus(first.fromFundingWalletId)).resolves.toEqual({ completed: 2, revoking: 1 });

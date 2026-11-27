@@ -314,9 +314,28 @@ describe(FundingWalletMoveService.name, () => {
       expect(deploymentAllowanceService.adjust).toHaveBeenCalledWith(expect.anything(), 4_000_000, { redo: true });
     });
 
+    it.each([
+      ["a balance", { readLimit: 4_000_000, feeLimit: 0 }],
+      ["a fee allowance", { readLimit: 0, feeLimit: 700_000 }]
+    ])("credits nothing and asks for a review when %s it read is gone though no revoke was ever sent", async (_case, read) => {
+      const { service, wallet, deploymentAllowanceService, managedUserWalletService, fundingWalletRepository, currentMove } = setup({
+        move: { status: "revoking", readHeight: 900, ...read }
+      });
+
+      await expect(service.moveToActive(wallet.id)).resolves.toBe("needs_review");
+
+      expect(fundingWalletRepository.reassign).not.toHaveBeenCalled();
+      expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(currentMove()).toMatchObject({
+        status: "failed",
+        failure: "the grants read on the draining funding wallet were gone before a revoke was sent, so nothing was credited"
+      });
+    });
+
     it("credits the saved balance but asks for a review when it cannot tell which transaction revoked the old grant", async () => {
       const { service, wallet, deploymentAllowanceService, logger, currentMove } = setup({
-        move: { status: "revoking", readLimit: 4_000_000, readHeight: 900 }
+        move: { status: "revoking", readLimit: 4_000_000, readHeight: 900, revokeSentAt: new Date("2026-11-27T11:50:00.000Z") }
       });
 
       await expect(service.moveToActive(wallet.id)).resolves.toBe("needs_review");
@@ -386,6 +405,107 @@ describe(FundingWalletMoveService.name, () => {
     });
   });
 
+  describe("when another run works on the same move", () => {
+    it("refuses to run while the other run holds the move, and reads or sends nothing", async () => {
+      const { service, wallet, authzHttpService, managedSignerService, deploymentAllowanceService, fundingWalletMoveRepository } = setup({
+        move: { status: "revoked", readLimit: 4_000_000, readHeight: 900, revokeTxHash: "REVOKE_HASH", revokeSentAt: NOW },
+        isClaimedByAnotherRun: true
+      });
+
+      await expect(service.moveToActive(wallet.id)).rejects.toMatchObject({
+        status: 409,
+        message: "Another run is moving this user wallet",
+        userWalletId: wallet.id
+      });
+
+      expect(authzHttpService.hasDepositDeploymentGrant).not.toHaveBeenCalled();
+      expect(managedSignerService.executeFundingTx).not.toHaveBeenCalled();
+      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(fundingWalletMoveRepository.release).not.toHaveBeenCalled();
+    });
+
+    it("holds the move for four signer timeouts and gives it back when done", async () => {
+      const { service, wallet, fundingWalletMoveRepository, currentMove } = setup({ chain: { depositLimit: 5_000_000 } });
+
+      await service.moveToActive(wallet.id);
+
+      expect(fundingWalletMoveRepository.claim).toHaveBeenCalledWith(currentMove()!.id, (4 * SIGNER_TIMEOUT_MS) / 1000);
+      expect(fundingWalletMoveRepository.release).toHaveBeenCalledWith(currentMove()!.id);
+    });
+
+    it("holds the move for whole seconds", async () => {
+      const { service, wallet, fundingWalletMoveRepository } = setup({ signerTimeoutMs: 1_100 });
+
+      await service.moveToActive(wallet.id);
+
+      expect(fundingWalletMoveRepository.claim).toHaveBeenCalledWith(expect.anything(), 5);
+    });
+
+    it("gives the move back when the run fails", async () => {
+      const { service, wallet, managedSignerService, fundingWalletMoveRepository, currentMove } = setup({ chain: { depositLimit: 5_000_000 } });
+      managedSignerService.executeFundingTx.mockRejectedValue(new Error("connect ECONNREFUSED"));
+
+      await expect(service.moveToActive(wallet.id)).rejects.toThrow("connect ECONNREFUSED");
+
+      expect(fundingWalletMoveRepository.release).toHaveBeenCalledWith(currentMove()!.id);
+    });
+
+    it("sends no credit when the move left the state this run saw before it could mark the credit", async () => {
+      const { service, wallet, deploymentAllowanceService, currentMove } = setup({
+        move: { status: "revoked", readLimit: 4_000_000, readHeight: 900, revokeTxHash: "REVOKE_HASH", revokeSentAt: NOW },
+        changedByAnotherRunAt: "crediting"
+      });
+
+      await expect(service.moveToActive(wallet.id)).rejects.toMatchObject({
+        status: 409,
+        message: "Another run changed this move",
+        moveId: currentMove()!.id,
+        expectedStatus: "revoked"
+      });
+
+      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+    });
+
+    it("stops before pointing the user anywhere when the move left the state this run saw while its revoke was out", async () => {
+      const { service, wallet, fundingWalletRepository, deploymentAllowanceService } = setup({
+        chain: { depositLimit: 5_000_000 },
+        changedByAnotherRunAt: "revoked"
+      });
+
+      await expect(service.moveToActive(wallet.id)).rejects.toMatchObject({ status: 409, expectedStatus: "revoking" });
+
+      expect(fundingWalletRepository.reassign).not.toHaveBeenCalled();
+      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when the fee allowance expired after it was read", () => {
+    it.each([
+      ["before now", new Date(NOW.getTime() - 1)],
+      ["this instant", NOW]
+    ])("grants no fee allowance that expired %s, and still credits the balance", async (_case, feeExpiresAt) => {
+      const { service, wallet, managedUserWalletService, deploymentAllowanceService } = setup({
+        move: { status: "revoked", readLimit: 4_000_000, readHeight: 900, feeLimit: 700_000, feeExpiresAt, revokeTxHash: "REVOKE_HASH", revokeSentAt: NOW }
+      });
+
+      await expect(service.moveToActive(wallet.id)).resolves.toBe("moved");
+
+      expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+      expect(deploymentAllowanceService.adjust).toHaveBeenCalledTimes(1);
+    });
+
+    it("grants a fee allowance that expires a moment from now", async () => {
+      const feeExpiresAt = new Date(NOW.getTime() + 1);
+      const { service, wallet, managedUserWalletService } = setup({
+        move: { status: "revoked", readLimit: 0, readHeight: 900, feeLimit: 700_000, feeExpiresAt, revokeTxHash: "REVOKE_HASH", revokeSentAt: NOW }
+      });
+
+      await expect(service.moveToActive(wallet.id)).resolves.toBe("moved");
+
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ expiration: feeExpiresAt }));
+    });
+  });
+
   describe("when the credit fails", () => {
     it("goes back to revoked, so the credit is sent again, when the failure proves nothing was granted", async () => {
       const refused = new Error("The chain refused the deployment allowance grant");
@@ -433,7 +553,10 @@ describe(FundingWalletMoveService.name, () => {
       drainingForMs?: number;
       wallet?: null | { address: null };
       chain?: { depositLimit?: number; readHeight?: number; feeLimit?: number; feeExpiration?: string; otherFeeDenomLimit?: number };
+      signerTimeoutMs?: number;
       move?: Partial<FundingWalletMoveOutput>;
+      isClaimedByAnotherRun?: boolean;
+      changedByAnotherRunAt?: FundingWalletMoveOutput["status"];
     } = {}
   ) {
     vi.useFakeTimers({ now: NOW });
@@ -457,6 +580,7 @@ describe(FundingWalletMoveService.name, () => {
       revokeSentAt: null,
       revokeTxHash: null,
       failure: null,
+      claimedUntil: null,
       createdAt: NOW,
       updatedAt: NOW
     };
@@ -490,7 +614,12 @@ describe(FundingWalletMoveService.name, () => {
       move = { ...blankMove, ...created, feeExpiresAt: created.feeExpiresAt ?? null };
       return move;
     });
-    fundingWalletMoveRepository.update.mockImplementation(async (_id, patch) => {
+    fundingWalletMoveRepository.claim.mockImplementation(async () => (input.isClaimedByAnotherRun ? undefined : move));
+    fundingWalletMoveRepository.updateFrom.mockImplementation(async (_id, status, patch) => {
+      const isChangedByAnotherRun = !!input.changedByAnotherRunAt && patch.status === input.changedByAnotherRunAt;
+
+      if (move!.status !== status || isChangedByAnotherRun) return undefined;
+
       calls.push(`update:${patch.status ?? Object.keys(patch).join("+")}`);
       move = { ...move!, ...patch };
       return move;
@@ -538,7 +667,7 @@ describe(FundingWalletMoveService.name, () => {
       managedSignerService,
       managedUserWalletService,
       deploymentAllowanceService,
-      mockConfigService<BillingConfigService>({ TX_SIGNER_REQUEST_TIMEOUT_MS: SIGNER_TIMEOUT_MS }),
+      mockConfigService<BillingConfigService>({ TX_SIGNER_REQUEST_TIMEOUT_MS: input.signerTimeoutMs ?? SIGNER_TIMEOUT_MS }),
       mockConfigService<CoreConfigService>({ NETWORK }),
       createLogger
     );

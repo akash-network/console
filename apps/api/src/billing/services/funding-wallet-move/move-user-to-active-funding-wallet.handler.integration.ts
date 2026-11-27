@@ -118,6 +118,38 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
     await expect(findMove()).resolves.toMatchObject({ status: "failed", failure: expect.stringContaining("interrupted") });
   });
 
+  it("moves nothing while another run holds the move, and moves it once that claim has lapsed", async () => {
+    const { chain, wallet, draining, active, network, handle, findMove } = await setup({ deposit: 5_000_000 });
+    const moves = container.resolve(FundingWalletMoveRepository);
+    const move = await moves.createUnlessStarted({
+      userWalletId: wallet.id,
+      network,
+      fromFundingWalletId: draining.id,
+      toFundingWalletId: active.id,
+      status: "revoking",
+      readLimit: 5_000_000,
+      readHeight: chain.readHeight,
+      feeLimit: 0,
+      feeExpiresAt: null
+    });
+    await moves.claim(move.id, 600);
+
+    await expect(handle()).rejects.toMatchObject({ status: 409 });
+
+    expect(chain.depositOf(draining.address)).toBe(5_000_000);
+    expect(chain.depositOf(active.address)).toBe(0);
+    expect(chain.revokeHashes).toEqual([]);
+    await expect(findMove()).resolves.toMatchObject({ status: "revoking", claimedUntil: expect.any(Date) });
+
+    await moves.release(move.id);
+    await moves.claim(move.id, -1);
+    await handle();
+
+    expect(chain.depositOf(draining.address)).toBe(0);
+    expect(chain.depositOf(active.address)).toBe(5_000_000);
+    await expect(findMove()).resolves.toMatchObject({ status: "completed", claimedUntil: null });
+  });
+
   it("moves nothing while a grant signed before the promotion can still land", async () => {
     const { chain, draining, active, handle, findMove } = await setup({ deposit: 5_000_000, drainingSince: sql`now()` });
 

@@ -13,6 +13,7 @@ CREATE TABLE "funding_wallet_moves" (
 	"revoke_sent_at" timestamp with time zone,
 	"revoke_tx_hash" varchar(64),
 	"failure" text,
+	"claimed_until" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );

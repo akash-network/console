@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -47,14 +47,34 @@ export class FundingWalletMoveRepository {
     return created ?? (await this.findBySource(input))!;
   }
 
-  async update(id: FundingWalletMoveOutput["id"], patch: FundingWalletMovePatch): Promise<FundingWalletMoveOutput> {
+  /** Changes a move only while it is still in the state the caller last saw, so two runs can never both take the same step. */
+  async updateFrom(
+    id: FundingWalletMoveOutput["id"],
+    status: FundingWalletMoveStatus,
+    patch: FundingWalletMovePatch
+  ): Promise<FundingWalletMoveOutput | undefined> {
     const [move] = await this.#cursor
       .update(this.table)
       .set({ ...patch, updatedAt: sql`now()` })
-      .where(eq(this.table.id, id))
+      .where(and(eq(this.table.id, id), eq(this.table.status, status)))
       .returning();
 
     return move;
+  }
+
+  /** Gives a move to one run at a time; the claim lapses on its own, so a run that died holding it delays the next one instead of blocking it. */
+  async claim(id: FundingWalletMoveOutput["id"], seconds: number): Promise<FundingWalletMoveOutput | undefined> {
+    const [move] = await this.#cursor
+      .update(this.table)
+      .set({ claimedUntil: sql`now() + make_interval(secs => ${seconds})` })
+      .where(and(eq(this.table.id, id), or(isNull(this.table.claimedUntil), lt(this.table.claimedUntil, sql`now()`))))
+      .returning();
+
+    return move;
+  }
+
+  async release(id: FundingWalletMoveOutput["id"]): Promise<void> {
+    await this.#cursor.update(this.table).set({ claimedUntil: null }).where(eq(this.table.id, id));
   }
 
   async countByStatus(fromFundingWalletId: string): Promise<Partial<Record<FundingWalletMoveStatus, number>>> {

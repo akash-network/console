@@ -78,6 +78,7 @@ export const FundingWalletMoves = pgTable(
     revokeSentAt: timestamp("revoke_sent_at", { withTimezone: true }),
     revokeTxHash: varchar("revoke_tx_hash", { length: 64 }),
     failure: text("failure"),
+    claimedUntil: timestamp("claimed_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
   },
