@@ -1,4 +1,5 @@
 import { container } from "tsyringe";
+import { z } from "zod";
 
 import { HealthzController } from "@src/controllers/healthz/healthz.controller";
 import { HealthzResponseSchema } from "@src/http-schemas/healthz.schema";
@@ -12,7 +13,7 @@ const healthzRoute = createRoute({
   path: "/v1/healthz/{type}",
   summary: "Health check",
   tags: ["Healthz"],
-  request: {},
+  request: { params: z.object({ type: z.string() }) },
   responses: {
     200: {
       description: "Returns ok",
@@ -26,6 +27,6 @@ const healthzRoute = createRoute({
 });
 
 healthzRouter.openapi(healthzRoute, async c => {
-  const payload = await container.resolve(HealthzController).getStatus();
+  const payload = await container.resolve(HealthzController).getStatus(c.req.valid("param").type);
   return c.json(payload, 200);
 });

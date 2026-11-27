@@ -15,7 +15,7 @@ import { SignMode } from "cosmjs-types/cosmos/tx/signing/v1beta1/signing";
 import { ServiceClientImpl, SimulateRequest } from "cosmjs-types/cosmos/tx/v1beta1/service";
 import { randomUUID } from "node:crypto";
 
-import type { Wallet } from "@src/lib/wallet/wallet";
+import type { SigningWallet } from "@src/lib/wallet/wallet";
 import { memoizeAsync } from "../../caching/helpers/helpers";
 import { isRetriableTransportError } from "../retriable-transport-error/retriable-transport-error";
 import { RetryingRpcClient } from "../retrying-rpc-client/retrying-rpc-client";
@@ -228,7 +228,7 @@ export class SigningStargateWithUnorderedSupportClient extends SigningStargateCl
 
 export type CreateSigningStargateClient = (
   endpoint: string,
-  wallet: Wallet,
+  wallet: SigningWallet,
   options: { registry?: Registry; signConfig: UnorderedTxSignConfig; rpcRequestTimeoutMs: number }
 ) => SigningStargateWithUnorderedSupportClient;
 

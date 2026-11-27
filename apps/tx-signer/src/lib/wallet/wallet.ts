@@ -5,6 +5,9 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
 export const WALLET_ADDRESS_PREFIX = "akash";
 
+/** What signing a transaction needs from a wallet, whether its key sits in this process or in a key service. */
+export type SigningWallet = OfflineDirectSigner & { getFirstAddress(): Promise<string> };
+
 export class Wallet implements OfflineDirectSigner {
   static create(mnemonic?: string, index?: number): Wallet {
     return new Wallet(mnemonic, index);

@@ -1,5 +1,6 @@
 import { MsgAccountDeposit, MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import {
+  AuthInfo,
   BaseAccount,
   BasicAllowance,
   type Coin,
@@ -10,8 +11,12 @@ import {
   TxBody,
   TxRaw
 } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { fromBase64, fromHex, toBase64 } from "@cosmjs/encoding";
+import { rawSecp256k1PubkeyToRawAddress } from "@cosmjs/amino";
+import { Secp256k1, Secp256k1Signature, sha256 } from "@cosmjs/crypto";
+import { fromBase64, fromHex, toBase64, toBech32 } from "@cosmjs/encoding";
 import type { Registry } from "@cosmjs/proto-signing";
+import { makeSignBytes, makeSignDoc } from "@cosmjs/proto-signing";
+import { PubKey } from "cosmjs-types/cosmos/crypto/secp256k1/keys";
 import { SimulateRequest } from "cosmjs-types/cosmos/tx/v1beta1/service";
 import nock from "nock";
 import { container } from "tsyringe";
@@ -26,6 +31,8 @@ import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 import { createAkashAddress } from "@test/seeders";
 
 const DERIVATION_INDEX = 1;
+const CHAIN_ID = "sandbox-01";
+const ACCOUNT_NUMBER = 42;
 
 interface JsonRpcRequest {
   id: number | string;
@@ -60,11 +67,51 @@ describe(TxController.name, () => {
   });
 
   it("signs and broadcasts an unordered transaction through the funding wallet against a mocked RPC node", async () => {
-    const { txHash } = mockRpcNode();
+    const { txHash, getBroadcastedTxs } = mockRpcNode({ chainId: CHAIN_ID, accountNumber: ACCOUNT_NUMBER });
+    const [seedPhraseFundingWalletAddress] = await container.resolve(TxManagerService).getFundingWalletAddresses();
 
     const res = await app.request("/v1/tx/funding", {
       method: "POST",
       body: JSON.stringify({ data: { messages: await buildFundingMessages(), granteeDerivationIndex: DERIVATION_INDEX } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+    await expect(readSignerOf(getBroadcastedTxs()[0])).resolves.toEqual({ address: seedPhraseFundingWalletAddress, hasValidSignature: true });
+  });
+
+  it("signs a funding tx with the funding wallet whose key the key service holds, when the grant names that wallet", async () => {
+    const { txHash, getBroadcastedTxs } = mockRpcNode({ chainId: CHAIN_ID, accountNumber: ACCOUNT_NUMBER });
+    const [seedPhraseFundingWalletAddress, keyServiceFundingWalletAddress] = await container.resolve(TxManagerService).getFundingWalletAddresses();
+
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({
+        data: { messages: await buildFundingMessages({ granter: keyServiceFundingWalletAddress }), granteeDerivationIndex: DERIVATION_INDEX }
+      }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+    expect(keyServiceFundingWalletAddress).not.toBe(seedPhraseFundingWalletAddress);
+    await expect(readSignerOf(getBroadcastedTxs()[0])).resolves.toEqual({ address: keyServiceFundingWalletAddress, hasValidSignature: true });
+  });
+
+  it("accepts the funding wallet whose key the key service holds as fee granter of a derived tx", async () => {
+    const { txHash } = mockRpcNode();
+    const [, keyServiceFundingWalletAddress] = await container.resolve(TxManagerService).getFundingWalletAddresses();
+
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({
+        data: {
+          derivationIndex: DERIVATION_INDEX,
+          messages: await buildDerivedMessages(),
+          options: { fee: { granter: keyServiceFundingWalletAddress } }
+        }
+      }),
       headers: authorizedHeaders()
     });
 
@@ -298,7 +345,7 @@ describe(TxController.name, () => {
     return encodeMessages({
       typeUrl: `/${MsgGrantAllowance.$type}`,
       value: MsgGrantAllowance.fromPartial({
-        granter: input.granter ?? (await txManagerService.getFundingWalletAddress()),
+        granter: input.granter ?? (await txManagerService.getFundingWalletAddresses())[0],
         grantee: input.grantee ?? (await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX)),
         allowance: {
           typeUrl: `/${BasicAllowance.$type}`,
@@ -314,11 +361,23 @@ describe(TxController.name, () => {
     return encodeMessages({
       typeUrl: `/${MsgRevoke.$type}`,
       value: MsgRevoke.fromPartial({
-        granter: granter ?? (await txManagerService.getFundingWalletAddress()),
+        granter: granter ?? (await txManagerService.getFundingWalletAddresses())[0],
         grantee: await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX),
         msgTypeUrl: `/${MsgAccountDeposit.$type}`
       })
     });
+  }
+
+  async function readSignerOf(broadcastedTx: string) {
+    const txRaw = TxRaw.decode(fromBase64(broadcastedTx));
+    const [signerInfo] = AuthInfo.decode(txRaw.authInfoBytes).signerInfos;
+    const publicKey = PubKey.decode(signerInfo.publicKey!.value).key;
+    const signedDigest = sha256(makeSignBytes(makeSignDoc(txRaw.bodyBytes, txRaw.authInfoBytes, CHAIN_ID, ACCOUNT_NUMBER)));
+
+    return {
+      address: toBech32("akash", rawSecp256k1PubkeyToRawAddress(publicKey)),
+      hasValidSignature: await Secp256k1.verifySignature(Secp256k1Signature.fromFixedLength(txRaw.signatures[0]), signedDigest, publicKey)
+    };
   }
 
   function encodeMessages(message: { typeUrl: string; value: object }) {

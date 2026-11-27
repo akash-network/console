@@ -24,28 +24,43 @@ describe(TxManagerService.name, () => {
         rawLog: "success"
       });
 
-      const { service, fundingSigningClient } = setup({
+      const { service, fundingSigningClient, secondFundingSigningClient, fundingWalletAddress } = setup({
         fundingSignAndBroadcast: vi.fn().mockResolvedValue(txResult)
       });
 
-      const result = await service.signAndBroadcastWithFundingWallet(messages);
+      const result = await service.signAndBroadcastWithFundingWallet(fundingWalletAddress, messages);
 
       expect(fundingSigningClient.signAndBroadcast).toHaveBeenCalledWith(messages);
+      expect(secondFundingSigningClient.signAndBroadcast).not.toHaveBeenCalled();
       expect(result).toEqual(txResult);
+    });
+
+    it("signs with the second funding wallet when its address is named", async () => {
+      const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
+      const { service, fundingSigningClient, secondFundingSigningClient, secondFundingWalletAddress } = setup();
+
+      await service.signAndBroadcastWithFundingWallet(secondFundingWalletAddress, messages);
+
+      expect(secondFundingSigningClient.signAndBroadcast).toHaveBeenCalledWith(messages);
+      expect(fundingSigningClient.signAndBroadcast).not.toHaveBeenCalled();
+    });
+
+    it("refuses an address no funding wallet has", async () => {
+      const { service, fundingSigningClient, secondFundingSigningClient } = setup();
+      const unknownAddress = createAkashAddress();
+
+      await expect(service.signAndBroadcastWithFundingWallet(unknownAddress, [])).rejects.toThrow(`No funding wallet is configured for ${unknownAddress}`);
+
+      expect(fundingSigningClient.signAndBroadcast).not.toHaveBeenCalled();
+      expect(secondFundingSigningClient.signAndBroadcast).not.toHaveBeenCalled();
     });
   });
 
-  describe("getFundingWalletAddress", () => {
-    it("returns funding wallet address", async () => {
-      const address = createAkashAddress();
-      const { service, fundingWallet } = setup({
-        fundingWalletAddress: address
-      });
+  describe("getFundingWalletAddresses", () => {
+    it("returns the address of every funding wallet, in the order they are configured", async () => {
+      const { service, fundingWalletAddress, secondFundingWalletAddress } = setup();
 
-      const result = await service.getFundingWalletAddress();
-
-      expect(fundingWallet.getFirstAddress).toHaveBeenCalled();
-      expect(result).toBe(address);
+      await expect(service.getFundingWalletAddresses()).resolves.toEqual([fundingWalletAddress, secondFundingWalletAddress]);
     });
   });
 
@@ -164,6 +179,14 @@ describe(TxManagerService.name, () => {
       getFirstAddress: vi.fn().mockResolvedValue(fundingWalletAddress)
     });
 
+    const secondFundingWalletAddress = createAkashAddress();
+    const secondFundingWallet = mock<Wallet>({
+      getFirstAddress: vi.fn().mockResolvedValue(secondFundingWalletAddress)
+    });
+    const secondFundingSigningClient = mock<SigningClientService>({
+      signAndBroadcast: vi.fn()
+    });
+
     const oldMasterWallet = mock<Wallet>({
       getFirstAddress: vi.fn().mockResolvedValue(createAkashAddress())
     });
@@ -205,8 +228,10 @@ describe(TxManagerService.name, () => {
         derivedWalletFactory: oldWalletFactory
       },
       v2: {
-        masterWallet: fundingWallet,
-        masterSigningClient: fundingSigningClient,
+        fundingWallets: [
+          { wallet: fundingWallet, signingClient: fundingSigningClient },
+          { wallet: secondFundingWallet, signingClient: secondFundingSigningClient }
+        ],
         derivedWalletFactory: walletFactory
       }
     };
@@ -221,6 +246,9 @@ describe(TxManagerService.name, () => {
       oldMasterWallet,
       derivedWallet,
       fundingSigningClient,
+      secondFundingSigningClient,
+      fundingWalletAddress,
+      secondFundingWalletAddress,
       oldMasterSigningClient,
       derivedSigningClient,
       signingClientServiceFactory,

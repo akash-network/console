@@ -52,6 +52,24 @@ export class TxPolicyService {
     this.logger.setContext(TxPolicyService.name);
   }
 
+  /** A funding request names its signer through the account its first message acts for, which is how one signer serves several funding wallets. */
+  resolveFundingSigner(messages: readonly EncodeObject[], fundingWalletAddresses: readonly string[]): string {
+    const [first] = messages;
+    const typeUrl = first?.typeUrl ?? "none";
+
+    if (!first || !hasActorBinding(first.typeUrl)) {
+      this.reject("TX_ACTOR_BINDING_REJECTED", typeUrl, "message type has no actor binding rule");
+    }
+
+    const [actorAddress] = ACTOR_ADDRESS_READERS[first.typeUrl](first.value);
+
+    if (!actorAddress || !fundingWalletAddresses.includes(actorAddress)) {
+      this.reject("TX_ACTOR_BINDING_REJECTED", typeUrl, `acts on behalf of ${actorAddress ?? "an unset address"}, which is not a funding wallet`);
+    }
+
+    return actorAddress;
+  }
+
   assertActingOnBehalfOf(messages: readonly EncodeObject[], signerAddress: string): void {
     for (const message of messages) {
       if (!hasActorBinding(message.typeUrl)) {
@@ -92,10 +110,10 @@ export class TxPolicyService {
     }
   }
 
-  /** Fees on a derived tx are only ever payable by the funding wallet, so a caller-supplied granter must match it. */
-  assertFeeGranter(granterAddress: string | undefined, fundingWalletAddress: string): void {
-    if (granterAddress !== undefined && granterAddress !== fundingWalletAddress) {
-      this.reject("TX_FEE_GRANTER_REJECTED", "/cosmos.authz.v1beta1.MsgGrant", `fees may only be granted by the funding wallet, not ${granterAddress}`);
+  /** Fees on a derived tx are only ever payable by a funding wallet, so a caller-supplied granter must be one of them. */
+  assertFeeGranter(granterAddress: string | undefined, fundingWalletAddresses: readonly string[]): void {
+    if (granterAddress !== undefined && !fundingWalletAddresses.includes(granterAddress)) {
+      this.reject("TX_FEE_GRANTER_REJECTED", "/cosmos.authz.v1beta1.MsgGrant", `fees may only be granted by a funding wallet, not ${granterAddress}`);
     }
   }
 

@@ -10,15 +10,36 @@ import { TxController } from "./tx.controller";
 
 describe(TxController.name, () => {
   it("decodes messages and signs with funding wallet", async () => {
-    const { controller, registry, txManagerService, decodedMessage } = setup();
+    const { controller, registry, txManagerService, decodedMessage, fundingWalletAddress } = setup();
 
     const result = await controller.signWithFundingWallet({
       data: { messages: [encodedMessage()] }
     });
 
     expect(registry.decode).toHaveBeenCalledWith({ typeUrl: decodedMessage.typeUrl, value: expect.any(Uint8Array) });
-    expect(txManagerService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith([decodedMessage]);
+    expect(txManagerService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(fundingWalletAddress, [decodedMessage]);
     expect(result.data.code).toBe(0);
+  });
+
+  it("signs with whichever funding wallet the messages name", async () => {
+    const { controller, txManagerService, txPolicyService, decodedMessage, fundingWalletAddresses, secondFundingWalletAddress } = setup();
+    txPolicyService.resolveFundingSigner.mockReturnValue(secondFundingWalletAddress);
+
+    await controller.signWithFundingWallet({ data: { messages: [encodedMessage()] } });
+
+    expect(txPolicyService.resolveFundingSigner).toHaveBeenCalledWith([decodedMessage], fundingWalletAddresses);
+    expect(txPolicyService.assertActingOnBehalfOf).toHaveBeenCalledWith([decodedMessage], secondFundingWalletAddress);
+    expect(txManagerService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(secondFundingWalletAddress, [decodedMessage]);
+  });
+
+  it("does not broadcast messages that name no funding wallet", async () => {
+    const { controller, txManagerService, txPolicyService } = setup();
+    txPolicyService.resolveFundingSigner.mockImplementation(() => {
+      throw new Error("not a funding wallet");
+    });
+
+    await expect(controller.signWithFundingWallet({ data: { messages: [encodedMessage()] } })).rejects.toThrow("not a funding wallet");
+    expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
   });
 
   it("checks funding messages against the funding wallet before signing", async () => {
@@ -58,8 +79,17 @@ describe(TxController.name, () => {
     expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
   });
 
+  it("signs a derived tx that names no fee options", async () => {
+    const { controller, txManagerService, txPolicyService, fundingWalletAddresses } = setup();
+
+    await controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } });
+
+    expect(txPolicyService.assertFeeGranter).toHaveBeenCalledWith(undefined, fundingWalletAddresses);
+    expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(3, expect.any(Array), undefined);
+  });
+
   it("checks derived messages against the derived wallet and its fee granter", async () => {
-    const { controller, txPolicyService, decodedMessage, derivedWalletAddress, fundingWalletAddress } = setup();
+    const { controller, txPolicyService, decodedMessage, derivedWalletAddress, fundingWalletAddress, fundingWalletAddresses } = setup();
     const message = encodedDerivedMessage();
 
     await controller.signWithDerivedWallet({
@@ -67,7 +97,7 @@ describe(TxController.name, () => {
     });
 
     expect(txPolicyService.assertActingOnBehalfOf).toHaveBeenCalledWith([{ typeUrl: message.typeUrl, value: decodedMessage.value }], derivedWalletAddress);
-    expect(txPolicyService.assertFeeGranter).toHaveBeenCalledWith(fundingWalletAddress, fundingWalletAddress);
+    expect(txPolicyService.assertFeeGranter).toHaveBeenCalledWith(fundingWalletAddress, fundingWalletAddresses);
   });
 
   it("does not broadcast when the policy rejects the messages", async () => {
@@ -91,17 +121,20 @@ describe(TxController.name, () => {
   function setup() {
     const decodedMessage = { typeUrl: `/${MsgGrantAllowance.$type}`, value: { foo: "bar" } };
     const fundingWalletAddress = "akash1funding";
+    const secondFundingWalletAddress = "akash1secondfunding";
+    const fundingWalletAddresses = [fundingWalletAddress, secondFundingWalletAddress];
     const derivedWalletAddress = "akash1derived";
     const registry = mock<Registry>({
       decode: vi.fn().mockReturnValue(decodedMessage.value)
     });
     const txManagerService = mock<TxManagerService>({
-      getFundingWalletAddress: vi.fn().mockResolvedValue(fundingWalletAddress),
+      getFundingWalletAddresses: vi.fn().mockResolvedValue(fundingWalletAddresses),
       getDerivedWalletAddress: vi.fn().mockResolvedValue(derivedWalletAddress),
       signAndBroadcastWithFundingWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx", rawLog: "" }),
       signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx", rawLog: "" })
     });
     const txPolicyService = mock<TxPolicyService>();
+    txPolicyService.resolveFundingSigner.mockReturnValue(fundingWalletAddress);
 
     return {
       controller: new TxController(registry, txManagerService, txPolicyService),
@@ -110,6 +143,8 @@ describe(TxController.name, () => {
       txPolicyService,
       decodedMessage,
       fundingWalletAddress,
+      secondFundingWalletAddress,
+      fundingWalletAddresses,
       derivedWalletAddress
     };
   }
