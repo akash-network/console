@@ -9,9 +9,9 @@ import {
   type DeploymentWallet
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
+  isSealedForAnotherMember,
   isSealedForOrganization,
   SdlSecretsService,
-  STORED_SECRETS_UNAVAILABLE_ERROR_CODE,
   type StoredSecretsOfDeployment
 } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
@@ -29,10 +29,6 @@ const SOURCE_UNREADABLE_ERROR_CODE = "inherited_secrets_unreadable";
 /** The answers that mean the source's secrets are gone for good, the cipher's 500 or a token bound to another member: a 503 says the key service is merely unreachable. */
 function isPermanentlyUnreadable(error: unknown): boolean {
   return isHttpError(error) && (error.status === 500 || isSealedForAnotherMember(error));
-}
-
-function isSealedForAnotherMember(error: unknown): boolean {
-  return isHttpError(error) && error.errorCode === STORED_SECRETS_UNAVAILABLE_ERROR_CODE;
 }
 
 /** A permanent failure to decrypt is distinguished from one to read our own stored state, because only the first says the token itself is beyond this data key. */

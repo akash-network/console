@@ -79,7 +79,12 @@ import {
 import { type ResolvedSdl, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { SdlSecretsService, unreferencedNameError } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import {
+  type ReceiveSdlSecretsResult,
+  type SdlSecretsRequest,
+  SdlSecretsService,
+  unreferencedNameError
+} from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService, type SealedEnv, sealedEnvOf } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
@@ -1180,15 +1185,14 @@ export class DeploymentWriterService {
     const derived = this.#takeValuesOutOf(document, { sealedEnv: sealedEnvOf(input), onlyAt });
     const sdl = this.#serializeSubmitted(submitted, dseq);
 
-    const held = stored.sealedSecrets
-      ? await this.sdlSecretsService.openStored({
-          userId: filedUserId,
-          organizationId: stored.organizationId ?? null,
-          dseq,
-          sealedSecrets: stored.sealedSecrets
-        })
-      : {};
-    const supplied = await this.#receiveSecrets(input, held);
+    const secretsRequest = this.#secretsRequestOf(input);
+    const { held, received } = stored.sealedSecrets
+      ? await this.sdlSecretsService.receiveReplacement(
+          { userId: filedUserId, organizationId: stored.organizationId ?? null, dseq, sealedSecrets: stored.sealedSecrets },
+          secretsRequest
+        )
+      : { held: {}, received: await this.sdlSecretsService.receive({ ...secretsRequest, inherited: {} }) };
+    const supplied = this.#suppliedOrReject(received);
     const merged = this.#storedSecretsOf({ inherited: held, supplied, derived }, document);
     this.sdlSecretsService.assertStorable(merged, "stored");
 
@@ -1497,21 +1501,27 @@ export class DeploymentWriterService {
     return resolved;
   }
 
-  /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
   async #receiveSecrets(input: Pick<CreateDeploymentInput, "sdl" | "sealedSecrets">, inherited: SdlSecrets): Promise<SdlSecrets> {
+    return this.#suppliedOrReject(await this.sdlSecretsService.receive({ ...this.#secretsRequestOf(input), inherited }));
+  }
+
+  /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
+  #suppliedOrReject(received: ReceiveSdlSecretsResult): SdlSecrets {
+    if (!received.ok) {
+      throw this.#rejectInvalidSdl(received.value);
+    }
+
+    return received.value;
+  }
+
+  #secretsRequestOf(input: Pick<CreateDeploymentInput, "sdl" | "sealedSecrets">): SdlSecretsRequest {
     const parsed = this.sdlService.parse(input.sdl);
 
     if (!parsed.ok) {
       throw this.#rejectInvalidSdl(parsed.value);
     }
 
-    const received = await this.sdlSecretsService.receive({ sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets, inherited });
-
-    if (!received.ok) {
-      throw this.#rejectInvalidSdl(received.value);
-    }
-
-    return received.value;
+    return { sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets };
   }
 
   /** The provider refuses such a manifest only after the definition is recorded and broadcast, and a deployment the chain could not describe is left to it. */

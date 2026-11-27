@@ -264,6 +264,42 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
     });
   });
 
+  describe("a stored token sealed for a member who deleted their account", () => {
+    it("stores the values a replacement supplies in full, sealed for the member the deployment is filed under", async () => {
+      const { apiKey, user } = await setup({ sealedForAnotherMember: true });
+      const fresh = { s0_e0: randomUUID(), s0_e1: randomUUID() };
+      const sdl = sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"], { image: "nginx:1.27" });
+
+      const response = await replace(apiKey, { sdl, sealedSecrets: await sealFor(user, fresh, sdl) });
+
+      expect(response.status).toBe(200);
+      await expect(openStored(user)).resolves.toEqual(fresh);
+    });
+
+    it("still refuses a replacement that leaves a reference to a stored value, keeping the token", async () => {
+      const { apiKey, user } = await setup({ sealedForAnotherMember: true });
+      const before = await settingOf(user);
+
+      const response = await replace(apiKey, { sdl: sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"], { image: "nginx:1.27" }) });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "stored_secrets_unavailable" });
+      expect((await settingOf(user))?.sealedSecrets).toBe(before!.sealedSecrets);
+    });
+
+    it("names a supplied value the replacement no longer references rather than refusing the token, keeping it", async () => {
+      const { apiKey, user } = await setup({ sealedForAnotherMember: true });
+      const before = await settingOf(user);
+      const sdl = sdlWith(["API_TOKEN=ac-secret://s0_e0"], { image: "nginx:1.27" });
+
+      const response = await replace(apiKey, { sdl, sealedSecrets: await sealFor(user, { s0_e0: randomUUID(), s0_e1: randomUUID() }, sdl) });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("no service's SDL references it");
+      expect((await settingOf(user))?.sealedSecrets).toBe(before!.sealedSecrets);
+    });
+  });
+
   describe("a refusal", () => {
     it("names a reference that has neither a new value nor a stored one", async () => {
       const { apiKey } = await setup();
@@ -353,7 +389,6 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
     });
   }
 
-
   async function sealFor(user: UserOutput, secrets: Record<string, string>, boundTo?: string) {
     return await new CompactEncrypt(new TextEncoder().encode(JSON.stringify(secrets)))
       .setProtectedHeader({
@@ -366,7 +401,6 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
       })
       .encrypt(publicKey);
   }
-
 
   function referencedNamesIn(env: string[]) {
     return env.flatMap(entry => entry.match(/ac-secret:\/\/([A-Za-z_][A-Za-z0-9_]*)/)?.slice(1) ?? []);
@@ -391,7 +425,7 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
     await createDeployment({ owner: address, dseq: DSEQ });
   }
 
-  async function setup(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean } = {}) {
+  async function setup(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean; sealedForAnotherMember?: boolean } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const organizationId = await seedPersonalOrganizationIdOf(dbUser.id);
     const apiKey = faker.string.alphanumeric(24);
@@ -432,7 +466,9 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
       const sealedSecrets = await container.resolve(ExecutionContextService).runWithContext(async () => {
         container.resolve(AuthService).currentUser = user;
 
-        return await container.resolve(SdlSecretsService).sealForStorage({ userId: user.id, dseq: DSEQ, secrets });
+        const sealedForUserId = input.sealedForAnotherMember ? (await userRepository.create({ userId: faker.string.uuid() })).id : user.id;
+
+        return await container.resolve(SdlSecretsService).sealForStorage({ userId: sealedForUserId, dseq: DSEQ, secrets });
       });
 
       const manifestVersion = await recordedVersionFor(sdl, secrets);

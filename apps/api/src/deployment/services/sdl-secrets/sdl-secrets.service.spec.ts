@@ -13,7 +13,7 @@ import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/s
 import type { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { SECRET_UNREADABLE_ERROR_CODE } from "@src/secret/config/secret-at-rest.config";
 import type { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
-import { isSealedForOrganization, SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "./sdl-secrets.service";
+import { isSealedForOrganization, SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE, unreferencedNameError } from "./sdl-secrets.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -599,13 +599,13 @@ describe(SdlSecretsService.name, () => {
     });
 
     describe("a token sealed for another member than the one the row is filed under", () => {
-      it("answers that the stored secrets can no longer be opened and that a full update stores them again", async () => {
+      it("answers that the stored secrets can no longer be opened and that a full replacement stores them again", async () => {
         const { service } = setup();
 
         await expect(service.openStored({ userId: "user-2", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({
           status: 409,
           errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE,
-          message: expect.stringContaining("Update the deployment with its full SDL")
+          message: expect.stringContaining("Replace its definition through PUT /v1/deployments/{dseq}/definition, supplying every secret value")
         });
       });
 
@@ -737,6 +737,97 @@ describe(SdlSecretsService.name, () => {
 
         expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED" }));
       });
+    });
+  });
+
+  describe("receiveReplacement", () => {
+    const DEPARTED_MEMBERS_ROW = { userId: null, organizationId: "team-1", dseq: "1420000" };
+
+    it("receives a replacement over a readable token, inheriting what it holds", async () => {
+      const { service, unsealerService } = setup({ stored: { TOKEN: "held" }, supplied: { OTHER: "fresh" } });
+
+      await expect(
+        service.receiveReplacement(
+          { userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() },
+          { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN", "OTHER=ac-secret://OTHER"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
+        )
+      ).resolves.toEqual({ held: { TOKEN: "held" }, received: { ok: true, value: { OTHER: "fresh" } } });
+      expect(unsealerService.open).toHaveBeenCalledTimes(1);
+    });
+
+    describe("a token sealed for a member who deleted their account", () => {
+      it("sets it aside for a replacement that supplies every value it references, opening the client's seal once", async () => {
+        const { service, unsealerService, logger } = setup({ supplied: { TOKEN: "fresh" } });
+
+        await expect(
+          service.receiveReplacement(
+            { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
+            { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
+          )
+        ).resolves.toEqual({ held: {}, received: { ok: true, value: { TOKEN: "fresh" } } });
+        expect(unsealerService.open).toHaveBeenCalledTimes(1);
+        expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_UNAVAILABLE_TOKEN_SET_ASIDE", userId: null, dseq: "1420000" });
+      });
+
+      it("sets it aside for a replacement that references no secret at all", async () => {
+        const { service } = setup();
+
+        await expect(
+          service.receiveReplacement(
+            { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
+            { sdl: sdlWith({ web: ["MODE=production"] }), rawSdl: RAW_SDL }
+          )
+        ).resolves.toEqual({ held: {}, received: { ok: true, value: {} } });
+      });
+
+      it("sets it aside and reports a supplied name the replacement no longer references, as it would over a readable token", async () => {
+        const { service } = setup({ supplied: { TOKEN: "fresh", RETIRED: "fresh" } });
+
+        await expect(
+          service.receiveReplacement(
+            { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
+            { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
+          )
+        ).resolves.toEqual({ held: {}, received: { ok: false, value: [unreferencedNameError("RETIRED")] } });
+      });
+
+      it("still refuses a replacement that leaves a reference to the stored value", async () => {
+        const { service } = setup({ supplied: { OTHER: "fresh" } });
+
+        await expect(
+          service.receiveReplacement(
+            { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
+            { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN", "OTHER=ac-secret://OTHER"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
+          )
+        ).rejects.toMatchObject({ status: 409, errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE });
+      });
+    });
+
+    it("refuses a token that failed to decrypt even when every value is supplied", async () => {
+      const refusal = createError(500, "Unable to read stored secrets", { errorCode: SECRET_UNREADABLE_ERROR_CODE });
+      const { service, secretCipherService, unsealerService } = setup({ supplied: { TOKEN: "fresh" } });
+      secretCipherService.decrypt.mockRejectedValue(refusal);
+
+      await expect(
+        service.receiveReplacement(
+          { userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() },
+          { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
+        )
+      ).rejects.toBe(refusal);
+      expect(unsealerService.open).not.toHaveBeenCalled();
+    });
+
+    it("lets an unreachable key service fail as the retryable error it is", async () => {
+      const outage = createError(503, "Service temporarily unavailable");
+      const { service, secretCipherService } = setup({ supplied: { TOKEN: "fresh" } });
+      secretCipherService.decrypt.mockRejectedValue(outage);
+
+      await expect(
+        service.receiveReplacement(
+          { userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() },
+          { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
+        )
+      ).rejects.toBe(outage);
     });
   });
 
