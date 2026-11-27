@@ -102,17 +102,31 @@ describe(SendTemplatePublisherDigestHandler.name, () => {
     expect(new Date(nextRun.start_after).toISOString()).toBe(nextRunAt.toISOString());
   });
 
-  it("tells nothing of a week nobody used the template, nor of a milestone it passed before the week", async () => {
+  it("tells nothing of a week only the publisher's own organization used the template, nor of a milestone it passed before the week", async () => {
     const { owner, seedPublicTemplate, deploy, view, answerNotifications, sendDigest, activitiesOf } = await setup();
     const quiet = await seedPublicTemplate({ title: "Quiet" });
     await deploy(quiet, 12, daysAgo(30));
     await view(quiet, 50, daysAgo(12));
+    await view(quiet, 7, daysAgo(5), { fromPublisher: true });
     const notifications = answerNotifications();
 
     await sendDigest();
 
     expect(notifications.sent.filter(({ userId }) => userId === owner.id)).toEqual([]);
     expect(await activitiesOf(owner)).toEqual([]);
+  });
+
+  it("tells how a template did in a week people only viewed it", async () => {
+    const { owner, seedPublicTemplate, view, answerNotifications, sendDigest } = await setup();
+    const template = await seedPublicTemplate({ title: "Browsed" });
+    await view(template, 3, daysAgo(5));
+    const notifications = answerNotifications();
+
+    await sendDigest();
+
+    expect(notifications.sent.filter(({ userId }) => userId === owner.id).map(({ payload }) => payload.summary)).toEqual([
+      "Your templates last week: 0 deploys, 3 views"
+    ]);
   });
 
   it("tells each member once when the week's digest runs again", async () => {
@@ -172,12 +186,13 @@ describe(SendTemplatePublisherDigestHandler.name, () => {
       }
     }
 
-    async function view(template: { id: string }, viewers: number, on: Date) {
+    async function view(template: { id: string }, viewers: number, on: Date, overrides: { fromPublisher?: boolean } = {}) {
       await db.insert(resolveTable("TemplateViewEvents")).values(
         Array.from({ length: viewers }, () => ({
           templateId: template.id,
           kind: "page_view" as const,
           viewerKey: faker.string.hexadecimal({ length: 64, prefix: "" }),
+          fromPublisher: overrides.fromPublisher ?? false,
           network: "mainnet",
           viewedOn: dayOf(on)
         }))

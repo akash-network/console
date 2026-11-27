@@ -241,7 +241,7 @@ export class TemplateUsageEventRepository {
       .groupBy(day);
   }
 
-  /** Lists the publicly readable templates someone viewed on mainnet or deployed from outside their organization since the given UTC day, oldest first. */
+  /** Lists the publicly readable templates that people outside their organization viewed on mainnet or deployed since the given UTC day, oldest first. */
   async findPublicTemplatesActiveSince(since: string, limit: number): Promise<ActivePublicTemplate[]> {
     const viewed = this.#cursor
       .select({ id: this.templateViewEvents.id })
@@ -250,6 +250,7 @@ export class TemplateUsageEventRepository {
         and(
           eq(this.templateViewEvents.templateId, this.templates.id),
           eq(this.templateViewEvents.network, SHOWN_NETWORK),
+          eq(this.templateViewEvents.fromPublisher, false),
           gte(this.templateViewEvents.viewedOn, since)
         )
       );
