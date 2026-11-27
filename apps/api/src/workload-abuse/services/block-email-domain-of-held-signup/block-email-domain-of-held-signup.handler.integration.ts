@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { UserWalletRepository } from "@src/billing/repositories";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { JOB_NAME } from "@src/core";
 import { BlockEmailDomainOfHeldSignup, blockEmailDomainOfHeldSignupKeyFor } from "@src/workload-abuse/events/block-email-domain-of-held-signup";
 import { BLOCKED_DOMAIN_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
@@ -91,7 +91,7 @@ describe(BlockEmailDomainOfHeldSignupHandler.name, () => {
       key === "WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE" ? input.mode : readConfig(key)) as typeof config.get);
 
     vi.spyOn(container.resolve(EmailDomainMailProfileService), "recordProfile").mockResolvedValue(true);
-    vi.spyOn(container.resolve(TxManagerService), "getFundingWalletAddress").mockResolvedValue(createAkashAddress());
+    vi.spyOn(container.resolve(FundingWalletRegistryService), "getGranterAddressByWalletAddress").mockResolvedValue(createAkashAddress());
     vi.spyOn(container.resolve(AuthzHttpService), "hasDepositDeploymentGrant").mockResolvedValue(true);
     vi.spyOn(container.resolve(AuthzHttpService), "hasFeeAllowance").mockResolvedValue(true);
     vi.spyOn(container.resolve(DeploymentHttpService), "findAll").mockResolvedValue({ deployments: [], pagination: { next_key: null, total: "0" } });

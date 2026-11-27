@@ -13,6 +13,7 @@ import { getTrialEndsAt, getTrialStartedAt } from "@src/billing/lib/trial-window
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
@@ -47,6 +48,7 @@ export class ManagedUserWalletService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly txManagerService: TxManagerService,
+    private readonly fundingWalletRegistry: FundingWalletRegistryService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly authzHttpService: AuthzHttpService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -80,7 +82,7 @@ export class ManagedUserWalletService {
 
   @Trace()
   async authorizeSpending(signer: ManagedSignerService, options: SpendingAuthorizationOptions) {
-    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const fundingWalletAddress = await this.fundingWalletRegistry.assignGranterAddress(options.derivationIndex);
     const msgOptions = {
       granter: fundingWalletAddress,
       grantee: options.address,
@@ -118,7 +120,7 @@ export class ManagedUserWalletService {
     signer: ManagedSignerService,
     { address, derivationIndex, limit }: { address: string; derivationIndex: number; limit: number }
   ) {
-    const granter = await this.txManagerService.getFundingWalletAddress();
+    const granter = await this.fundingWalletRegistry.assignGranterAddress(derivationIndex);
 
     return await this.authorizeDeploymentSpending(
       signer,

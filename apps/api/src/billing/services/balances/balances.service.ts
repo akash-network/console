@@ -6,7 +6,7 @@ import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balanc
 import { roundUsdToCentPrecision } from "@src/billing/lib/currency/currency";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { Memoize } from "@src/caching/helpers";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { StatsService } from "@src/dashboard/services/stats/stats.service";
@@ -17,7 +17,7 @@ export class BalancesService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    private txManagerService: TxManagerService,
+    private readonly fundingWalletRegistry: FundingWalletRegistryService,
     private readonly authzHttpService: AuthzHttpService,
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly statsService: StatsService,
@@ -61,7 +61,7 @@ export class BalancesService {
 
   @Trace()
   async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const fundingWalletAddress = await this.fundingWalletRegistry.getGranterAddressByWalletAddress(userWallet.address!);
     const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
     if (!feeAllowance) {
@@ -73,7 +73,7 @@ export class BalancesService {
 
   @Trace()
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const fundingWalletAddress = await this.fundingWalletRegistry.getGranterAddressByWalletAddress(userWallet.address!);
 
     return this.#deploymentLimitOf(await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!));
   }
@@ -81,7 +81,10 @@ export class BalancesService {
   /** The height is where a write based on this limit starts overwriting what lands after it. */
   @Trace()
   async retrieveDeploymentLimitAtLatestHeight(userWallet: Pick<UserWalletOutput, "address">): Promise<{ limit: number; height: number }> {
-    const [fundingWalletAddress, height] = await Promise.all([this.txManagerService.getFundingWalletAddress(), this.blockHttpService.getFreshCurrentHeight()]);
+    const [fundingWalletAddress, height] = await Promise.all([
+      this.fundingWalletRegistry.getGranterAddressByWalletAddress(userWallet.address!),
+      this.blockHttpService.getFreshCurrentHeight()
+    ]);
     const grant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!, { height });
 
     return { limit: this.#deploymentLimitOf(grant), height };

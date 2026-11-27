@@ -2,9 +2,9 @@ import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { singleton } from "tsyringe";
 
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 
 /** The chain reports a revoke of a grant that no longer exists this way, which an earlier attempt of the same revoke can have caused. */
 const GRANT_MISSING_PATTERN = /not found/i;
@@ -13,14 +13,14 @@ const GRANT_MISSING_PATTERN = /not found/i;
 @singleton()
 export class WalletGrantRevokerService {
   constructor(
-    private readonly txManagerService: TxManagerService,
+    private readonly fundingWalletRegistry: FundingWalletRegistryService,
     private readonly authzHttpService: AuthzHttpService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly signerService: ManagedSignerService
   ) {}
 
   async revokeDepositGrant(grantee: string): Promise<boolean> {
-    const granter = await this.txManagerService.getFundingWalletAddress();
+    const granter = await this.fundingWalletRegistry.getGranterAddressByWalletAddress(grantee);
     if (!(await this.authzHttpService.hasDepositDeploymentGrant(granter, grantee))) return false;
 
     await this.#executeRevoke(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg({ granter, grantee }));
@@ -28,7 +28,7 @@ export class WalletGrantRevokerService {
   }
 
   async revokeFeeGrant(grantee: string): Promise<boolean> {
-    const granter = await this.txManagerService.getFundingWalletAddress();
+    const granter = await this.fundingWalletRegistry.getGranterAddressByWalletAddress(grantee);
     if (!(await this.authzHttpService.hasFeeAllowance(granter, grantee))) return false;
 
     await this.#executeRevoke(this.rpcMessageService.getRevokeAllowanceMsg({ granter, grantee }));

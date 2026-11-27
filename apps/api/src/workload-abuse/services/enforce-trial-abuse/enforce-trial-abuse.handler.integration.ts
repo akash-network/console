@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { UserWalletRepository } from "@src/billing/repositories";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { ABUSE_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
@@ -198,7 +198,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
       });
     }
 
-    vi.spyOn(container.resolve(TxManagerService), "getFundingWalletAddress").mockResolvedValue(createAkashAddress());
+    vi.spyOn(container.resolve(FundingWalletRegistryService), "getGranterAddressByWalletAddress").mockResolvedValue(createAkashAddress());
     vi.spyOn(container.resolve(AuthzHttpService), "hasDepositDeploymentGrant").mockResolvedValue(true);
     vi.spyOn(container.resolve(AuthzHttpService), "hasFeeAllowance").mockResolvedValue(true);
     vi.spyOn(container.resolve(DeploymentHttpService), "findAll").mockResolvedValue({

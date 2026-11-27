@@ -11,7 +11,7 @@ import { DeploymentSpendRepository } from "@src/billing/repositories/deployment-
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { DeploymentAllowanceService } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { type CreateLogger, type JobHandler, type JobMeta, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { type AllowanceCheck, ReconcileDeploymentAllowance } from "./reconcile-deployment-allowance.job";
 
@@ -36,7 +36,7 @@ export class ReconcileDeploymentAllowanceHandler implements JobHandler<Reconcile
     private readonly deploymentAllowanceHistoryRepository: DeploymentAllowanceHistoryRepository,
     private readonly deploymentSpendRepository: DeploymentSpendRepository,
     private readonly deploymentAllowanceService: DeploymentAllowanceService,
-    private readonly txManagerService: TxManagerService,
+    private readonly fundingWalletRegistry: FundingWalletRegistryService,
     private readonly billingConfigService: BillingConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -88,7 +88,7 @@ export class ReconcileDeploymentAllowanceHandler implements JobHandler<Reconcile
   /** What the write erased: whatever moved the allowance between its read and its own landing, deposits, returned deposits and other grants alike. */
   async #overwrittenBy({ wallet, write }: AllowanceCheck, tx: IndexedTx): Promise<number> {
     const changes = await this.deploymentAllowanceHistoryRepository.findChanges({
-      granter: await this.txManagerService.getFundingWalletAddress(),
+      granter: await this.fundingWalletRegistry.getGranterAddressByWalletId(wallet.id),
       grantee: wallet.address,
       msgTypeUrl: DEPOSIT_GRANT_MSG_TYPE_URL,
       afterHeight: write.readHeight,

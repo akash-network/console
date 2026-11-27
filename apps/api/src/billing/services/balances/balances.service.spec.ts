@@ -5,7 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletInput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import type { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { StatsService } from "@src/dashboard/services/stats/stats.service";
 
@@ -85,8 +85,8 @@ describe(BalancesService.name, () => {
 
   describe("retrieveDeploymentLimitAtLatestHeight", () => {
     it("reads the deployment limit pinned to the latest height and returns both", async () => {
-      const { service, txManagerService, authzHttpService, blockHttpService } = setup({ denom: "uact" });
-      txManagerService.getFundingWalletAddress.mockResolvedValue("akash1funding");
+      const { service, fundingWalletRegistry, authzHttpService, blockHttpService } = setup({ denom: "uact" });
+      fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue("akash1funding");
       blockHttpService.getFreshCurrentHeight.mockResolvedValue(1234);
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue({
         authorization: {
@@ -101,6 +101,7 @@ describe(BalancesService.name, () => {
 
       const result = await service.retrieveDeploymentLimitAtLatestHeight({ address: "akash1grantee" });
 
+      expect(fundingWalletRegistry.getGranterAddressByWalletAddress).toHaveBeenCalledWith("akash1grantee");
       expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).toHaveBeenCalledWith("akash1funding", "akash1grantee", { height: 1234 });
       expect(result).toEqual({ limit: 5_000_000, height: 1234 });
     });
@@ -111,6 +112,54 @@ describe(BalancesService.name, () => {
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(undefined);
 
       expect(await service.retrieveDeploymentLimitAtLatestHeight({ address: "akash1grantee" })).toEqual({ limit: 0, height: 1234 });
+    });
+  });
+
+  describe("retrieveDeploymentLimit", () => {
+    it("reads the limit of the grant from the funding wallet that backs the user wallet", async () => {
+      const { service, fundingWalletRegistry, authzHttpService } = setup({ denom: "uact" });
+      fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue("akash1funding");
+      authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue({
+        authorization: { "@type": "/akash.escrow.v1.DepositAuthorization", spend_limits: [{ denom: "uact", amount: "2500000" }] },
+        expiration: ""
+      });
+
+      await expect(service.retrieveDeploymentLimit({ address: "akash1grantee" })).resolves.toBe(2_500_000);
+
+      expect(fundingWalletRegistry.getGranterAddressByWalletAddress).toHaveBeenCalledWith("akash1grantee");
+      expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).toHaveBeenCalledWith("akash1funding", "akash1grantee");
+    });
+  });
+
+  describe("retrieveAndCalcFeeLimit", () => {
+    it("sums the uakt of the fee allowance from the funding wallet that backs the user wallet", async () => {
+      const { service, fundingWalletRegistry, authzHttpService } = setup();
+      fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue("akash1funding");
+      authzHttpService.getFeeAllowanceForGranterAndGrantee.mockResolvedValue({
+        granter: "akash1funding",
+        grantee: "akash1grantee",
+        allowance: {
+          "@type": "/cosmos.feegrant.v1beta1.BasicAllowance",
+          spend_limit: [
+            { denom: "uakt", amount: "300" },
+            { denom: "uact", amount: "9" }
+          ],
+          expiration: ""
+        }
+      });
+
+      await expect(service.retrieveAndCalcFeeLimit({ address: "akash1grantee" })).resolves.toBe(300);
+
+      expect(fundingWalletRegistry.getGranterAddressByWalletAddress).toHaveBeenCalledWith("akash1grantee");
+      expect(authzHttpService.getFeeAllowanceForGranterAndGrantee).toHaveBeenCalledWith("akash1funding", "akash1grantee");
+    });
+
+    it("reads zero when the funding wallet gave no fee allowance", async () => {
+      const { service, fundingWalletRegistry, authzHttpService } = setup();
+      fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue("akash1funding");
+      authzHttpService.getFeeAllowanceForGranterAndGrantee.mockResolvedValue(undefined);
+
+      await expect(service.retrieveAndCalcFeeLimit({ address: "akash1grantee" })).resolves.toBe(0);
     });
   });
 
@@ -148,7 +197,7 @@ describe(BalancesService.name, () => {
     const billingConfig = mock<BillingConfig>();
     billingConfig.DEPLOYMENT_GRANT_DENOM = (input?.denom ?? "uakt") as "uakt" | "uact";
     const userWalletRepository = mock<UserWalletRepository>();
-    const txManagerService = mock<TxManagerService>();
+    const fundingWalletRegistry = mock<FundingWalletRegistryService>();
     const authzHttpService = mock<AuthzHttpService>();
     const deploymentHttpService = mock<DeploymentHttpService>();
     const statsService = mock<StatsService>();
@@ -158,7 +207,7 @@ describe(BalancesService.name, () => {
     const service = new BalancesService(
       billingConfig,
       userWalletRepository,
-      txManagerService,
+      fundingWalletRegistry,
       authzHttpService,
       deploymentHttpService,
       statsService,
@@ -175,6 +224,6 @@ describe(BalancesService.name, () => {
       vi.spyOn(service, "toFiatAmount").mockResolvedValue(input.fiatAmount);
     }
 
-    return { service, userWalletRepository, statsService, txManagerService, authzHttpService, blockHttpService };
+    return { service, userWalletRepository, statsService, fundingWalletRegistry, authzHttpService, blockHttpService };
   }
 });
