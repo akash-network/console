@@ -7,6 +7,7 @@ import { CORE_CONFIG, JobQueueService, migratePG, startServer } from "@src/core"
 import { WatchGpuWaitlistsHandler } from "@src/gpu-waitlist/services/watch-gpu-waitlists/watch-gpu-waitlists.handler";
 import { healthzRouter } from "@src/healthz/routes/healthz.router";
 import { RecomputeTemplateScoresHandler } from "@src/template-marketplace/services/recompute-template-scores/recompute-template-scores.handler";
+import { SendTemplatePublisherDigestHandler } from "@src/template-marketplace/services/send-template-publisher-digest/send-template-publisher-digest.handler";
 import { WatchPopularTemplateImagesHandler } from "@src/template-marketplace/services/watch-popular-template-images/watch-popular-template-images.handler";
 import { DailySignupSummaryHandler } from "@src/workload-abuse/services/daily-signup-summary/daily-signup-summary.handler";
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
@@ -29,5 +30,6 @@ export async function bootstrap(): Promise<void> {
     await container.resolve(WatchGpuWaitlistsHandler).seedNextRun();
     await container.resolve(WatchPopularTemplateImagesHandler).seedNextRun(new Date());
     await container.resolve(RecomputeTemplateScoresHandler).seedNextRun(new Date());
+    await container.resolve(SendTemplatePublisherDigestHandler).seedNextRun(new Date());
   }
 }
