@@ -1,8 +1,9 @@
 import { faker } from "@faker-js/faker";
+import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { TxService } from "@src/core/services/tx/tx.service";
+import { type ApiTransaction, TxService } from "@src/core/services/tx/tx.service";
 import { FundingWalletRepository } from "./funding-wallet.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -188,15 +189,13 @@ describe(FundingWalletRepository.name, () => {
       const { repository, network } = setup();
       const txService = container.resolve(TxService);
       const order: string[] = [];
-      let releaseFirst = () => {};
-      const firstMayEnd = new Promise<void>(resolve => (releaseFirst = resolve));
       let announceFirstLocked = () => {};
       const firstLocked = new Promise<void>(resolve => (announceFirstLocked = resolve));
 
       const first = txService.transaction(async () => {
         await repository.lockNetwork(network);
         announceFirstLocked();
-        await firstMayEnd;
+        await vi.waitFor(async () => expect(await countSessionsWaitingForAnAdvisoryLock(txService.getPgTx()!)).toBe(1), { timeout: 10_000, interval: 50 });
         order.push("first ended");
       });
       await firstLocked;
@@ -206,8 +205,6 @@ describe(FundingWalletRepository.name, () => {
           order.push("second locked");
         })
       );
-      await new Promise(resolve => setTimeout(resolve, 200));
-      releaseFirst();
       await Promise.all([first, second]);
 
       expect(order).toEqual(["first ended", "second locked"]);
@@ -228,14 +225,26 @@ describe(FundingWalletRepository.name, () => {
       });
       await firstLocked;
 
-      await expect(
-        txService.outsideTransaction(() => txService.transaction(async () => await repository.lockNetwork(uniqueNetwork())))
-      ).resolves.toBeUndefined();
-
-      releaseFirst();
-      await first;
+      try {
+        await expect(
+          txService.outsideTransaction(() => txService.transaction(async () => await repository.lockNetwork(uniqueNetwork())))
+        ).resolves.toBeUndefined();
+      } finally {
+        releaseFirst();
+        await first;
+      }
     });
   });
+
+  async function countSessionsWaitingForAnAdvisoryLock(lockHolder: ApiTransaction) {
+    const [{ waiting }] = await lockHolder.execute<{ waiting: number }>(sql`
+      SELECT count(*)::int AS waiting
+      FROM pg_locks
+      WHERE locktype = 'advisory' AND NOT granted AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+    `);
+
+    return waiting;
+  }
 
   function uniqueNetwork() {
     return `net-${faker.string.alphanumeric(12)}`;
