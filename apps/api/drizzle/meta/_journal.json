@@ -1107,6 +1107,13 @@
       "when": 1795752971559,
       "tag": "0157_refused_signups",
       "breakpoints": true
+    },
+    {
+      "idx": 158,
+      "version": "7",
+      "when": 1795814772596,
+      "tag": "0158_template_view_events",
+      "breakpoints": true
     }
   ]
 }

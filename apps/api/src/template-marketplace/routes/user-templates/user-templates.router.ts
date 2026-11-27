@@ -13,6 +13,11 @@ import {
   UserTemplateVersionParamsSchema
 } from "@src/template-marketplace/http-schemas/marketplace-template.schema";
 import {
+  CreateTemplateViewRequestSchema,
+  GetTemplateInsightsQuerySchema,
+  GetTemplateInsightsResponseSchema
+} from "@src/template-marketplace/http-schemas/template-insights.schema";
+import {
   GetPublishReadinessResponseSchema,
   PublishUserTemplateRequestSchema,
   PublishUserTemplateResponseSchema
@@ -346,6 +351,65 @@ const createUserTemplateReportRoute = createRoute({
 marketplaceTemplatesRouter.openapi(createUserTemplateReportRoute, async function routeCreateUserTemplateReport(c) {
   const { id } = c.req.valid("param");
   return c.json(await container.resolve(MarketplaceTemplateController).reportTemplate(id, c.req.valid("json")), 201);
+});
+
+const createUserTemplateViewRoute = createRoute({
+  method: "post",
+  operationId: "createUserTemplateView",
+  path: "/v1/user-templates/{id}/views",
+  summary: "Count a signed-in user's view of a template's page, or their open of Configure from it, once a day",
+  description: "Members of the organization that publishes a public template are not counted.",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: UserTemplateParamsSchema,
+    body: { content: { "application/json": { schema: CreateTemplateViewRequestSchema } }, required: true }
+  },
+  responses: {
+    204: { description: "The view counted, already counted today, or not counted for this viewer" },
+    400: { description: "The id is not a uuid, or the kind is unknown" },
+    401: { description: "The caller is not signed in" },
+    404: { description: NOT_FOUND_DESCRIPTION },
+    410: { description: REMOVED_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(createUserTemplateViewRoute, async function routeCreateUserTemplateView(c) {
+  const { id } = c.req.valid("param");
+  await container.resolve(MarketplaceTemplateController).recordView(id, c.req.valid("json"));
+  return c.body(null, 204);
+});
+
+const getUserTemplateInsightsRoute = createRoute({
+  method: "get",
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getUserTemplateInsights",
+  path: "/v1/user-templates/{id}/insights",
+  summary: "Tell how a template the caller may change is used: views, deployments and how they fared, by day and by version, with hints",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: UserTemplateParamsSchema,
+    query: GetTemplateInsightsQuerySchema
+  },
+  responses: {
+    200: {
+      description: "The insights, counted on mainnet and without a public template's own organization",
+      content: { "application/json": { schema: GetTemplateInsightsResponseSchema } }
+    },
+    400: { description: "The id is not a uuid, or the number of days is not 7, 30 or 90" },
+    401: { description: "The caller is not signed in" },
+    403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
+    404: { description: NOT_FOUND_DESCRIPTION },
+    410: { description: REMOVED_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(getUserTemplateInsightsRoute, async function routeGetUserTemplateInsights(c) {
+  const { id } = c.req.valid("param");
+  return c.json(await container.resolve(MarketplaceTemplateController).getInsights(id, c.req.valid("query")), 200);
 });
 
 const deleteUserTemplateRoute = createRoute({

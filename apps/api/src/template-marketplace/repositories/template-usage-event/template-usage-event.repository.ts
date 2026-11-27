@@ -1,4 +1,5 @@
-import { and, desc, eq, gte, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, ne, or, type SQL, sql } from "drizzle-orm";
+import { alias, type PgColumn } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -20,6 +21,14 @@ export type WatchedTemplate = { templateId: string; currentVersionId: string };
 
 export type VersionedTemplate = { templateId: string; versionNumber: number; isOfficial: boolean; visibility: TemplatesTable["$inferSelect"]["visibility"] };
 
+export type DeployCohortCounts = { deploys: number; leases: number; decidedLeases: number; stillRunning: number };
+
+export type DailyDeployCohort = DeployCohortCounts & { day: string };
+
+export type VersionDeployCohort = DeployCohortCounts & { version: number };
+
+export type DailyForkCount = { day: string; forks: number };
+
 export const NO_TEMPLATE_USAGE: TemplateUsageSummary = { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0 };
 
 const SUMMARIZED_ACTIONS: TemplateUsageAction[] = ["deploy", "lease_created", "still_running_24h", "fork"];
@@ -31,7 +40,9 @@ type UsageCounts = { deploys: number; lastDeployedAt: Date | null; dayOldLeases:
 /** Below this many day-old leases a still-up share swings too far on one deployment to show. */
 const MIN_DAY_OLD_LEASES_FOR_STILL_UP_SHARE = 5;
 
-const SHOWN_NETWORK = "mainnet";
+export const SHOWN_NETWORK = "mainnet";
+
+const LEASE_DECIDED_AFTER = sql`interval '24 hours'`;
 
 @singleton()
 export class TemplateUsageEventRepository {
@@ -189,6 +200,69 @@ export class TemplateUsageEventRepository {
       .limit(limit);
 
     return rows.map(({ templateId, currentVersionId }) => ({ templateId, currentVersionId: currentVersionId! }));
+  }
+
+  /** Follows each deployment made from the template since the given UTC day to whether it got a provider and was still running a day later, by the day it was made. */
+  async countDailyDeployCohorts(templateId: string, since: string): Promise<DailyDeployCohort[]> {
+    const day = this.#utcDayOf(this.table.createdAt);
+
+    return await this.#selectDeployCohorts({ day }, and(eq(this.table.templateRef, templateId), gte(this.table.createdAt, this.#startOfUtcDay(since)))).groupBy(day);
+  }
+
+  /** Follows every deployment ever made from the template the same way, by the version it was made from. */
+  async countDeployCohortsByVersion(templateId: string): Promise<VersionDeployCohort[]> {
+    const version = sql<number>`${this.templateVersions.version}`.mapWith(Number);
+
+    return await this.#selectDeployCohorts({ version }, and(eq(this.table.templateRef, templateId), isNotNull(this.templateVersions.version)))
+      .groupBy(this.templateVersions.version)
+      .orderBy(this.templateVersions.version);
+  }
+
+  async countDailyForks(templateId: string, since: string): Promise<DailyForkCount[]> {
+    const day = this.#utcDayOf(this.table.createdAt);
+
+    return await this.#cursor
+      .select({ day, forks: sql<number>`count(*)`.mapWith(Number) })
+      .from(this.table)
+      .innerJoin(this.templates, eq(this.templates.id, templateId))
+      .where(
+        and(
+          this.#shownTemplateEvents,
+          eq(this.table.templateRef, templateId),
+          eq(this.table.action, "fork"),
+          gte(this.table.createdAt, this.#startOfUtcDay(since)),
+          this.#countedForItsTemplate
+        )
+      )
+      .groupBy(day);
+  }
+
+  #selectDeployCohorts<TKey extends Record<string, SQL>>(key: TKey, scope: SQL | undefined) {
+    const lease = alias(this.table, "lease");
+    const stillRunning = alias(this.table, "still_running");
+
+    return this.#cursor
+      .select({
+        ...key,
+        deploys: sql<number>`count(*)`.mapWith(Number),
+        leases: sql<number>`count(${lease.id})`.mapWith(Number),
+        decidedLeases: sql<number>`count(${lease.id}) filter (where ${lease.createdAt} <= now() - ${LEASE_DECIDED_AFTER})`.mapWith(Number),
+        stillRunning: sql<number>`count(${stillRunning.id})`.mapWith(Number)
+      })
+      .from(this.table)
+      .innerJoin(this.templates, eq(this.table.templateRef, sql`${this.templates.id}::text`))
+      .leftJoin(this.templateVersions, eq(this.templateVersions.id, this.table.templateVersionId))
+      .leftJoin(lease, and(eq(lease.deploymentSettingId, this.table.deploymentSettingId), eq(lease.action, "lease_created")))
+      .leftJoin(stillRunning, and(eq(stillRunning.deploymentSettingId, this.table.deploymentSettingId), eq(stillRunning.action, "still_running_24h")))
+      .where(and(this.#shownTemplateEvents, eq(this.table.action, "deploy"), scope, this.#countedForItsTemplate));
+  }
+
+  #utcDayOf(timestamp: PgColumn) {
+    return sql<string>`to_char(${timestamp} at time zone 'UTC', 'YYYY-MM-DD')`;
+  }
+
+  #startOfUtcDay(day: string) {
+    return sql`(${day}::date)::timestamp at time zone 'UTC'`;
   }
 
   /** A public template's own organization cannot raise its numbers; a template only that organization can use has nobody else to count. */
