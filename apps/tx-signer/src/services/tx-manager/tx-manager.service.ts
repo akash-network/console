@@ -2,19 +2,22 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { IndexedTx } from "@cosmjs/stargate";
 import { container, inject, type InjectionToken, instancePerContainerCachingFactory, singleton } from "tsyringe";
 
+import { KmsSigningKey } from "@src/lib/kms-wallet/kms-signing-key";
+import { KmsWallet } from "@src/lib/kms-wallet/kms-wallet";
 import type { SignAndBroadcastOptions } from "@src/lib/signing-client/signing-client.service";
 import { SigningClientService } from "@src/lib/signing-client/signing-client.service";
 import { createSigningStargateClient } from "@src/lib/signing-stargate-client-factory/signing-stargate-client.factory";
-import { Wallet } from "@src/lib/wallet/wallet";
+import { type SigningWallet, Wallet } from "@src/lib/wallet/wallet";
+import { KMS_CLIENT } from "@src/providers/kms-client.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 
-export type SigningClientServiceFactory = (wallet: Wallet, loggerContext?: string) => SigningClientService;
+export type SigningClientServiceFactory = (wallet: SigningWallet, loggerContext?: string) => SigningClientService;
 const SIGNING_CLIENT_FACTORY: InjectionToken<SigningClientServiceFactory> = Symbol("SIGNING_CLIENT_FACTORY");
 container.register(SIGNING_CLIENT_FACTORY, {
   useFactory: c => {
-    return (wallet: Wallet, loggerContext?: string) => {
+    return (wallet: SigningWallet, loggerContext?: string) => {
       const config = c.resolve(AppConfigService);
       const registry = c.resolve(TYPE_REGISTRY);
       const client = createSigningStargateClient(config.get("RPC_NODE_ENDPOINT"), wallet, {
@@ -32,9 +35,9 @@ container.register(SIGNING_CLIENT_FACTORY, {
 });
 
 export type WalletFactory = (walletIndex?: number) => Wallet;
+export type FundingWalletResources = { wallet: SigningWallet; signingClient: SigningClientService };
 type WalletVersionConfig = {
-  masterWallet: Wallet;
-  masterSigningClient: SigningClientService;
+  fundingWallets: FundingWalletResources[];
   derivedWalletFactory: WalletFactory;
 };
 
@@ -49,6 +52,7 @@ container.register(WALLET_RESOURCES, {
     const signingClientFactory = c.resolve<SigningClientServiceFactory>(SIGNING_CLIENT_FACTORY);
 
     const v2MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V2"));
+    const kmsWallets = config.get("FUNDING_WALLET_KMS_KEY_VERSIONS").map(keyVersion => new KmsWallet(new KmsSigningKey(c.resolve(KMS_CLIENT), keyVersion)));
 
     const v2DerivedWalletFactory: WalletFactory = (walletIndex?: number) => {
       return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V2"), walletIndex ?? 0);
@@ -56,8 +60,10 @@ container.register(WALLET_RESOURCES, {
 
     return {
       v2: {
-        masterWallet: v2MasterWallet,
-        masterSigningClient: signingClientFactory(v2MasterWallet, "V2_MASTER_SIGNING_CLIENT"),
+        fundingWallets: [
+          { wallet: v2MasterWallet, signingClient: signingClientFactory(v2MasterWallet, "V2_MASTER_SIGNING_CLIENT") },
+          ...kmsWallets.map(wallet => ({ wallet, signingClient: signingClientFactory(wallet, "KMS_FUNDING_SIGNING_CLIENT") }))
+        ],
         derivedWalletFactory: v2DerivedWalletFactory
       }
     };
@@ -83,14 +89,21 @@ export class TxManagerService {
     return resources;
   }
 
-  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]): Promise<IndexedTx> {
-    const { masterSigningClient } = this.#getWalletResources();
-    return await masterSigningClient.signAndBroadcast(messages);
+  async signAndBroadcastWithFundingWallet(fundingWalletAddress: string, messages: readonly EncodeObject[]): Promise<IndexedTx> {
+    const { fundingWallets } = this.#getWalletResources();
+    const addresses = await this.getFundingWalletAddresses();
+    const signingWallet = fundingWallets[addresses.indexOf(fundingWalletAddress)];
+
+    if (!signingWallet) {
+      throw new Error(`No funding wallet is configured for ${fundingWalletAddress}`);
+    }
+
+    return await signingWallet.signingClient.signAndBroadcast(messages);
   }
 
-  async getFundingWalletAddress(): Promise<string> {
-    const { masterWallet } = this.#getWalletResources();
-    return await masterWallet.getFirstAddress();
+  async getFundingWalletAddresses(): Promise<string[]> {
+    const { fundingWallets } = this.#getWalletResources();
+    return await Promise.all(fundingWallets.map(({ wallet }) => wallet.getFirstAddress()));
   }
 
   async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions): Promise<IndexedTx> {

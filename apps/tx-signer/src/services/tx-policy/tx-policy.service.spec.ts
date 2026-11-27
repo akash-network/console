@@ -10,6 +10,7 @@ import type { AppConfigService } from "@src/services/app-config/app-config.servi
 import { TxPolicyService } from "./tx-policy.service";
 
 const SIGNER_ADDRESS = "akash1signer";
+const SECOND_FUNDING_ADDRESS = "akash1secondfunding";
 const OTHER_ADDRESS = "akash1attacker";
 const MANAGED_WALLET_ADDRESS = "akash1managed";
 /** Declares a length-delimited field of 127 bytes and then supplies none, so any protobuf decoder runs off the end of the buffer. */
@@ -232,16 +233,69 @@ describe(TxPolicyService.name, () => {
   });
 
   describe("assertFeeGranter", () => {
-    it("rejects a fee granter that is not the funding wallet", () => {
+    it("rejects a fee granter that is not a funding wallet", () => {
+      const { service, logger } = setup();
+
+      expect(() => service.assertFeeGranter(OTHER_ADDRESS, [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])).toThrow(
+        new RegExp(
+          `Message /cosmos.authz.v1beta1.MsgGrant may not be signed by this wallet: fees may only be granted by a funding wallet, not ${OTHER_ADDRESS}`
+        )
+      );
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_FEE_GRANTER_REJECTED" }));
+    });
+
+    it("accepts any of the funding wallets as fee granter", () => {
       const { service } = setup();
 
-      expect(() => service.assertFeeGranter(OTHER_ADDRESS, SIGNER_ADDRESS)).toThrow(/only be granted by the funding wallet/);
+      expect(() => service.assertFeeGranter(SIGNER_ADDRESS, [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])).not.toThrow();
+      expect(() => service.assertFeeGranter(SECOND_FUNDING_ADDRESS, [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])).not.toThrow();
     });
 
     it("accepts an absent fee granter", () => {
       const { service } = setup();
 
-      expect(() => service.assertFeeGranter(undefined, SIGNER_ADDRESS)).not.toThrow();
+      expect(() => service.assertFeeGranter(undefined, [SIGNER_ADDRESS])).not.toThrow();
+    });
+  });
+
+  describe("resolveFundingSigner", () => {
+    it("returns the funding wallet the first message acts for", () => {
+      const { service } = setup();
+      const message = encodeObject(`/${MsgRevoke.$type}`, MsgRevoke.fromPartial({ granter: SECOND_FUNDING_ADDRESS, grantee: OTHER_ADDRESS }));
+
+      expect(service.resolveFundingSigner([message], [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])).toBe(SECOND_FUNDING_ADDRESS);
+    });
+
+    it("rejects messages acting for an address that is not a funding wallet", () => {
+      const { service, logger } = setup();
+      const message = encodeObject(`/${MsgRevoke.$type}`, MsgRevoke.fromPartial({ granter: OTHER_ADDRESS, grantee: OTHER_ADDRESS }));
+
+      expect(() => service.resolveFundingSigner([message], [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])).toThrow(
+        new RegExp(`acts on behalf of ${OTHER_ADDRESS}, which is not a funding wallet`)
+      );
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_ACTOR_BINDING_REJECTED", typeUrl: `/${MsgRevoke.$type}` }));
+    });
+
+    it("rejects a message that names no granter", () => {
+      const { service } = setup();
+      const message = encodeObject(`/${MsgRevoke.$type}`, { grantee: OTHER_ADDRESS });
+
+      expect(() => service.resolveFundingSigner([message], [SIGNER_ADDRESS])).toThrow(/acts on behalf of an unset address, which is not a funding wallet/);
+    });
+
+    it("rejects a message type that has no actor binding rule", () => {
+      const { service, logger } = setup();
+
+      expect(() => service.resolveFundingSigner([encodeObject("/cosmos.bank.v1beta1.MsgSend", {})], [SIGNER_ADDRESS])).toThrow(
+        /Message \/cosmos.bank.v1beta1.MsgSend may not be signed by this wallet: message type has no actor binding rule/
+      );
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_ACTOR_BINDING_REJECTED", typeUrl: "/cosmos.bank.v1beta1.MsgSend" }));
+    });
+
+    it("rejects a request without messages", () => {
+      const { service } = setup();
+
+      expect(() => service.resolveFundingSigner([], [SIGNER_ADDRESS])).toThrow(/Message none may not be signed by this wallet/);
     });
   });
 

@@ -2,10 +2,37 @@ import { z } from "zod";
 
 import { minSignAndBroadcastDeadlineMs } from "@src/lib/signing-client/signing-client.service";
 
+const KMS_KEY_VERSION_NAME = /^projects\/[^/]+\/locations\/[^/]+\/keyRings\/[^/]+\/cryptoKeys\/[^/]+\/cryptoKeyVersions\/\d+$/;
+const WORKLOAD_IDENTITY_AUDIENCE = /^\/\/iam\.googleapis\.com\/projects\/\d+\/locations\/global\/workloadIdentityPools\/[^/]+\/providers\/[^/]+$/;
+
 export const envSchema = z
   .object({
     ACCESS_API_KEY: z.string().min(32),
     FUNDING_WALLET_MNEMONIC_V2: z.string(),
+    /** Cloud KMS key versions that each hold one more funding wallet, as comma-separated full resource names. */
+    FUNDING_WALLET_KMS_KEY_VERSIONS: z
+      .string()
+      .default("")
+      .transform(value =>
+        value
+          .split(",")
+          .map(name => name.trim())
+          .filter(Boolean)
+      )
+      .refine(names => names.every(name => KMS_KEY_VERSION_NAME.test(name)), {
+        message: "FUNDING_WALLET_KMS_KEY_VERSIONS must list names like projects/*/locations/*/keyRings/*/cryptoKeys/*/cryptoKeyVersions/1"
+      }),
+    /** The workload identity pool provider that trusts this pod's Kubernetes identity, which is how the signer reaches Cloud KMS without a stored key. */
+    GCP_WORKLOAD_IDENTITY_AUDIENCE: z
+      .string()
+      .regex(WORKLOAD_IDENTITY_AUDIENCE, {
+        message: "GCP_WORKLOAD_IDENTITY_AUDIENCE must look like //iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/*/providers/*"
+      })
+      .optional(),
+    /** Must stay inside a directory the `prod` script allows reading, or the Node permission model denies the read. */
+    GCP_WORKLOAD_IDENTITY_TOKEN_FILE: z.string().optional().default("/var/run/secrets/gcp-workload-identity/token"),
+    /** Set only when Cloud KMS access is granted to a service account rather than to the workload identity itself. */
+    GCP_KMS_SERVICE_ACCOUNT: z.string().email().optional(),
     DERIVATION_WALLET_MNEMONIC_V2: z.string(),
     RPC_NODE_ENDPOINT: z.string(),
     GRANT_ALLOWED_DENOMS: z
@@ -37,6 +64,14 @@ export const envSchema = z
     PORT: z.number({ coerce: true }).optional().default(3091)
   })
   .superRefine((env, ctx) => {
+    if (env.FUNDING_WALLET_KMS_KEY_VERSIONS.length > 0 && !env.GCP_WORKLOAD_IDENTITY_AUDIENCE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "GCP_WORKLOAD_IDENTITY_AUDIENCE is required when FUNDING_WALLET_KMS_KEY_VERSIONS names a key",
+        path: ["GCP_WORKLOAD_IDENTITY_AUDIENCE"]
+      });
+    }
+
     if (env.RPC_REQUEST_TIMEOUT_MS >= env.UNORDERED_TX_TTL_MS) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

@@ -18,14 +18,15 @@ export class TxController {
 
   async signWithFundingWallet({ data: { messages, granteeDerivationIndex } }: SignAndBroadcastFundingRequestInput): Promise<SignAndBroadcastResponseOutput> {
     const decoded = this.decodeMessages(messages);
-    const [fundingWalletAddress, granteeAddress] = await Promise.all([
-      this.txManagerService.getFundingWalletAddress(),
+    const [fundingWalletAddresses, granteeAddress] = await Promise.all([
+      this.txManagerService.getFundingWalletAddresses(),
       granteeDerivationIndex === undefined ? undefined : this.txManagerService.getDerivedWalletAddress(granteeDerivationIndex)
     ]);
+    const fundingWalletAddress = this.txPolicyService.resolveFundingSigner(decoded, fundingWalletAddresses);
     this.txPolicyService.assertActingOnBehalfOf(decoded, fundingWalletAddress);
     this.txPolicyService.assertWithinGrantLimits(decoded);
     this.txPolicyService.assertGrantedToManagedWallet(decoded, granteeAddress);
-    const tx = await this.txManagerService.signAndBroadcastWithFundingWallet(decoded);
+    const tx = await this.txManagerService.signAndBroadcastWithFundingWallet(fundingWalletAddress, decoded);
     return {
       data: {
         code: tx.code,
@@ -37,12 +38,12 @@ export class TxController {
 
   async signWithDerivedWallet({ data: { derivationIndex, messages, options } }: SignAndBroadcastDerivedRequestInput): Promise<SignAndBroadcastResponseOutput> {
     const decoded = this.decodeMessages(messages);
-    const [derivedWalletAddress, fundingWalletAddress] = await Promise.all([
+    const [derivedWalletAddress, fundingWalletAddresses] = await Promise.all([
       this.txManagerService.getDerivedWalletAddress(derivationIndex),
-      this.txManagerService.getFundingWalletAddress()
+      this.txManagerService.getFundingWalletAddresses()
     ]);
     this.txPolicyService.assertActingOnBehalfOf(decoded, derivedWalletAddress);
-    this.txPolicyService.assertFeeGranter(options?.fee.granter, fundingWalletAddress);
+    this.txPolicyService.assertFeeGranter(options?.fee.granter, fundingWalletAddresses);
     const tx = await this.txManagerService.signAndBroadcastWithDerivedWallet(derivationIndex, decoded, options);
     return {
       data: {
