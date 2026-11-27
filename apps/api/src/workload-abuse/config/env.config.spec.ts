@@ -195,6 +195,14 @@ describe("workload abuse env config", () => {
     });
   });
 
+  it("caps the deleted trial account memory at a year and its cooldown at a year of hours", () => {
+    const config = setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "365", WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: "8760" });
+
+    expect([config.WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS, config.WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS]).toEqual([365, 8760]);
+    expect(() => setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "366" })).toThrow(/WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS/);
+    expect(() => setup({ WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: "8761" })).toThrow(/WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS/);
+  });
+
   it.each([
     ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "-1"],
     ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "1.5"],

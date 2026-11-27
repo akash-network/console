@@ -57,6 +57,9 @@ const DEFAULT_PROBE_INITIAL_DELAYS_MIN = "5,20,60";
 /** The review is throttled per device through a pg-boss job row, which pg-boss deletes 7 days after the job finishes. */
 const MAX_SIGNUP_REVIEW_WINDOW_MINUTES = 7 * 24 * 60;
 
+const MAX_DELETED_TRIAL_MEMORY_DAYS = 365;
+const MAX_DELETED_TRIAL_COOLDOWN_HOURS = MAX_DELETED_TRIAL_MEMORY_DAYS * 24;
+
 function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
   const entries = raw.split(",").map(entry => entry.trim());
 
@@ -144,8 +147,14 @@ export const envSchema = z.object({
   ),
   WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional()),
   /** 0 keeps no record of a deleted trial account, which is the only way to switch its refusal off. */
-  WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().default(30)),
-  WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(24)),
+  WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: z.preprocess(
+    blankToUndefined,
+    z.number({ coerce: true }).int().nonnegative().max(MAX_DELETED_TRIAL_MEMORY_DAYS).default(30)
+  ),
+  WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: z.preprocess(
+    blankToUndefined,
+    z.number({ coerce: true }).int().positive().max(MAX_DELETED_TRIAL_COOLDOWN_HOURS).default(24)
+  ),
   WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().default(1)),
   /** A browser fingerprint is shared by everyone behind one address with the same browser, so this switches that match off without touching the others. */
   WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: z.preprocess(
