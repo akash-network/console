@@ -118,7 +118,7 @@ export class TrialSignupHoldService {
     }
   }
 
-  /** Throttled per account, so an account held on every attempt inside the window is posted once. */
+  /** Throttled per account on pg-boss's fixed slots, so an account held on every attempt is posted once per slot, and twice when its attempts straddle a slot boundary. */
   async #reportRefusedSignup(userId: UserOutput["id"]): Promise<void> {
     const windowMinutes = this.config.get("WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES");
 

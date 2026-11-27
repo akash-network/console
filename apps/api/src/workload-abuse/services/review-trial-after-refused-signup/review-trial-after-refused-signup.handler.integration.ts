@@ -1,6 +1,5 @@
 import { faker } from "@faker-js/faker";
 import { subHours } from "date-fns";
-import { eq } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -165,7 +164,7 @@ describe(ReviewTrialAfterRefusedSignupHandler.name, () => {
         await db.update(refusedSignups).set({ createdAt });
       },
       countRefusals: async () => (await db.select({ id: refusedSignups.id }).from(refusedSignups)).length,
-      readRefusals: async () => await db.select().from(refusedSignups).where(eq(refusedSignups.browserHash, refusedSignups.browserHash))
+      readRefusals: async () => await db.select().from(refusedSignups)
     };
   }
 });
