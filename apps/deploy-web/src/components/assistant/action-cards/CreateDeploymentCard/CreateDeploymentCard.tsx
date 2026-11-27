@@ -1,7 +1,7 @@
 "use client";
 import type { FC } from "react";
-import { useState } from "react";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { useId, useState } from "react";
+import { Button, buttonVariants, Checkbox } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,7 +44,7 @@ const OPENED_IN_EDITOR_MESSAGE = "Opened in the editor. Review and deploy from t
 
 type CreatedDeployment = { dseq: string; isAutoLeased: true } | { dseq: string; isAutoLeased: false; configureUrl: string };
 
-/** Deploys the way one-click deploy does: created in the background, with Console picking the provider and starting the lease. */
+/** Deploys the way one-click deploy does: created in the background, with Console picking the provider and starting the lease unless the user asks to choose it. */
 export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
   decision,
@@ -60,14 +60,17 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
   const [created, setCreated] = useState<CreatedDeployment | null>(null);
   const templateId = action.templateId ?? undefined;
   const isOpen = decision.status === "pending" || decision.status === "failed";
-  const picksProviderAutomatically = d.useFlag("background_auto_lease");
+  const isAutoPickAvailable = d.useFlag("background_auto_lease");
+  const [choosesProviderThemselves, setChoosesProviderThemselves] = useState(false);
+  const picksProviderAutomatically = isAutoPickAvailable && !choosesProviderThemselves;
+  const chooseProviderCheckboxId = useId();
 
   const deploy = async () => {
     const { data: context } = await getSealContext();
     const sealedSecrets = await d.sealSdlSecrets({ context, secrets: {}, sdl: action.sdl });
     const response = await createDeployment({
       async: "true",
-      autoLease: "true",
+      ...(picksProviderAutomatically ? { autoLease: "true" } : {}),
       data: {
         sdl: action.sdl,
         sealedSecrets,
@@ -114,6 +117,18 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
         <summary className="cursor-pointer text-muted-foreground">Generated SDL</summary>
         <pre className="mt-2 max-h-64 overflow-auto rounded-md border bg-muted p-3 font-mono text-xs">{action.sdl}</pre>
       </details>
+      {isOpen && isAutoPickAvailable && (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={chooseProviderCheckboxId}
+            checked={choosesProviderThemselves}
+            onCheckedChange={checked => setChoosesProviderThemselves(checked === true)}
+          />
+          <label htmlFor={chooseProviderCheckboxId} className="text-sm">
+            Let me choose the provider
+          </label>
+        </div>
+      )}
       {isOpen && (
         <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => decision.confirm(openInEditor)}>
           Open in editor
