@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNotNull, ne, or, type SQL, sql } from "drizzle-orm";
+import { and, desc, eq, exists, gte, inArray, isNotNull, lt, ne, or, type SQL, sql } from "drizzle-orm";
 import { alias, type PgColumn } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -10,6 +10,7 @@ import { publiclyReadableTemplate } from "@src/template-marketplace/repositories
 type Table = ApiPgTables["TemplateUsageEvents"];
 type TemplateVersionsTable = ApiPgTables["TemplateVersions"];
 type TemplatesTable = ApiPgTables["Templates"];
+type TemplateViewEventsTable = ApiPgTables["TemplateViewEvents"];
 
 export type TemplateUsageEventInput = Omit<Table["$inferInsert"], "id">;
 
@@ -28,6 +29,8 @@ export type DailyDeployCohort = DeployCohortCounts & { day: string };
 export type VersionDeployCohort = DeployCohortCounts & { version: number };
 
 export type DailyForkCount = { day: string; forks: number };
+
+export type ActivePublicTemplate = { id: string; title: string; organizationId: string };
 
 export const NO_TEMPLATE_USAGE: TemplateUsageSummary = { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0 };
 
@@ -51,6 +54,7 @@ export class TemplateUsageEventRepository {
     @InjectPgTable("TemplateUsageEvents") private readonly table: Table,
     @InjectPgTable("TemplateVersions") private readonly templateVersions: TemplateVersionsTable,
     @InjectPgTable("Templates") private readonly templates: TemplatesTable,
+    @InjectPgTable("TemplateViewEvents") private readonly templateViewEvents: TemplateViewEventsTable,
     private readonly txManager: TxService
   ) {}
 
@@ -235,6 +239,59 @@ export class TemplateUsageEventRepository {
         )
       )
       .groupBy(day);
+  }
+
+  /** Lists the publicly readable templates that people outside their organization viewed on mainnet or deployed since the given UTC day, oldest first. */
+  async findPublicTemplatesActiveSince(since: string, limit: number): Promise<ActivePublicTemplate[]> {
+    const viewed = this.#cursor
+      .select({ id: this.templateViewEvents.id })
+      .from(this.templateViewEvents)
+      .where(
+        and(
+          eq(this.templateViewEvents.templateId, this.templates.id),
+          eq(this.templateViewEvents.network, SHOWN_NETWORK),
+          eq(this.templateViewEvents.fromPublisher, false),
+          gte(this.templateViewEvents.viewedOn, since)
+        )
+      );
+    const deployed = this.#cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        and(
+          this.#shownTemplateEvents,
+          eq(this.table.templateRef, sql`${this.templates.id}::text`),
+          eq(this.table.action, "deploy"),
+          gte(this.table.createdAt, this.#startOfUtcDay(since)),
+          this.#countedForItsTemplate
+        )
+      );
+
+    return await this.#cursor
+      .select({ id: this.templates.id, title: this.templates.title, organizationId: this.templates.organizationId })
+      .from(this.templates)
+      .where(and(publiclyReadableTemplate(), or(exists(viewed), exists(deployed))))
+      .orderBy(this.templates.createdAt, this.templates.id)
+      .limit(limit);
+  }
+
+  /** Counts the template's deployments made before the given UTC day the way its public deploy count does. */
+  async countDeploysBefore(templateId: string, day: string): Promise<number> {
+    const [{ deploys }] = await this.#cursor
+      .select({ deploys: sql<number>`count(*)`.mapWith(Number) })
+      .from(this.table)
+      .innerJoin(this.templates, eq(this.templates.id, templateId))
+      .where(
+        and(
+          this.#shownTemplateEvents,
+          eq(this.table.templateRef, templateId),
+          eq(this.table.action, "deploy"),
+          lt(this.table.createdAt, this.#startOfUtcDay(day)),
+          this.#countedForItsTemplate
+        )
+      );
+
+    return deploys;
   }
 
   #selectDeployCohorts<TKey extends Record<string, SQL>>(key: TKey, scope: SQL | undefined) {

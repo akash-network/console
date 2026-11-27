@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import {
   buildTemplateInsights,
   type InsightPeriodDays,
+  type InsightWindow,
   insightWindowOf,
   type TemplateInsights
 } from "@src/template-marketplace/lib/template-insights/template-insights";
@@ -21,13 +22,18 @@ export class TemplateInsightsService {
   /** Shown to whoever may change the template, and counted as the public numbers are: on mainnet, without a public template's own organization. */
   async getInsights(templateId: string, days: InsightPeriodDays, now = new Date()): Promise<TemplateInsights> {
     const template = await this.templateWriteAccessService.findWritable(templateId, "update");
-    const window = insightWindowOf(now, days);
+
+    return await this.countInsights(template.id, insightWindowOf(now, days));
+  }
+
+  /** Checks no access, for a job that already chose whom to tell. */
+  async countInsights(templateId: string, window: InsightWindow): Promise<TemplateInsights> {
     const since = window.previousFrom;
     const [views, deploys, forks, versions] = await Promise.all([
-      this.templateViewEventRepository.countDailyViewers({ templateId: template.id, network: SHOWN_NETWORK, since }),
-      this.templateUsageEventRepository.countDailyDeployCohorts(template.id, since),
-      this.templateUsageEventRepository.countDailyForks(template.id, since),
-      this.templateUsageEventRepository.countDeployCohortsByVersion(template.id)
+      this.templateViewEventRepository.countDailyViewers({ templateId, network: SHOWN_NETWORK, since }),
+      this.templateUsageEventRepository.countDailyDeployCohorts(templateId, since),
+      this.templateUsageEventRepository.countDailyForks(templateId, since),
+      this.templateUsageEventRepository.countDeployCohortsByVersion(templateId)
     ]);
 
     return buildTemplateInsights(window, { views, deploys, forks, versions });
