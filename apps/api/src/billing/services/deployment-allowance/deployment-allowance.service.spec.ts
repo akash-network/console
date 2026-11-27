@@ -14,6 +14,8 @@ import { ALLOWANCE_CHECK_DELAY_IN_SECONDS, DeploymentAllowanceService } from "./
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
+const GRANTER = createAkashAddress();
+
 describe(DeploymentAllowanceService.name, () => {
   describe("adjust", () => {
     it("grants the limit read at the latest height moved by the delta and watches the grant", async () => {
@@ -29,7 +31,7 @@ describe(DeploymentAllowanceService.name, () => {
       expect(result).toEqual({ previousLimit: 500_000, nextLimit: 300_000, txHash: "GRANT_HASH" });
       expect(scheduledCheck(jobQueueService)).toEqual({
         wallet,
-        write: { txHash: "GRANT_HASH", readHeight: 1234, readLimit: 500_000, sentAt: expect.any(String) },
+        write: { txHash: "GRANT_HASH", readHeight: 1234, readLimit: 500_000, sentAt: expect.any(String), granter: GRANTER },
         adjustment: 0,
         round: 0,
         attempt: 0
@@ -82,7 +84,7 @@ describe(DeploymentAllowanceService.name, () => {
 
       await expect(service.adjust(wallet, -200_000)).rejects.toBe(error);
 
-      expect(scheduledCheck(jobQueueService)).toMatchObject({ write: { txHash: "UNDECIDED_HASH", readHeight: 1234, readLimit: 500_000 } });
+      expect(scheduledCheck(jobQueueService)).toMatchObject({ write: { txHash: "UNDECIDED_HASH", readHeight: 1234, readLimit: 500_000, granter: GRANTER } });
     });
 
     it.each([
@@ -144,7 +146,7 @@ describe(DeploymentAllowanceService.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const wallet = { id: faker.number.int({ min: 1, max: 100_000 }), address: createAkashAddress() };
 
-    balancesService.retrieveDeploymentLimitAtLatestHeight.mockResolvedValue(input);
+    balancesService.retrieveDeploymentLimitAtLatestHeight.mockResolvedValue({ ...input, granter: GRANTER });
     managedUserWalletService.authorizeDeploymentSpendingOnly.mockResolvedValue({ code: 0, hash: "GRANT_HASH", rawLog: "" });
     txService.outsideTransaction.mockImplementation(async cb => await cb());
 

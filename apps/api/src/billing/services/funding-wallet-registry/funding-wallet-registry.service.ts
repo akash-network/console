@@ -24,12 +24,12 @@ export class FundingWalletRegistryService {
   }
 
   /** Read for the network rather than the caller, so a request and a background job agree on which wallet backs a user. */
-  get #isEnabled() {
+  get isEnabled() {
     return this.featureFlagsService.isEnabledForSubject(FeatureFlags.FUNDING_WALLET_REGISTRY, this.#network);
   }
 
   async getActiveAddress(): Promise<string> {
-    if (!this.#isEnabled) return await this.txManagerService.getFundingWalletAddress();
+    if (!this.isEnabled) return await this.txManagerService.getFundingWalletAddress();
 
     return await this.#activeAddress();
   }
@@ -44,7 +44,7 @@ export class FundingWalletRegistryService {
 
   /** A user wallet that was never granted reads as backed by the active wallet, which is where its first grant will come from. */
   async #granterAddress(findGranter: () => Promise<FundingWalletOutput | undefined>): Promise<string> {
-    if (!this.#isEnabled) return await this.txManagerService.getFundingWalletAddress();
+    if (!this.isEnabled) return await this.txManagerService.getFundingWalletAddress();
 
     const granter = await findGranter();
 
@@ -69,19 +69,20 @@ export class FundingWalletRegistryService {
 
   /** Called before a grant is issued, and written on the caller's own connection: leasing a second one while a transaction holds the first can leave every pooled connection waiting on another. */
   async assignGranterAddress(userWalletId: number): Promise<string> {
-    if (!this.#isEnabled) return await this.txManagerService.getFundingWalletAddress();
+    if (!this.isEnabled) return await this.txManagerService.getFundingWalletAddress();
 
     const assigned = await this.fundingWalletRepository.findGranterOf(userWalletId, this.#network);
     if (assigned) return assigned.address;
 
-    const active = await this.#findOrRegisterActive();
+    const active = await this.findOrRegisterActive();
     await this.fundingWalletRepository.assignUnlessAssigned({ userWalletId, network: this.#network, fundingWalletId: active.id });
     const granter = await this.fundingWalletRepository.findGranterOf(userWalletId, this.#network);
 
     return (granter ?? active).address;
   }
 
-  async #findOrRegisterActive(): Promise<FundingWalletOutput> {
+  /** Registers the configured wallet as active when the network has no funding wallet yet. */
+  async findOrRegisterActive(): Promise<FundingWalletOutput> {
     return (await this.fundingWalletRepository.findActive(this.#network)) ?? (await this.#registerConfiguredWallet());
   }
 

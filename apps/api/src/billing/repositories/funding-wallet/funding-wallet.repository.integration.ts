@@ -117,6 +117,85 @@ describe(FundingWalletRepository.name, () => {
     });
   });
 
+  describe("findByAddress", () => {
+    it("finds the wallet at that address on the given network only", async () => {
+      const { repository, network } = setup();
+      const address = createAkashAddress();
+      const wallet = await repository.create({ network, address, status: "standby" });
+      await repository.create({ network, address: createAkashAddress(), status: "active" });
+
+      await expect(repository.findByAddress(network, address)).resolves.toEqual(wallet);
+      await expect(repository.findByAddress(uniqueNetwork(), address)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("findByStatus", () => {
+    it("finds the network's wallets in that state", async () => {
+      const { repository, network } = setup();
+      const draining = await repository.create({ network, address: createAkashAddress(), status: "draining" });
+      await repository.create({ network, address: createAkashAddress(), status: "active" });
+      await repository.create({ network: uniqueNetwork(), address: createAkashAddress(), status: "draining" });
+
+      await expect(repository.findByStatus(network, "draining")).resolves.toEqual([draining]);
+      await expect(repository.findByStatus(network, "retired")).resolves.toEqual([]);
+    });
+  });
+
+  describe("updateStatus", () => {
+    it("changes one wallet's state and returns it", async () => {
+      const { repository, network } = setup();
+      const wallet = await repository.create({ network, address: createAkashAddress(), status: "active" });
+      const untouched = await repository.create({ network, address: createAkashAddress(), status: "standby" });
+
+      await expect(repository.updateStatus(wallet.id, "draining")).resolves.toEqual({ ...wallet, status: "draining" });
+
+      await expect(repository.findByAddress(network, untouched.address)).resolves.toEqual(untouched);
+    });
+
+    it("returns nothing for a wallet that does not exist", async () => {
+      const { repository } = setup();
+
+      await expect(repository.updateStatus(faker.string.uuid(), "retired")).resolves.toBeUndefined();
+    });
+  });
+
+  describe("when a user wallet's funding wallet is retired", () => {
+    it("reads the user wallet as never assigned, by id and by address", async () => {
+      const { repository, network } = setup();
+      const { wallet } = await seedUserWithWallet();
+      const retired = await repository.create({ network, address: createAkashAddress(), status: "draining" });
+      await repository.assignUnlessAssigned({ userWalletId: wallet.id, network, fundingWalletId: retired.id });
+      await repository.updateStatus(retired.id, "retired");
+
+      await expect(repository.findGranterOf(wallet.id, network)).resolves.toBeUndefined();
+      await expect(repository.findGranterOfAddress(wallet.address!, network)).resolves.toBeUndefined();
+    });
+
+    it("assigns the user wallet to the funding wallet it is granted from next", async () => {
+      const { repository, network } = setup();
+      const { wallet } = await seedUserWithWallet();
+      const retired = await repository.create({ network, address: createAkashAddress(), status: "retired" });
+      const active = await repository.create({ network, address: createAkashAddress(), status: "active" });
+      await repository.assignUnlessAssigned({ userWalletId: wallet.id, network, fundingWalletId: retired.id });
+
+      await repository.assignUnlessAssigned({ userWalletId: wallet.id, network, fundingWalletId: active.id });
+
+      await expect(repository.findGranterOf(wallet.id, network)).resolves.toEqual(active);
+    });
+
+    it("keeps a user wallet on a funding wallet that still drains", async () => {
+      const { repository, network } = setup();
+      const { wallet } = await seedUserWithWallet();
+      const draining = await repository.create({ network, address: createAkashAddress(), status: "draining" });
+      const active = await repository.create({ network, address: createAkashAddress(), status: "active" });
+      await repository.assignUnlessAssigned({ userWalletId: wallet.id, network, fundingWalletId: draining.id });
+
+      await repository.assignUnlessAssigned({ userWalletId: wallet.id, network, fundingWalletId: active.id });
+
+      await expect(repository.findGranterOf(wallet.id, network)).resolves.toEqual(draining);
+    });
+  });
+
   describe("findGranterOf", () => {
     it("finds nothing for a user wallet that was never assigned", async () => {
       const { repository, network } = setup();

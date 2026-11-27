@@ -103,15 +103,16 @@ describe(BalancesService.name, () => {
 
       expect(fundingWalletRegistry.getGranterAddressByWalletAddress).toHaveBeenCalledWith("akash1grantee");
       expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).toHaveBeenCalledWith("akash1funding", "akash1grantee", { height: 1234 });
-      expect(result).toEqual({ limit: 5_000_000, height: 1234 });
+      expect(result).toEqual({ limit: 5_000_000, height: 1234, granter: "akash1funding" });
     });
 
     it("reads a limit of zero when the wallet holds no deposit grant at that height", async () => {
-      const { service, authzHttpService, blockHttpService } = setup({ denom: "uact" });
+      const { service, fundingWalletRegistry, authzHttpService, blockHttpService } = setup({ denom: "uact" });
+      fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue("akash1funding");
       blockHttpService.getFreshCurrentHeight.mockResolvedValue(1234);
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(undefined);
 
-      expect(await service.retrieveDeploymentLimitAtLatestHeight({ address: "akash1grantee" })).toEqual({ limit: 0, height: 1234 });
+      expect(await service.retrieveDeploymentLimitAtLatestHeight({ address: "akash1grantee" })).toEqual({ limit: 0, height: 1234, granter: "akash1funding" });
     });
   });
 

@@ -10,6 +10,7 @@ import { z } from "zod";
 import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { FundingWalletRotationService } from "@src/billing/services/funding-wallet-rotation/funding-wallet-rotation.service";
 import { GpuWinBackCatchUpService } from "@src/billing/services/gpu-win-back-catch-up/gpu-win-back-catch-up.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
@@ -20,6 +21,7 @@ import { ProviderController } from "@src/provider/controllers/provider/provider.
 import { DataKeyRekeyController } from "@src/secret/controllers/data-key-rekey/data-key-rekey.controller";
 import { DataKeyRewrapController } from "@src/secret/controllers/data-key-rewrap/data-key-rewrap.controller";
 import { TeamSecretsResealController } from "@src/secret/controllers/team-secrets-reseal/team-secrets-reseal.controller";
+import { AkashAddressSchema } from "@src/utils/schema";
 import { WorkloadAbuseController } from "@src/workload-abuse/controllers/workload-abuse.controller";
 import { APP_INITIALIZER, ON_APP_START } from "../core/providers/app-initializer";
 
@@ -228,6 +230,26 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(TeamSecretsResealController).resealTeamDeployments(options);
+    });
+  });
+
+program
+  .command("add-standby-funding-wallet")
+  .description("Record a funding wallet the signer already holds the key of, so it can be promoted later")
+  .requiredOption("-a, --address <string>", "Address of the wallet to keep on standby", value => AkashAddressSchema.parse(value))
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletRotationService).addStandby(options.address);
+    });
+  });
+
+program
+  .command("promote-funding-wallet")
+  .description("Issue new grants from a standby funding wallet; the wallet it replaces keeps backing its users until each of them is moved")
+  .requiredOption("-a, --address <string>", "Address of the standby wallet to promote", value => AkashAddressSchema.parse(value))
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletRotationService).promote(options.address);
     });
   });
 

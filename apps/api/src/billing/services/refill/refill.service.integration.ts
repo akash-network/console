@@ -139,7 +139,8 @@ describe(RefillService.name, () => {
     const managedUserWalletService = container.resolve(ManagedUserWalletService);
 
     vi.spyOn(container.resolve(AnalyticsService), "track").mockReturnValue(undefined);
-    vi.spyOn(balancesService, "retrieveDeploymentLimitAtLatestHeight").mockImplementation(async () => ({ limit: chain.limit, height: chain.height }));
+    const granter = createAkashAddress();
+    vi.spyOn(balancesService, "retrieveDeploymentLimitAtLatestHeight").mockImplementation(async () => ({ limit: chain.limit, height: chain.height, granter }));
     vi.spyOn(balancesService, "refreshUserWalletLimits").mockResolvedValue(undefined);
     vi.spyOn(managedUserWalletService, "authorizeSpending").mockResolvedValue(undefined);
     vi.spyOn(managedUserWalletService, "authorizeDeploymentSpendingOnly").mockImplementation(async (_signer, { limit }) => {

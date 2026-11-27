@@ -82,9 +82,10 @@ export class PaymentCreditService {
   }
 
   /** Only a failure that proves nothing landed releases the credit for another attempt; one the signer could not decide keeps it pending. */
-  async #grant(transactionId: string, wallet: PaymentCredit["wallet"], read: { limit: number; height: number }, limit: number) {
+  async #grant(transactionId: string, wallet: PaymentCredit["wallet"], read: { limit: number; height: number; granter: string }, limit: number) {
     const sentAt = new Date().toISOString();
-    const watch = (txHash: string) => this.deploymentAllowanceService.watch(wallet, { txHash, readHeight: read.height, readLimit: read.limit, sentAt });
+    const watch = (txHash: string) =>
+      this.deploymentAllowanceService.watch(wallet, { txHash, readHeight: read.height, readLimit: read.limit, sentAt, granter: read.granter });
 
     try {
       const tx = await this.managedUserWalletService.authorizeDeploymentSpendingOnly(this.managedSignerService, {
