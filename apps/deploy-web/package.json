@@ -18,6 +18,7 @@
     "dev-nodc": "node ./scripts/copy-sdl-schema.js && next dev --turbopack",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
+    "sandbox-provider-access": "node tests/ui/scripts/sandbox-provider-access.mjs",
     "start": "next start",
     "test": "npm run test:unit",
     "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run --coverage --reporter=default --reporter=junit",
