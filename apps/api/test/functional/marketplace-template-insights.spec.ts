@@ -104,7 +104,13 @@ describe("Marketplace template insights", () => {
         { kind: "page_view", viewedOn: dayOf(subDays(today, 9)), viewers: 4 },
         { kind: "page_view", viewedOn: dayOf(today), viewers: 5, network: "sandbox" }
       ]);
-      await seedDeployment(template.id, { versionId: first.id, organizationId: outsider.organizationId, deployedAt: subDays(today, 3), leasedAt: subDays(today, 3), stillRunning: true });
+      await seedDeployment(template.id, {
+        versionId: first.id,
+        organizationId: outsider.organizationId,
+        deployedAt: subDays(today, 3),
+        leasedAt: subDays(today, 3),
+        stillRunning: true
+      });
       await seedDeployment(template.id, { versionId: second.id, organizationId: outsider.organizationId, deployedAt: today, leasedAt: today });
       await seedDeployment(template.id, { versionId: second.id, organizationId: outsider.organizationId, deployedAt: today });
       await seedDeployment(template.id, { versionId: second.id, organizationId: team.id, deployedAt: today, leasedAt: today });

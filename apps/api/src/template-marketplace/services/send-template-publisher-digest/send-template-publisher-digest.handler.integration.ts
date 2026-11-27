@@ -50,7 +50,8 @@ describe(SendTemplatePublisherDigestHandler.name, () => {
   });
 
   it("tells the owners and admins the marketplace is on for how their templates did and which passed a milestone, run the way a worker runs it", async () => {
-    const { owner, addMember, seedPublicTemplate, deploy, view, answerNotifications, sendDigest, activitiesOf, turnMarketplaceOffFor, weekEndsOn } = await setup();
+    const { owner, addMember, seedPublicTemplate, deploy, view, answerNotifications, sendDigest, activitiesOf, turnMarketplaceOffFor, weekEndsOn } =
+      await setup();
     const admin = await addMember("admin");
     const unsubscribedAdmin = await addMember("admin", { productUpdatesUnsubscribedAt: new Date() });
     const member = await addMember("member");
@@ -82,7 +83,12 @@ describe(SendTemplatePublisherDigestHandler.name, () => {
       expect((await activitiesOf(recipient)).map(({ type, status, meta, dedupeKey }) => ({ type, status, meta, dedupeKey }))).toEqual(
         expect.arrayContaining([
           { type: "template_update", status: "info", meta: { summary: digestSummary }, dedupeKey: `templateDigest:${template.organizationId}:${weekEndsOn}` },
-          { type: "template_update", status: "info", meta: { summary: milestoneSummary, templateId: template.id }, dedupeKey: `templateMilestone:${template.id}:10` }
+          {
+            type: "template_update",
+            status: "info",
+            meta: { summary: milestoneSummary, templateId: template.id },
+            dedupeKey: `templateMilestone:${template.id}:10`
+          }
         ])
       );
     }
@@ -167,7 +173,9 @@ describe(SendTemplatePublisherDigestHandler.name, () => {
     const weekEndsOn = dayOf(daysAgo(3));
     const { user: owner, organization } = await seedOrganizationWithOwner({ user: { email: faker.internet.email(), userId: faker.string.uuid() } });
     const marketplaceOffUserIds: string[] = [];
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabledForSubject").mockImplementation((_flag, subjectId) => !marketplaceOffUserIds.includes(subjectId));
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabledForSubject").mockImplementation(
+      (_flag, subjectId) => !marketplaceOffUserIds.includes(subjectId)
+    );
 
     async function addMember(role: OrganizationRole, overrides: { productUpdatesUnsubscribedAt?: Date } = {}) {
       const user = await seedUser({ userId: faker.string.uuid(), email: faker.internet.email(), ...overrides });

@@ -27,12 +27,22 @@ const DayCountsSchema = {
   stillRunning: z.number().int().nonnegative().openapi({ description: "Of those deployments, the ones still running a day after they got a provider" })
 };
 
-const RateSchema = (description: string) => z.number().min(0).max(1).nullable().openapi({ description: `${description}, null while too few are behind it` });
+const RateSchema = (description: string) =>
+  z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .openapi({ description: `${description}, null while too few are behind it` });
 
 const TotalsSchema = z
   .object({
     ...DayCountsSchema,
-    decidedLeases: z.number().int().nonnegative().openapi({ description: "Deployments that got a provider at least a day ago, so whether they kept running is known" }),
+    decidedLeases: z
+      .number()
+      .int()
+      .nonnegative()
+      .openapi({ description: "Deployments that got a provider at least a day ago, so whether they kept running is known" }),
     forks: z.number().int().nonnegative(),
     leaseRate: RateSchema("Share of deployments that got a provider"),
     stillRunningRate: RateSchema("Share of the decided deployments still running a day later"),
@@ -48,7 +58,9 @@ export const GetTemplateInsightsResponseSchema = z
       to: z.string().date().openapi({ description: "Last UTC day covered, today" }),
       current: TotalsSchema,
       previous: TotalsSchema.openapi({ description: "The same numbers for the period of the same length just before" }),
-      daily: z.array(z.object({ day: z.string().date(), ...DayCountsSchema })).openapi({ description: "One entry per day, deployments counted on the day they were made" }),
+      daily: z
+        .array(z.object({ day: z.string().date(), ...DayCountsSchema }))
+        .openapi({ description: "One entry per day, deployments counted on the day they were made" }),
       versions: z
         .array(
           z.object({

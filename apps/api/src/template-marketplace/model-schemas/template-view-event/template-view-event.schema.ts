@@ -27,12 +27,6 @@ export const TemplateViewEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   table => ({
-    oncePerDayUnique: uniqueIndex("template_view_events_once_per_day_unique").on(
-      table.templateId,
-      table.network,
-      table.viewedOn,
-      table.kind,
-      table.viewerKey
-    )
+    oncePerDayUnique: uniqueIndex("template_view_events_once_per_day_unique").on(table.templateId, table.network, table.viewedOn, table.kind, table.viewerKey)
   })
 );

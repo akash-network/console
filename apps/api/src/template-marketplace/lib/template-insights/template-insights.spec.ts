@@ -48,9 +48,9 @@ describe("template insights", () => {
 
       expect(insights).toMatchObject({ days: 7, from: "2026-11-21", to: "2026-11-27", versions: [], hints: [] });
       expect(insights.daily.map(({ day }) => day)).toEqual(["2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"]);
-      expect(insights.daily.every(({ views, configureOpens, deploys, leases, stillRunning }) => views + configureOpens + deploys + leases + stillRunning === 0)).toBe(
-        true
-      );
+      expect(
+        insights.daily.every(({ views, configureOpens, deploys, leases, stillRunning }) => views + configureOpens + deploys + leases + stillRunning === 0)
+      ).toBe(true);
       expect(insights.current).toEqual(insights.previous);
     });
 

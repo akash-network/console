@@ -12,7 +12,15 @@ describe(templatePublisherDigestNotification.name, () => {
         organizationId: "org-1",
         weekEndsOn: "2026-11-29",
         entries: [
-          entry({ templateId: "tpl-1", title: "Postgres <16>", views: 1200, deploys: 12, previousDeploys: 8, stillRunning: 5, hint: hint("few_get_a_provider", 0.4) }),
+          entry({
+            templateId: "tpl-1",
+            title: "Postgres <16>",
+            views: 1200,
+            deploys: 12,
+            previousDeploys: 8,
+            stillRunning: 5,
+            hint: hint("few_get_a_provider", 0.4)
+          }),
           entry({ templateId: "tpl-2", title: "Redis", views: 1, deploys: 1, previousDeploys: 0, stillRunning: 0 })
         ],
         templateUrlOf: id => `https://console.test/template/${id}`

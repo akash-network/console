@@ -149,7 +149,12 @@ export class SendTemplatePublisherDigestHandler implements JobHandler<SendTempla
       const notices: Notice[] = milestones.map(({ template, milestone }) => ({
         dedupeKey: `templateMilestone:${template.id}:${milestone}`,
         templateId: template.id,
-        notification: templateMilestoneNotification(user, { templateId: template.id, templateTitle: template.title, milestone, templateUrl: this.#templateUrlOf(template.id) })
+        notification: templateMilestoneNotification(user, {
+          templateId: template.id,
+          templateTitle: template.title,
+          milestone,
+          templateUrl: this.#templateUrlOf(template.id)
+        })
       }));
 
       if (entries.length > 0) {

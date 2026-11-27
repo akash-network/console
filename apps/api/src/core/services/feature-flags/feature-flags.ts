@@ -16,7 +16,8 @@ export const FeatureFlags = {
   AFFILIATE_PROGRAM: "affiliate_program",
   AFFILIATE_OPEN_ENROLLMENT: "affiliate_open_enrollment",
   TEMPLATE_MARKETPLACE: "template_marketplace",
-  GPU_AVAILABILITY_ALERTS: "gpu_availability_alerts"
+  GPU_AVAILABILITY_ALERTS: "gpu_availability_alerts",
+  FUNDING_WALLET_REGISTRY: "funding_wallet_registry"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];

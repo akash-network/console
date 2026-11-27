@@ -1114,6 +1114,13 @@
       "when": 1795814772596,
       "tag": "0158_template_view_events",
       "breakpoints": true
+    },
+    {
+      "idx": 159,
+      "version": "7",
+      "when": 1795822142491,
+      "tag": "0159_funding_wallets",
+      "breakpoints": true
     }
   ]
 }

@@ -210,7 +210,9 @@ export class TemplateUsageEventRepository {
   async countDailyDeployCohorts(templateId: string, since: string): Promise<DailyDeployCohort[]> {
     const day = this.#utcDayOf(this.table.createdAt);
 
-    return await this.#selectDeployCohorts({ day }, and(eq(this.table.templateRef, templateId), gte(this.table.createdAt, this.#startOfUtcDay(since)))).groupBy(day);
+    return await this.#selectDeployCohorts({ day }, and(eq(this.table.templateRef, templateId), gte(this.table.createdAt, this.#startOfUtcDay(since)))).groupBy(
+      day
+    );
   }
 
   /** Follows every deployment ever made from the template the same way, by the version it was made from. */

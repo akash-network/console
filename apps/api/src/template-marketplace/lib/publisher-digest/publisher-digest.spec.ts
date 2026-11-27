@@ -54,14 +54,21 @@ describe("publisher digest", () => {
       expect(
         digestEntryOf(
           template,
-          insights({ current: totals({ views: 120, deploys: 12, stillRunning: 5 }), previous: totals({ deploys: 8 }), hints: [hint, { ...hint, tone: "info" }] })
+          insights({
+            current: totals({ views: 120, deploys: 12, stillRunning: 5 }),
+            previous: totals({ deploys: 8 }),
+            hints: [hint, { ...hint, tone: "info" }]
+          })
         )
       ).toEqual({ templateId: "tpl-1", title: "Postgres 16", views: 120, deploys: 12, previousDeploys: 8, stillRunning: 5, hint });
     });
 
-    it.each<[Partial<InsightTotals>]>([[{ views: 1 }], [{ configureOpens: 1 }], [{ deploys: 1 }], [{ forks: 1 }]])("counts %o as a week with activity", current => {
-      expect(digestEntryOf(template, insights({ current: totals(current) }))).toMatchObject({ templateId: "tpl-1", hint: undefined });
-    });
+    it.each<[Partial<InsightTotals>]>([[{ views: 1 }], [{ configureOpens: 1 }], [{ deploys: 1 }], [{ forks: 1 }]])(
+      "counts %o as a week with activity",
+      current => {
+        expect(digestEntryOf(template, insights({ current: totals(current) }))).toMatchObject({ templateId: "tpl-1", hint: undefined });
+      }
+    );
 
     it("leaves out a week nobody used the template, whatever happened the week before", () => {
       expect(digestEntryOf(template, insights({ previous: totals({ views: 40, deploys: 3 }) }))).toBeUndefined();

@@ -88,7 +88,11 @@ function periodPraise(current: InsightTotals, previous: InsightTotals): InsightH
     hints.push(hintOf("deploys_growing", "positive", current.deploys, previous.deploys));
   }
 
-  if (current.stillRunningRate !== null && current.decidedLeases >= MIN_DECIDED_LEASES_FOR_RUNNING_WELL && current.stillRunningRate >= HIGH_STILL_RUNNING_RATE) {
+  if (
+    current.stillRunningRate !== null &&
+    current.decidedLeases >= MIN_DECIDED_LEASES_FOR_RUNNING_WELL &&
+    current.stillRunningRate >= HIGH_STILL_RUNNING_RATE
+  ) {
     hints.push(hintOf("running_well", "positive", current.stillRunningRate));
   }
 
