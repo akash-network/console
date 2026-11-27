@@ -7,6 +7,11 @@ import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import type { UserOutput } from "@src/user/repositories";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 
+export const TRIAL_REFUSED_SPEND_MESSAGE =
+  "A free trial isn't available for this account, so deploying needs credits. Contact support if you think this is a mistake.";
+
+export const TRIAL_REFUSED_ERROR_CODE = "trial_unavailable";
+
 @singleton()
 export class TrialActivationJobService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -33,7 +38,7 @@ export class TrialActivationJobService {
   }
 
   /**
-   * Guards a managed-wallet action (a deployment spend, a coupon) that needs the trial's on-chain grants in place. When the wallet isn't activated yet it (best-effort) re-requests activation and throws a retriable
+   * Guards a coupon redemption, which needs the trial's on-chain grants in place. When the wallet isn't activated yet it (best-effort) re-requests activation and throws a retriable
    * `wallet_provisioning` 409, so the client waits for provisioning to land instead of hitting a bare chain/funding
    * error. A failed re-enqueue is logged but still yields the 409 — the next client retry re-requests it.
    * A suspended or terminated account is refused with its own 403 instead, and a user whose trial is refused gets
@@ -44,6 +49,18 @@ export class TrialActivationJobService {
 
     await this.accountStatusGuard.assertUserMaySpend(wallet.userId);
     await this.trialEligibilityService.assertEligible(wallet.userId);
+    await this.#requestActivation(wallet.userId);
+  }
+
+  /** Guards a deployment spend: an account refused its trial can still pay for credits, so it is asked for them with a 402 rather than refused. */
+  async assertActivatedForSpend(wallet: { userId: UserOutput["id"]; activatedAt?: Date | null }): Promise<void> {
+    if (wallet.activatedAt) return;
+
+    await this.accountStatusGuard.assertUserMaySpend(wallet.userId);
+    if (await this.trialEligibilityService.isRefused(wallet.userId)) {
+      throw createError(402, TRIAL_REFUSED_SPEND_MESSAGE, { errorCode: TRIAL_REFUSED_ERROR_CODE });
+    }
+
     await this.#requestActivation(wallet.userId);
   }
 

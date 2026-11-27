@@ -1389,13 +1389,13 @@ describe(ManagedSignerService.name, () => {
         findOneUsedBy: vi.fn().mockResolvedValue(wallet),
         findById: vi.fn().mockResolvedValue(user)
       });
-      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+      trialActivationJobService.assertActivatedForSpend.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toMatchObject({
         status: 409,
         errorCode: "wallet_provisioning"
       });
-      expect(trialActivationJobService.assertActivated).toHaveBeenCalledWith({ userId: "user-123", activatedAt: null });
+      expect(trialActivationJobService.assertActivatedForSpend).toHaveBeenCalledWith({ userId: "user-123", activatedAt: null });
       expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
     });
   });
@@ -1612,7 +1612,7 @@ describe(ManagedSignerService.name, () => {
 
     it("refuses a spend the wallet is not yet activated for", async () => {
       const { service, trialActivationJobService, txManagerService } = setupForCreate({ deploymentLimit: 500000 });
-      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+      trialActivationJobService.assertActivatedForSpend.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
 
       await expect(service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 409 });
 
@@ -2064,7 +2064,7 @@ describe(ManagedSignerService.name, () => {
         status: 402,
         errorCode: "insufficient_balance"
       });
-      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
+      expect(trialActivationJobService.assertActivatedForSpend).not.toHaveBeenCalled();
       expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
     });
 
@@ -2179,7 +2179,7 @@ describe(ManagedSignerService.name, () => {
         errorCode: "account_suspended",
         data: { reason: "Unpaid invoices" }
       });
-      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
+      expect(trialActivationJobService.assertActivatedForSpend).not.toHaveBeenCalled();
       expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
     });
 
