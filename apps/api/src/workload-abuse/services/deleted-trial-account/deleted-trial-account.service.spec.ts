@@ -50,7 +50,7 @@ describe(DeletedTrialAccountService.name, () => {
 
     it("records nothing for a deleted account on the e2e inbox domain, and says so", async () => {
       const { service, repository, logger } = setup({ e2eEmailDomain: "e2e.akash.test" });
-      const account = createUser({ email: " E2E-1a2b3c4d@E2E.Akash.Test " });
+      const account = createUser({ email: " E2E-1a2b3c4d@E2E.Akash.Test ", emailVerified: true });
 
       await service.remember(account, trialWallet());
 
@@ -64,18 +64,26 @@ describe(DeletedTrialAccountService.name, () => {
       async email => {
         const { service, repository, logger } = setup({ e2eEmailDomain: "e2e.akash.test" });
 
-        await service.remember(createUser({ email }), trialWallet());
+        await service.remember(createUser({ email, emailVerified: true }), trialWallet());
 
         expect(repository.create).toHaveBeenCalledTimes(1);
         expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DELETED_TRIAL_ACCOUNT_NOT_REMEMBERED_FOR_E2E" }));
       }
     );
 
+    it("records a deleted account on the e2e inbox domain whose email was never verified", async () => {
+      const { service, repository } = setup({ e2eEmailDomain: "e2e.akash.test" });
+
+      await service.remember(createUser({ email: "e2e-1a2b3c4d@e2e.akash.test", emailVerified: false }), trialWallet());
+
+      expect(repository.create).toHaveBeenCalledTimes(1);
+    });
+
     it("records every deleted account while no e2e inbox domain is configured", async () => {
       const { service, repository } = setup();
 
-      await service.remember(createUser({ email: "e2e-1a2b3c4d@e2e.akash.test" }), trialWallet());
-      await service.remember(createUser({ email: "jane@undefined" }), trialWallet());
+      await service.remember(createUser({ email: "e2e-1a2b3c4d@e2e.akash.test", emailVerified: true }), trialWallet());
+      await service.remember(createUser({ email: "jane@undefined", emailVerified: true }), trialWallet());
 
       expect(repository.create).toHaveBeenCalledTimes(2);
     });
@@ -83,7 +91,7 @@ describe(DeletedTrialAccountService.name, () => {
     it("records a deleted account that has no email even with an e2e inbox domain configured", async () => {
       const { service, repository } = setup({ e2eEmailDomain: "e2e.akash.test" });
 
-      await service.remember(createUser({ userId: "auth0|abc123", email: null }), trialWallet());
+      await service.remember(createUser({ userId: "auth0|abc123", email: null, emailVerified: true }), trialWallet());
 
       expect(repository.create).toHaveBeenCalledTimes(1);
     });

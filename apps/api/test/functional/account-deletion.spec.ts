@@ -175,7 +175,7 @@ describe("Account deletion", () => {
       const { user, address } = await seedUserWithWallet({
         isTrialing: true,
         activatedAt: new Date(),
-        user: { userId: `auth0|${faker.string.alphanumeric(24)}`, email: input.email }
+        user: { userId: `auth0|${faker.string.alphanumeric(24)}`, email: input.email, emailVerified: true }
       });
       const linkToken = faker.string.alphanumeric(43);
       await tokenRepository.replaceForUser({ userId: user.id, tokenHash: sha256(linkToken), acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });

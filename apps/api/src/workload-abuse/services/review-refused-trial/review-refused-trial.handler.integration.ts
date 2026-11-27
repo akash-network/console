@@ -140,7 +140,7 @@ describe(ReviewRefusedTrialHandler.name, () => {
       deleteTrialAccountOf: async (identity: { userId: string; email: string }) => {
         const address = createAkashAddress();
         await deletedTrialAccounts.remember(
-          { id: faker.string.uuid(), lastFingerprint: null, ...identity },
+          { id: faker.string.uuid(), lastFingerprint: null, emailVerified: true, ...identity },
           { address, activatedAt: new Date(), isTrialing: true }
         );
 

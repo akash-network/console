@@ -654,11 +654,16 @@ describe(AccountDeletionService.name, () => {
     });
 
     it("grants a trial to the same email and browser after the e2e suite deleted its trial account on the e2e inbox domain", async () => {
-      const { service, account, token, answerActiveDeployments, setEmailOf, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      const { service, db, account, token, answerActiveDeployments, setEmailOf, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } =
+        await setup();
       answerActiveDeployments([]);
       const e2eEmailDomain = `e2e.${faker.string.alpha({ length: 12, casing: "lower" })}.test`;
       limitReturningTrials({ cooldownHours: 4, e2eEmailDomain });
       const email = await setEmailOf(account, `e2e-${faker.string.alphanumeric(8).toLowerCase()}@${e2eEmailDomain}`);
+      await db
+        .update(resolveTable("Users"))
+        .set({ emailVerified: true })
+        .where(eq(resolveTable("Users").id, account.user.id));
       const fingerprint = await setFingerprintOf(account, faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }));
       await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
 

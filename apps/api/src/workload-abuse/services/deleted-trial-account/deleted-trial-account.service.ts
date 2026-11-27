@@ -15,7 +15,7 @@ import {
 import { ReviewRefusedTrial } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
-type Account = Pick<UserOutput, "id" | "userId" | "email" | "lastFingerprint">;
+type Account = Pick<UserOutput, "id" | "userId" | "email" | "emailVerified" | "lastFingerprint">;
 
 interface TrialRefusal {
   latestDeletion: DeletedTrialAccountOutput;
@@ -97,10 +97,11 @@ export class DeletedTrialAccountService {
     return isInCooldown || isOverMaxReturns ? { latestDeletion, deletionsOnRecord: deletions.length } : undefined;
   }
 
-  #isE2eAccount({ email }: Account): boolean {
+  /** Only the e2e inbox receives mail for its domain, so a verified address on it cannot belong to anyone else. */
+  #isE2eAccount({ email, emailVerified }: Account): boolean {
     const e2eEmailDomain = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN");
 
-    return !!e2eEmailDomain && !!email && email.trim().toLowerCase().endsWith(`@${e2eEmailDomain}`);
+    return !!e2eEmailDomain && !!emailVerified && !!email && email.trim().toLowerCase().endsWith(`@${e2eEmailDomain}`);
   }
 
   #lookupHashesOf(account: Account): DeletedTrialAccountHashes {
