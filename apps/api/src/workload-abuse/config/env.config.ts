@@ -58,6 +58,9 @@ const DEFAULT_PROBE_INITIAL_DELAYS_MIN = "5,20,60";
 const MAX_SIGNUP_REVIEW_WINDOW_MINUTES = 7 * 24 * 60;
 const MAX_SIGNUP_REVIEW_WINDOW_HOURS = MAX_SIGNUP_REVIEW_WINDOW_MINUTES / 60;
 
+const MAX_DELETED_TRIAL_MEMORY_DAYS = 365;
+const MAX_DELETED_TRIAL_COOLDOWN_HOURS = MAX_DELETED_TRIAL_MEMORY_DAYS * 24;
+
 function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
   const entries = raw.split(",").map(entry => entry.trim());
 
@@ -144,10 +147,26 @@ export const envSchema = z.object({
     z.number({ coerce: true }).int().positive().max(MAX_SIGNUP_REVIEW_WINDOW_MINUTES).optional()
   ),
   WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional()),
-  /** Lives in Doppler only, as do the two values after it. */
-  WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),
-  WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),
-  WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().optional()),
+  /** 0 keeps no record of a deleted trial account, which is the only way to switch its refusal off. */
+  WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: z.preprocess(
+    blankToUndefined,
+    z.number({ coerce: true }).int().nonnegative().max(MAX_DELETED_TRIAL_MEMORY_DAYS).default(30)
+  ),
+  WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: z.preprocess(
+    blankToUndefined,
+    z.number({ coerce: true }).int().positive().max(MAX_DELETED_TRIAL_COOLDOWN_HOURS).default(24)
+  ),
+  /** The e2e suite deletes trial accounts on its own inbox domain and signs up again from the same browser, so those deletions are not recorded. */
+  WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: z.preprocess(
+    blankToUndefined,
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/)
+      .optional()
+  ),
+  WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().default(1)),
   /** A browser fingerprint is shared by everyone behind one address with the same browser, so this switches that match off without touching the others. */
   WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: z.preprocess(
     blankToUndefined,

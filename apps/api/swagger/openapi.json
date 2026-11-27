@@ -37319,6 +37319,144 @@
         }
       }
     },
+    "/v1/user-templates/{id}/views": {
+      "post": {
+        "operationId": "createUserTemplateView",
+        "summary": "Count a signed-in user's view of a template's page, or their open of Configure from it, once a day",
+        "description": "Members of the organization that publishes a public template are not counted.",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateViewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The view counted, already counted today, or not counted for this viewer"
+          },
+          "400": {
+            "description": "The id is not a uuid, or the kind is unknown"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
+          }
+        }
+      }
+    },
+    "/v1/user-templates/{id}/insights": {
+      "get": {
+        "operationId": "getUserTemplateInsights",
+        "summary": "Tell how a template the caller may change is used: views, deployments and how they fared, by day and by version, with hints",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "default": "30",
+              "description": "How many days, up to and including today in UTC, the insights cover"
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The insights, counted on mainnet and without a public template's own organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTemplateInsightsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id is not a uuid, or the number of days is not 7, 30 or 90"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
+          }
+        }
+      }
+    },
     "/v1/community-templates": {
       "get": {
         "operationId": "listCommunityTemplates",
@@ -49984,6 +50122,304 @@
             },
             "required": [
               "reason"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateTemplateViewRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "page_view",
+                  "configure_open"
+                ],
+                "description": "Whether the template's page was viewed or Configure was opened from it"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TemplateInsightTotals": {
+        "type": "object",
+        "properties": {
+          "views": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "People who viewed the template's page, each counted once a day"
+          },
+          "configureOpens": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "People who opened Configure from it, each counted once a day"
+          },
+          "deploys": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Deployments made from it"
+          },
+          "leases": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Of those deployments, the ones that got a provider"
+          },
+          "stillRunning": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Of those deployments, the ones still running a day after they got a provider"
+          },
+          "decidedLeases": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Deployments that got a provider at least a day ago, so whether they kept running is known"
+          },
+          "forks": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leaseRate": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Share of deployments that got a provider, null while too few are behind it"
+          },
+          "stillRunningRate": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Share of the decided deployments still running a day later, null while too few are behind it"
+          },
+          "viewToDeployRate": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Deployments per view, null while too few are behind it"
+          }
+        },
+        "required": [
+          "views",
+          "configureOpens",
+          "deploys",
+          "leases",
+          "stillRunning",
+          "decidedLeases",
+          "forks",
+          "leaseRate",
+          "stillRunningRate",
+          "viewToDeployRate"
+        ]
+      },
+      "GetTemplateInsightsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "days": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true
+              },
+              "from": {
+                "type": "string",
+                "format": "date",
+                "description": "First UTC day covered"
+              },
+              "to": {
+                "type": "string",
+                "format": "date",
+                "description": "Last UTC day covered, today"
+              },
+              "current": {
+                "$ref": "#/components/schemas/TemplateInsightTotals"
+              },
+              "previous": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TemplateInsightTotals"
+                  },
+                  {
+                    "description": "The same numbers for the period of the same length just before"
+                  }
+                ]
+              },
+              "daily": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "day": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "views": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "People who viewed the template's page, each counted once a day"
+                    },
+                    "configureOpens": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "People who opened Configure from it, each counted once a day"
+                    },
+                    "deploys": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Deployments made from it"
+                    },
+                    "leases": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Of those deployments, the ones that got a provider"
+                    },
+                    "stillRunning": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Of those deployments, the ones still running a day after they got a provider"
+                    }
+                  },
+                  "required": [
+                    "day",
+                    "views",
+                    "configureOpens",
+                    "deploys",
+                    "leases",
+                    "stillRunning"
+                  ]
+                },
+                "description": "One entry per day, deployments counted on the day they were made"
+              },
+              "versions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "deploys": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "leases": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "decidedLeases": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "stillRunning": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "leaseRate": {
+                      "type": "number",
+                      "nullable": true,
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "Share of the version's deployments that got a provider, null while too few are behind it"
+                    },
+                    "stillRunningRate": {
+                      "type": "number",
+                      "nullable": true,
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "Share of the version's decided deployments still running a day later, null while too few are behind it"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "deploys",
+                    "leases",
+                    "decidedLeases",
+                    "stillRunning",
+                    "leaseRate",
+                    "stillRunningRate"
+                  ]
+                },
+                "description": "Every version ever deployed, over all time"
+              },
+              "hints": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "few_get_a_provider",
+                        "few_still_running",
+                        "latest_version_gets_fewer_providers",
+                        "latest_version_stops_more",
+                        "few_viewers_deploy",
+                        "deploys_growing",
+                        "running_well"
+                      ]
+                    },
+                    "tone": {
+                      "type": "string",
+                      "enum": [
+                        "warning",
+                        "info",
+                        "positive"
+                      ]
+                    },
+                    "value": {
+                      "type": "number",
+                      "description": "The rate or count the hint is about"
+                    },
+                    "previousValue": {
+                      "type": "number",
+                      "nullable": true,
+                      "description": "What the value is compared to, for a hint that compares"
+                    },
+                    "version": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "description": "The version the hint is about, for a hint about one"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "tone",
+                    "value",
+                    "previousValue",
+                    "version"
+                  ]
+                },
+                "description": "What the numbers suggest, warnings first"
+              }
+            },
+            "required": [
+              "days",
+              "from",
+              "to",
+              "current",
+              "previous",
+              "daily",
+              "versions",
+              "hints"
             ]
           }
         },

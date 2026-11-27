@@ -747,6 +747,22 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    createUserTemplateView: {
+      path: "/v1/user-templates/{id}/views",
+      method: "post",
+      operationId: "createUserTemplateView",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    getUserTemplateInsights: {
+      path: "/v1/user-templates/{id}/insights",
+      method: "get",
+      operationId: "getUserTemplateInsights",
+      pathParams: ["id"],
+      queryParams: ["days"],
+      hasBody: false
+    },
     listCommunityTemplates: {
       path: "/v1/community-templates",
       method: "get",

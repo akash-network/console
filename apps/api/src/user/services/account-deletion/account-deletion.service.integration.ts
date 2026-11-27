@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { createHash } from "crypto";
-import { addMinutes } from "date-fns";
+import { addMinutes, subHours } from "date-fns";
 import { eq, inArray, type SQL, sql } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import nock from "nock";
@@ -653,6 +653,27 @@ describe(AccountDeletionService.name, () => {
       ]);
     });
 
+    it("grants a trial to the same email and browser after the e2e suite deleted its trial account on the e2e inbox domain", async () => {
+      const { service, db, account, token, answerActiveDeployments, setEmailOf, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } =
+        await setup();
+      answerActiveDeployments([]);
+      const e2eEmailDomain = `e2e.${faker.string.alpha({ length: 12, casing: "lower" })}.test`;
+      limitReturningTrials({ cooldownHours: 4, e2eEmailDomain });
+      const email = await setEmailOf(account, `e2e-${faker.string.alphanumeric(8).toLowerCase()}@${e2eEmailDomain}`);
+      await db
+        .update(resolveTable("Users"))
+        .set({ emailVerified: true })
+        .where(eq(resolveTable("Users").id, account.user.id));
+      const fingerprint = await setFingerprintOf(account, faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }));
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+
+      await service.confirm({ token });
+      const { wallet, grantTrial } = await signUpAgain({ userId: `auth0|${faker.string.alphanumeric(24)}`, email, lastFingerprint: fingerprint });
+
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date), abuseLockedAt: null });
+    });
+
     it("grants a trial to a sign-up from the browser of a deleted trial account while fingerprint matching is switched off", async () => {
       const { service, account, token, answerActiveDeployments, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
       answerActiveDeployments([]);
@@ -673,13 +694,17 @@ describe(AccountDeletionService.name, () => {
     });
 
     it("grants a trial again to a returning account outside the configured limits", async () => {
-      const { service, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      const { service, db, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
       answerActiveDeployments([]);
-      limitReturningTrials({ maxReturns: 1 });
+      limitReturningTrials({ cooldownHours: 4, maxReturns: 1 });
       const email = await setEmailOf(account, faker.internet.email().toLowerCase());
       await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
 
       await service.confirm({ token });
+      await db
+        .update(resolveTable("DeletedTrialAccounts"))
+        .set({ createdAt: subHours(new Date(), 5) })
+        .where(eq(resolveTable("DeletedTrialAccounts").walletAddress, account.address));
       const { user, wallet, grantTrial, refusal } = await signUpAgain({ userId: account.user.userId!, email });
 
       expect(refusal).toBeUndefined();
@@ -988,14 +1013,15 @@ describe(AccountDeletionService.name, () => {
         .where(eq(resolveTable("UserWallets").id, wallet.id));
     }
 
-    function limitReturningTrials(limits: { cooldownHours?: number; maxReturns?: number; matchesFingerprint?: boolean }) {
+    function limitReturningTrials(limits: { cooldownHours: number; maxReturns?: number; matchesFingerprint?: boolean; e2eEmailDomain?: string }) {
       const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
       const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
       const overrides: Partial<Record<Parameters<typeof readWorkloadAbuseConfig>[0], unknown>> = {
         WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: 9,
         WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: limits.cooldownHours,
-        WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: limits.maxReturns,
-        WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: limits.matchesFingerprint ?? true
+        WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: limits.maxReturns ?? 5,
+        WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: limits.matchesFingerprint ?? true,
+        WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: limits.e2eEmailDomain
       };
       vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
         key in overrides ? overrides[key] : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);
