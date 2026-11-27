@@ -59,16 +59,6 @@ export class FundingWalletMoveRepository {
     return rows.map(({ move, fromAddress }) => ({ ...move, fromAddress }));
   }
 
-  async findCompletedUserWalletIds(fromFundingWalletId: string): Promise<number[]> {
-    const rows = await this.#cursor
-      .select({ userWalletId: this.table.userWalletId })
-      .from(this.table)
-      .where(and(eq(this.table.fromFundingWalletId, fromFundingWalletId), eq(this.table.status, "completed")))
-      .orderBy(asc(this.table.userWalletId));
-
-    return rows.map(({ userWalletId }) => userWalletId);
-  }
-
   /** Returns the move that already exists for this user wallet and source wallet rather than a second one, since its saved read is the balance being moved. */
   async createUnlessStarted(input: FundingWalletMoveInput): Promise<FundingWalletMoveOutput> {
     const [created] = await this.#cursor.insert(this.table).values(input).onConflictDoNothing().returning();
@@ -124,7 +114,8 @@ export class FundingWalletMoveRepository {
     const rows = await this.#cursor
       .select({ userWalletId: this.table.userWalletId })
       .from(this.table)
-      .where(and(eq(this.table.fromFundingWalletId, fromFundingWalletId), inArray(this.table.status, statuses)));
+      .where(and(eq(this.table.fromFundingWalletId, fromFundingWalletId), inArray(this.table.status, statuses)))
+      .orderBy(asc(this.table.userWalletId));
 
     return rows.map(({ userWalletId }) => userWalletId);
   }

@@ -193,18 +193,6 @@ describe(FundingWalletMoveRepository.name, () => {
     });
   });
 
-  describe("findCompletedUserWalletIds", () => {
-    it("lists the user wallets whose move off that funding wallet completed, in order", async () => {
-      const { repository, moveInput, from, otherSource } = await setup();
-      await repository.createUnlessStarted(moveInput({ status: "completed", userWalletId: 2002 }));
-      await repository.createUnlessStarted(moveInput({ status: "completed", userWalletId: 2001 }));
-      await repository.createUnlessStarted(moveInput({ status: "failed", userWalletId: 2003 }));
-      await repository.createUnlessStarted(moveInput({ status: "completed", userWalletId: 2004, fromFundingWalletId: otherSource.id }));
-
-      await expect(repository.findCompletedUserWalletIds(from.id)).resolves.toEqual([2001, 2002]);
-    });
-  });
-
   describe("countByStatus", () => {
     it("counts the moves off one source wallet by state", async () => {
       const { repository, moveInput, otherSource } = await setup();
@@ -224,18 +212,14 @@ describe(FundingWalletMoveRepository.name, () => {
   });
 
   describe("findUserWalletIdsByStatus", () => {
-    it("finds the user wallets whose move off one source wallet is in one of the given states", async () => {
-      const { repository, moveInput, otherSource } = await setup();
-      const [revoking, revoked] = await Promise.all(
-        (["revoking", "revoked", "completed"] as const).map((status, offset) =>
-          repository.createUnlessStarted(moveInput({ userWalletId: 2000 + offset, status }))
-        )
-      );
+    it("lists in order the user wallets whose move off one source wallet is in one of the given states", async () => {
+      const { repository, moveInput, from, otherSource } = await setup();
+      await repository.createUnlessStarted(moveInput({ userWalletId: 2002, status: "revoked" }));
+      await repository.createUnlessStarted(moveInput({ userWalletId: 2001, status: "revoking" }));
+      await repository.createUnlessStarted(moveInput({ userWalletId: 2003, status: "completed" }));
       await repository.createUnlessStarted(moveInput({ userWalletId: 2010, fromFundingWalletId: otherSource.id, status: "revoked" }));
 
-      const found = await repository.findUserWalletIdsByStatus(revoking.fromFundingWalletId, ["revoking", "revoked"]);
-
-      expect(new Set(found)).toEqual(new Set([revoking.userWalletId, revoked.userWalletId]));
+      await expect(repository.findUserWalletIdsByStatus(from.id, ["revoking", "revoked"])).resolves.toEqual([2001, 2002]);
     });
 
     it("finds nothing for a wallet no user was moved off", async () => {

@@ -251,7 +251,7 @@ describe(ReturnedEscrowService.name, () => {
       await expect(service.queueForEveryoneMovedOff(fundingWallet.address)).resolves.toEqual({ queued: 3 });
 
       expect(fundingWalletRepository.findByAddress).toHaveBeenCalledWith(NETWORK, fundingWallet.address);
-      expect(fundingWalletMoveRepository.findCompletedUserWalletIds).toHaveBeenCalledWith(fundingWallet.id);
+      expect(fundingWalletMoveRepository.findUserWalletIdsByStatus).toHaveBeenCalledWith(fundingWallet.id, ["completed"]);
       expect(jobQueueService.enqueue.mock.calls).toEqual(
         [11, 12, 13].map(userWalletId => [new CreditReturnedEscrow({ userWalletId }), { singletonKey: `${NETWORK}.${userWalletId}` }])
       );
@@ -328,7 +328,7 @@ describe(ReturnedEscrowService.name, () => {
     );
     fundingWalletRepository.findByAddress.mockResolvedValue(input.isFundingWalletKnown === false ? undefined : fundingWallet);
     fundingWalletMoveRepository.findCompletedOf.mockResolvedValue(moves);
-    fundingWalletMoveRepository.findCompletedUserWalletIds.mockResolvedValue(input.movedUserWalletIds ?? []);
+    fundingWalletMoveRepository.findUserWalletIdsByStatus.mockResolvedValue(input.movedUserWalletIds ?? []);
     deploymentAllowanceHistoryRepository.findRefundsLeftWithGranter.mockResolvedValue(
       (input.returned ?? []).map(returned => ({ height: 2000, dseq: "1", ...returned }))
     );

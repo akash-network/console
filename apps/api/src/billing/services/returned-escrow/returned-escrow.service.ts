@@ -77,7 +77,7 @@ export class ReturnedEscrowService {
 
     if (!fundingWallet) throw createError(404, `Funding wallet ${address} is not registered`, { network });
 
-    const userWalletIds = await this.fundingWalletMoveRepository.findCompletedUserWalletIds(fundingWallet.id);
+    const userWalletIds = await this.fundingWalletMoveRepository.findUserWalletIdsByStatus(fundingWallet.id, ["completed"]);
 
     for (const userWalletId of userWalletIds) {
       await this.jobQueueService.enqueue(new CreditReturnedEscrow({ userWalletId }), { singletonKey: creditReturnedEscrowKeyFor(network, userWalletId) });
