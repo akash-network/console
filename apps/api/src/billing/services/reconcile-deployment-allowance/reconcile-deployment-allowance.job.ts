@@ -8,6 +8,8 @@ export type AllowanceWrite = {
   readHeight: number;
   readLimit: number;
   sentAt: string;
+  /** The funding wallet whose grant was read and written, since the wallet backing the user may have changed by the time the write is checked; absent on a write recorded before a wallet could move. */
+  granter?: string;
 };
 
 export type AllowanceCheck = {

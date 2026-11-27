@@ -75,6 +75,27 @@ describe(ReconcileDeploymentAllowanceHandler.name, () => {
       expect(await findChecksOf(followUpHash)).toEqual([expect.objectContaining({ data: expect.objectContaining({ adjustment: 15_000_000, round: 1 }) })]);
     });
 
+    it("replays the window on the funding wallet the write names, after the wallet moved to another one", async () => {
+      const { chain, granter, readHeight, index, check, handle } = await setup();
+      vi.spyOn(container.resolve(FundingWalletRegistryService), "getGranterAddressByWalletId").mockResolvedValue(createAkashAddress());
+      await index.deposit({ height: readHeight + 2, amount: 7_000_000 });
+      const { write, ...rest } = await check({ landedAt: readHeight + 4 });
+
+      await handle({ ...rest, write: { ...write, granter } });
+
+      expect(chain.limit).toBe(readLimit + credit - 7_000_000);
+    });
+
+    it("finds nothing to restore on a funding wallet the write did not land on", async () => {
+      const { chain, readHeight, index, check, handle } = await setup();
+      await index.deposit({ height: readHeight + 2, amount: 7_000_000 });
+      const { write, ...rest } = await check({ landedAt: readHeight + 4 });
+
+      await handle({ ...rest, write: { ...write, granter: createAkashAddress() } });
+
+      expect(chain.limit).toBe(readLimit + credit);
+    });
+
     it("changes nothing for deposits outside the window or not drawn on the grant", async () => {
       const { chain, readHeight, granter, wallet, index, check, handle, findChecksOf, followUpHash, grant } = await setup();
       const otherGrantee = createAkashAddress();
@@ -321,7 +342,8 @@ describe(ReconcileDeploymentAllowanceHandler.name, () => {
     vi.spyOn(container.resolve(FundingWalletRegistryService), "getGranterAddressByWalletId").mockResolvedValue(granter);
     vi.spyOn(container.resolve(BalancesService), "retrieveDeploymentLimitAtLatestHeight").mockImplementation(async () => ({
       limit: chain.limit,
-      height: chain.height
+      height: chain.height,
+      granter
     }));
     const grant = vi.spyOn(container.resolve(ManagedUserWalletService), "authorizeDeploymentSpendingOnly").mockImplementation(async (_signer, { limit }) => {
       chain.limit = limit;

@@ -18,11 +18,13 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createPaymentCredit } from "@test/seeders/payment-credit.seeder";
 
+const GRANTER = createAkashAddress();
+
 describe(PaymentCreditService.name, () => {
   describe("creditOnce", () => {
     it("grants the current deployment limit plus the payment, records the credit as landed and watches the grant", async () => {
       const { service, credit, balancesService, managedUserWalletService, managedSignerService, paymentCreditRepository, deploymentAllowanceService } = setup();
-      balancesService.retrieveDeploymentLimitAtLatestHeight.mockResolvedValue({ limit: 500_000, height: 1234 });
+      balancesService.retrieveDeploymentLimitAtLatestHeight.mockResolvedValue({ limit: 500_000, height: 1234, granter: GRANTER });
 
       await service.creditOnce(credit);
 
@@ -36,14 +38,16 @@ describe(PaymentCreditService.name, () => {
       expect(managedUserWalletService.authorizeDeploymentSpendingOnly).toHaveBeenCalledWith(managedSignerService, {
         address: credit.wallet.address,
         derivationIndex: credit.wallet.id,
-        limit: 500_000 + credit.amountCents * 10000
+        limit: 500_000 + credit.amountCents * 10000,
+        readGranter: GRANTER
       });
       expect(paymentCreditRepository.markLanded).toHaveBeenCalledWith(credit.transactionId, "GRANT_HASH");
       expect(deploymentAllowanceService.watch).toHaveBeenCalledWith(credit.wallet, {
         txHash: "GRANT_HASH",
         readHeight: 1234,
         readLimit: 500_000,
-        sentAt: expect.any(String)
+        sentAt: expect.any(String),
+        granter: GRANTER
       });
     });
 
@@ -280,7 +284,7 @@ describe(PaymentCreditService.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
     paymentCreditRepository.findByTransactionId.mockResolvedValue(undefined);
-    balancesService.retrieveDeploymentLimitAtLatestHeight.mockResolvedValue({ limit: 0, height: 1 });
+    balancesService.retrieveDeploymentLimitAtLatestHeight.mockResolvedValue({ limit: 0, height: 1, granter: GRANTER });
     managedUserWalletService.authorizeDeploymentSpendingOnly.mockResolvedValue({ code: 0, hash: "GRANT_HASH", rawLog: "" });
 
     const credit = {

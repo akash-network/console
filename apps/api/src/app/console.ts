@@ -1,7 +1,7 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { createMongoAbility, type MongoAbility } from "@casl/ability";
 import { context, trace } from "@opentelemetry/api";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { once } from "lodash";
 import { Err } from "ts-results";
 import { container } from "tsyringe";
@@ -10,6 +10,7 @@ import { z } from "zod";
 import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { FundingWalletRotationService } from "@src/billing/services/funding-wallet-rotation/funding-wallet-rotation.service";
 import { GpuWinBackCatchUpService } from "@src/billing/services/gpu-win-back-catch-up/gpu-win-back-catch-up.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
@@ -20,6 +21,7 @@ import { ProviderController } from "@src/provider/controllers/provider/provider.
 import { DataKeyRekeyController } from "@src/secret/controllers/data-key-rekey/data-key-rekey.controller";
 import { DataKeyRewrapController } from "@src/secret/controllers/data-key-rewrap/data-key-rewrap.controller";
 import { TeamSecretsResealController } from "@src/secret/controllers/team-secrets-reseal/team-secrets-reseal.controller";
+import { AkashAddressSchema } from "@src/utils/schema";
 import { WorkloadAbuseController } from "@src/workload-abuse/controllers/workload-abuse.controller";
 import { APP_INITIALIZER, ON_APP_START } from "../core/providers/app-initializer";
 
@@ -232,6 +234,26 @@ program
   });
 
 program
+  .command("add-standby-funding-wallet")
+  .description("Record a funding wallet the signer already holds the key of, so it can be promoted later")
+  .requiredOption("-a, --address <string>", "Address of the wallet to keep on standby", parseAkashAddress)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletRotationService).addStandby(options.address);
+    });
+  });
+
+program
+  .command("promote-funding-wallet")
+  .description("Issue new grants from a standby funding wallet; the wallet it replaces keeps backing its users until each of them is moved")
+  .requiredOption("-a, --address <string>", "Address of the standby wallet to promote", parseAkashAddress)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletRotationService).promote(options.address);
+    });
+  });
+
+program
   .command("link-auth0-accounts")
   .description("Interactively link a secondary Auth0 account into a primary one (Auth0 only, no DB writes)")
   .action(async (options, command) => {
@@ -241,6 +263,14 @@ program
   });
 
 const logger = createOtelLogger({ context: "CLI" });
+
+function parseAkashAddress(value: string) {
+  const address = AkashAddressSchema.safeParse(value);
+
+  if (!address.success) throw new InvalidArgumentError("must be a valid akash address");
+
+  return address.data;
+}
 
 async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {

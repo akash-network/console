@@ -78,16 +78,16 @@ export class BalancesService {
     return this.#deploymentLimitOf(await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!));
   }
 
-  /** The height is where a write based on this limit starts overwriting what lands after it. */
+  /** The height is where a write based on this limit starts overwriting what lands after it, on the grant of the funding wallet it names. */
   @Trace()
-  async retrieveDeploymentLimitAtLatestHeight(userWallet: Pick<UserWalletOutput, "address">): Promise<{ limit: number; height: number }> {
+  async retrieveDeploymentLimitAtLatestHeight(userWallet: Pick<UserWalletOutput, "address">): Promise<{ limit: number; height: number; granter: string }> {
     const [fundingWalletAddress, height] = await Promise.all([
       this.fundingWalletRegistry.getGranterAddressByWalletAddress(userWallet.address!),
       this.blockHttpService.getFreshCurrentHeight()
     ]);
     const grant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!, { height });
 
-    return { limit: this.#deploymentLimitOf(grant), height };
+    return { limit: this.#deploymentLimitOf(grant), height, granter: fundingWalletAddress };
   }
 
   #deploymentLimitOf(grant: ExactDepositDeploymentGrant | undefined): number {

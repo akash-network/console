@@ -6,7 +6,7 @@ import add from "date-fns/add";
 import isAfter from "date-fns/isAfter";
 import subDays from "date-fns/subDays";
 import assert from "http-assert";
-import { BadGateway } from "http-errors";
+import createError, { BadGateway } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { getTrialEndsAt, getTrialStartedAt } from "@src/billing/lib/trial-window/trial-window";
@@ -114,13 +114,15 @@ export class ManagedUserWalletService {
     this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
   }
 
-  /** Sets only the deployment allowance and returns its funding tx, so the caller can record whether the grant landed. */
+  /** Sets only the deployment allowance and returns its funding tx, so the caller can record whether the grant landed; refuses a limit computed from another funding wallet's grant than the one it would be written to. */
   @Trace()
   async authorizeDeploymentSpendingOnly(
     signer: ManagedSignerService,
-    { address, derivationIndex, limit }: { address: string; derivationIndex: number; limit: number }
+    { address, derivationIndex, limit, readGranter }: { address: string; derivationIndex: number; limit: number; readGranter: string }
   ) {
     const granter = await this.fundingWalletRegistry.assignGranterAddress(derivationIndex);
+
+    if (granter !== readGranter) throw createError(409, "The funding wallet changed since this balance was read, try again", { address });
 
     return await this.authorizeDeploymentSpending(
       signer,

@@ -16,6 +16,7 @@ import { JOB_NAME } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { REFUND_DEBIT_UNDECIDED_ERROR_CODE, RefundDebitService } from "./refund-debit.service";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { deleteQueuedJobs, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -158,7 +159,8 @@ describe(RefundDebitService.name, () => {
     const managedUserWalletService = container.resolve(ManagedUserWalletService);
 
     vi.spyOn(container.resolve(AnalyticsService), "track").mockReturnValue(undefined);
-    vi.spyOn(balancesService, "retrieveDeploymentLimitAtLatestHeight").mockImplementation(async () => ({ limit: chain.limit, height: chain.height }));
+    const granter = createAkashAddress();
+    vi.spyOn(balancesService, "retrieveDeploymentLimitAtLatestHeight").mockImplementation(async () => ({ limit: chain.limit, height: chain.height, granter }));
     const fakes = {
       refreshUserWalletLimits: vi.spyOn(balancesService, "refreshUserWalletLimits").mockResolvedValue(undefined),
       authorizeSpending: vi.spyOn(managedUserWalletService, "authorizeSpending").mockResolvedValue(undefined),

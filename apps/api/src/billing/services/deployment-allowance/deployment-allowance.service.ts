@@ -45,7 +45,7 @@ export class DeploymentAllowanceService {
     const watchFor = (txHash: string) =>
       this.scheduleCheck({
         wallet,
-        write: { txHash, readHeight: read.height, readLimit: read.limit, sentAt },
+        write: { txHash, readHeight: read.height, readLimit: read.limit, sentAt, granter: read.granter },
         adjustment: redo ? delta : 0,
         round,
         attempt: 0
@@ -55,7 +55,8 @@ export class DeploymentAllowanceService {
       const tx = await this.managedUserWalletService.authorizeDeploymentSpendingOnly(this.managedSignerService, {
         address: wallet.address,
         derivationIndex: wallet.id,
-        limit: nextLimit
+        limit: nextLimit,
+        readGranter: read.granter
       });
 
       if (tx && tx.code !== COSMOS_TX_CODE_OK) throw createError(502, "The chain refused the deployment allowance grant", { txHash: tx.hash });
