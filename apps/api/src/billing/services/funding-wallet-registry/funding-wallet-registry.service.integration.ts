@@ -26,7 +26,7 @@ describe(FundingWalletRegistryService.name, () => {
     await expect(service.getGranterAddressByWalletId(wallet.id)).resolves.toBe(configuredAddress);
     await expect(service.getGranterAddressByWalletAddress(wallet.address!)).resolves.toBe(configuredAddress);
 
-    await expect(repository.hasAny(network)).resolves.toBe(false);
+    await expect(repository.findActiveOrAny(network)).resolves.toBeUndefined();
   });
 
   it("registers the configured wallet on a first grant and puts the existing user wallets on it", async () => {
@@ -89,7 +89,7 @@ describe(FundingWalletRegistryService.name, () => {
       })
     ).rejects.toThrow("rolled back");
 
-    await expect(repository.hasAny(network)).resolves.toBe(false);
+    await expect(repository.findActiveOrAny(network)).resolves.toBeUndefined();
     await expect(repository.findGranterOf(wallet.id, network)).resolves.toBeUndefined();
 
     await expect(service.assignGranterAddress(wallet.id)).resolves.toBe(configuredAddress);
