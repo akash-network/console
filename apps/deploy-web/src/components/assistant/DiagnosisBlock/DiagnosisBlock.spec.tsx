@@ -27,6 +27,12 @@ describe(DiagnosisBlock.name, () => {
     expect(screen.getByText("The lease closed because the provider left.")).toBeInTheDocument();
   });
 
+  it("lets the summary take the direction of the language it is written in", () => {
+    setup({ diagnosis: { summary: "النموذج محمي ولم يتم تعيين HF_TOKEN.", evidence: ["OSError: You are trying to access a gated repo."] } });
+
+    expect(screen.getByText("النموذج محمي ولم يتم تعيين HF_TOKEN.")).toHaveAttribute("dir", "auto");
+  });
+
   function setup(input: { diagnosis: AssistantDiagnosis }) {
     render(
       <DiagnosisBlock diagnosis={input.diagnosis}>

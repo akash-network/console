@@ -11,8 +11,8 @@ const USER_WALLET_ID = 42;
 const KEY = "sandbox.42";
 
 describe(FundingWalletMoveQueueService.name, () => {
-  it("ranks a waiting user above one with a running deployment, and that one above the rest", () => {
-    expect(FUNDING_WALLET_MOVE_PRIORITY).toEqual({ rest: 0, hasOpenDeployment: 1, isWaiting: 2 });
+  it("ranks a waiting user above a move that stopped halfway, that one above a running deployment, and that one above the rest", () => {
+    expect(FUNDING_WALLET_MOVE_PRIORITY).toEqual({ rest: 0, hasOpenDeployment: 1, isUnfinished: 2, isWaiting: 3 });
   });
 
   describe("queue", () => {
@@ -32,28 +32,44 @@ describe(FundingWalletMoveQueueService.name, () => {
   });
 
   describe("queueAheadOfOthers", () => {
-    it("calls off the move the user wallet has queued and queues it again at the top priority, outside the caller's transaction", async () => {
-      const { service, jobQueueService, calls } = setup();
+    it.each([1, 2])(
+      "raises the %i move(s) the user wallet has waiting to the top priority and queues no other, outside the caller's transaction",
+      async waiting => {
+        const { service, jobQueueService, calls } = setup({ waiting });
+
+        await service.queueAheadOfOthers(NETWORK, USER_WALLET_ID);
+
+        expect(jobQueueService.prioritizeWaitingBy).toHaveBeenCalledWith({ name: "MoveUserToActiveFundingWallet", singletonKey: KEY, priority: 3 });
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+        expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+        expect(calls).toEqual(["outsideTransaction:start", "prioritizeWaitingBy", "outsideTransaction:end"]);
+      }
+    );
+
+    it("queues a move at the top priority when the user wallet has none waiting, outside the caller's transaction", async () => {
+      const { service, jobQueueService, calls } = setup({ waiting: 0 });
 
       await service.queueAheadOfOthers(NETWORK, USER_WALLET_ID);
 
-      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({ name: "MoveUserToActiveFundingWallet", singletonKey: KEY });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new MoveUserToActiveFundingWallet({ userWalletId: USER_WALLET_ID }), {
         singletonKey: KEY,
-        priority: 2
+        priority: 3
       });
-      expect(calls).toEqual(["outsideTransaction:start", "cancelCreatedBy", "enqueue", "outsideTransaction:end"]);
+      expect(calls).toEqual(["outsideTransaction:start", "prioritizeWaitingBy", "enqueue", "outsideTransaction:end"]);
     });
 
-    it.each(["cancelCreatedBy", "enqueue"] as const)("logs and does not throw when %s fails, so the caller still answers with its refusal", async failing => {
-      const { service, jobQueueService, logger } = setup();
-      const error = new Error("queue unavailable");
-      jobQueueService[failing].mockRejectedValue(error);
+    it.each(["prioritizeWaitingBy", "enqueue"] as const)(
+      "logs and does not throw when %s fails, so the caller still answers with its refusal",
+      async failing => {
+        const { service, jobQueueService, logger } = setup();
+        const error = new Error("queue unavailable");
+        jobQueueService[failing].mockRejectedValue(error);
 
-      await expect(service.queueAheadOfOthers(NETWORK, USER_WALLET_ID)).resolves.toBeUndefined();
+        await expect(service.queueAheadOfOthers(NETWORK, USER_WALLET_ID)).resolves.toBeUndefined();
 
-      expect(logger.error).toHaveBeenCalledWith({ event: "FUNDING_WALLET_MOVE_QUEUE_AHEAD_FAILED", network: NETWORK, userWalletId: USER_WALLET_ID, error });
-    });
+        expect(logger.error).toHaveBeenCalledWith({ event: "FUNDING_WALLET_MOVE_QUEUE_AHEAD_FAILED", network: NETWORK, userWalletId: USER_WALLET_ID, error });
+      }
+    );
 
     it("logs nothing when the move is queued", async () => {
       const { service, logger } = setup();
@@ -70,15 +86,16 @@ describe(FundingWalletMoveQueueService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: FundingWalletMoveQueueService.name });
   });
 
-  function setup() {
+  function setup(input: { waiting?: number } = {}) {
     const calls: string[] = [];
     const jobQueueService = mock<JobQueueService>();
     const txService = mock<TxService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    jobQueueService.cancelCreatedBy.mockImplementation(async () => {
-      calls.push("cancelCreatedBy");
+    jobQueueService.prioritizeWaitingBy.mockImplementation(async () => {
+      calls.push("prioritizeWaitingBy");
+      return input.waiting ?? 0;
     });
     jobQueueService.enqueue.mockImplementation(async () => {
       calls.push("enqueue");

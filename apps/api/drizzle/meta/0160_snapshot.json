@@ -1,6 +1,6 @@
 {
-  "id": "554c2fb2-5a92-40c2-b503-84819bffd2dd",
-  "prevId": "a9922614-42a9-4e44-8cb7-e476218619e0",
+  "id": "aeea09d3-202d-4729-8256-21a3559aab61",
+  "prevId": "3b05adeb-279e-41db-98f1-bd1cc38362e3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1709,119 +1709,6 @@
           "tableTo": "funding_wallets",
           "columnsFrom": [
             "to_funding_wallet_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.funding_wallet_refunds": {
-      "name": "funding_wallet_refunds",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuid_generate_v4()"
-        },
-        "move_id": {
-          "name": "move_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tx_hash": {
-          "name": "tx_hash",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "msg_index": {
-          "name": "msg_index",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "funding_wallet_refund_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "failure": {
-          "name": "failure",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "funding_wallet_refunds_move_message_unique": {
-          "name": "funding_wallet_refunds_move_message_unique",
-          "columns": [
-            {
-              "expression": "move_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "tx_hash",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "msg_index",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "funding_wallet_refunds_move_id_funding_wallet_moves_id_fk": {
-          "name": "funding_wallet_refunds_move_id_funding_wallet_moves_id_fk",
-          "tableFrom": "funding_wallet_refunds",
-          "tableTo": "funding_wallet_moves",
-          "columnsFrom": [
-            "move_id"
           ],
           "columnsTo": [
             "id"
@@ -10199,6 +10086,124 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.template_view_events": {
+      "name": "template_view_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuid_generate_v4()"
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "template_view_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viewer_key": {
+          "name": "viewer_key",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_publisher": {
+          "name": "from_publisher",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "network": {
+          "name": "network",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viewed_on": {
+          "name": "viewed_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "template_view_events_once_per_day_unique": {
+          "name": "template_view_events_once_per_day_unique",
+          "columns": [
+            {
+              "expression": "template_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewed_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewer_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "template_view_events_template_id_template_id_fk": {
+          "name": "template_view_events_template_id_template_id_fk",
+          "tableFrom": "template_view_events",
+          "tableTo": "template",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -10274,16 +10279,6 @@
         "revoked",
         "crediting",
         "completed",
-        "failed"
-      ]
-    },
-    "public.funding_wallet_refund_status": {
-      "name": "funding_wallet_refund_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "crediting",
-        "credited",
         "failed"
       ]
     },
@@ -10787,6 +10782,14 @@
         "held",
         "failed_checks",
         "rejected"
+      ]
+    },
+    "public.template_view_kind": {
+      "name": "template_view_kind",
+      "schema": "public",
+      "values": [
+        "page_view",
+        "configure_open"
       ]
     }
   },

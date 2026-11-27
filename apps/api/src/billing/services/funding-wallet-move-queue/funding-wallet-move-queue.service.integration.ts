@@ -29,16 +29,22 @@ describe(FundingWalletMoveQueueService.name, () => {
     await expect(findMoves()).resolves.toEqual([{ state: "created", priority: 1, userWalletId, isDue: false }]);
   });
 
-  it("replaces the queued move of a user wallet with one that is due now and runs before the others", async () => {
+  it("makes the queued move of a user wallet due now and ahead of the others, however often it is asked, without queueing another", async () => {
     const { service, network, userWalletId, findMoves } = await setup();
     await service.queue({ network, userWalletId, priority: 0, startAfter: new Date(Date.now() + 10 * 60_000) });
 
     await service.queueAheadOfOthers(network, userWalletId);
     await service.queueAheadOfOthers(network, userWalletId);
 
-    const moves = await findMoves();
-    expect(moves.filter(move => move.state === "created")).toEqual([{ state: "created", priority: 2, userWalletId, isDue: true }]);
-    expect(moves.filter(move => move.state === "cancelled")).toHaveLength(2);
+    await expect(findMoves()).resolves.toEqual([{ state: "created", priority: 3, userWalletId, isDue: true }]);
+  });
+
+  it("queues a move that is due now and ahead of the others for a user wallet that has none queued", async () => {
+    const { service, network, userWalletId, findMoves } = await setup();
+
+    await service.queueAheadOfOthers(network, userWalletId);
+
+    await expect(findMoves()).resolves.toEqual([{ state: "created", priority: 3, userWalletId, isDue: true }]);
   });
 
   it("leaves the queued moves of other user wallets as they are", async () => {
@@ -62,7 +68,7 @@ describe(FundingWalletMoveQueueService.name, () => {
       })
     ).rejects.toBe(refusal);
 
-    await expect(findMoves()).resolves.toEqual([{ state: "created", priority: 2, userWalletId, isDue: true }]);
+    await expect(findMoves()).resolves.toEqual([{ state: "created", priority: 3, userWalletId, isDue: true }]);
   });
 
   async function setup() {

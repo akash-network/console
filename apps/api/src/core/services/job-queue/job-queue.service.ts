@@ -393,6 +393,29 @@ export class JobQueueService implements Disposable {
     return result.rows.length > 0;
   }
 
+  /** Raises the jobs still waiting under this key and makes them due now in one statement, where a cancel followed by an enqueue that fails leaves the key with no job. */
+  async prioritizeWaitingBy(query: { name: string; singletonKey: string; priority: number }): Promise<number> {
+    const connection = this.txService.getConnection();
+    const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        UPDATE ${schema}.job
+        SET priority = $3,
+          start_after = now()
+        WHERE name = $1
+          AND singleton_key = $2
+          AND state IN ('created', 'retry')
+        RETURNING id
+      `,
+      [query.name, query.singletonKey, query.priority]
+    )) as { rows: { id: string }[] };
+
+    this.logger.info({ event: "JOBS_PRIORITIZED", name: query.name, priority: query.priority, jobIds: result.rows.map(row => row.id) });
+
+    return result.rows.length;
+  }
+
   async cancelCreatedBy(query: { name: string; singletonKey: string }): Promise<void> {
     const connection = this.txService.getConnection();
     const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();

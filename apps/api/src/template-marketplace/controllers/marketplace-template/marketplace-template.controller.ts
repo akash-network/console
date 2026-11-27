@@ -7,6 +7,11 @@ import type {
   TemplateVersionSummaryResponse
 } from "@src/template-marketplace/http-schemas/marketplace-template.schema";
 import type {
+  CreateTemplateViewRequest,
+  GetTemplateInsightsQuery,
+  GetTemplateInsightsResponse
+} from "@src/template-marketplace/http-schemas/template-insights.schema";
+import type {
   GetPublishReadinessResponse,
   PublishUserTemplateRequest,
   PublishUserTemplateResponse
@@ -22,6 +27,7 @@ import type {
   UpdateUserTemplateRequest,
   UpdateUserTemplateResponse
 } from "@src/template-marketplace/http-schemas/template-writes.schema";
+import type { InsightPeriodDays } from "@src/template-marketplace/lib/template-insights/template-insights";
 import {
   type ListedTemplateVersion,
   type MarketplaceTemplateOutput,
@@ -29,8 +35,10 @@ import {
   type PublishedTemplateVersion,
   type UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import { TemplateInsightsService } from "@src/template-marketplace/services/template-insights/template-insights.service";
 import { TemplatePublishService } from "@src/template-marketplace/services/template-publish/template-publish.service";
 import { TemplateReportService } from "@src/template-marketplace/services/template-report/template-report.service";
+import { TemplateViewService } from "@src/template-marketplace/services/template-view/template-view.service";
 import { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 
 function toVersionSummaryResponse({ createdById: _createdById, createdAt, reviewedAt, ...version }: ListedTemplateVersion): TemplateVersionSummaryResponse {
@@ -71,13 +79,17 @@ function toListItemResponse({ updatedAt, publishedAt, currentVersion, usage, ...
   };
 }
 
+const INSIGHT_PERIOD_OF_QUERY = { "7": 7, "30": 30, "90": 90 } satisfies Record<GetTemplateInsightsQuery["days"], InsightPeriodDays>;
+
 @singleton()
 export class MarketplaceTemplateController {
   constructor(
     private readonly marketplaceTemplateService: MarketplaceTemplateService,
     private readonly templateWriterService: TemplateWriterService,
     private readonly templatePublishService: TemplatePublishService,
-    private readonly templateReportService: TemplateReportService
+    private readonly templateReportService: TemplateReportService,
+    private readonly templateViewService: TemplateViewService,
+    private readonly templateInsightsService: TemplateInsightsService
   ) {}
 
   async getTemplate(id: string): Promise<GetUserTemplateResponse> {
@@ -110,6 +122,14 @@ export class MarketplaceTemplateController {
     const { createdAt, ...report } = await this.templateReportService.report(id, data);
 
     return { data: { ...report, createdAt: createdAt.toISOString() } };
+  }
+
+  async recordView(id: string, { data }: CreateTemplateViewRequest): Promise<void> {
+    await this.templateViewService.recordView(id, data.kind);
+  }
+
+  async getInsights(id: string, { days }: GetTemplateInsightsQuery): Promise<GetTemplateInsightsResponse> {
+    return { data: await this.templateInsightsService.getInsights(id, INSIGHT_PERIOD_OF_QUERY[days]) };
   }
 
   async deleteTemplate(id: string): Promise<void> {

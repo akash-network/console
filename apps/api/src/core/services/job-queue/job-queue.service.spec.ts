@@ -540,6 +540,42 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("prioritizeWaitingBy", () => {
+    it("raises the jobs under the key that no worker holds yet, makes them due now and reports how many", async () => {
+      const { service, pgBoss, txService, logger } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ id: "job-1" }, { id: "job-2" }] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await expect(service.prioritizeWaitingBy({ name: "test-job", singletonKey: "singleton-1", priority: 3 })).resolves.toBe(2);
+
+      expect(executeSql).toHaveBeenCalledTimes(1);
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry')"), ["test-job", "singleton-1", 3]);
+      expect(executeSql).toHaveBeenCalledWith(expect.stringMatching(/SET priority = \$3,\s+start_after = now\(\)/), expect.anything());
+      expect(logger.info).toHaveBeenCalledWith({ event: "JOBS_PRIORITIZED", name: "test-job", priority: 3, jobIds: ["job-1", "job-2"] });
+    });
+
+    it("reports none when nothing under the key is still waiting", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: vi.fn().mockResolvedValue({ rows: [] }) });
+
+      await expect(service.prioritizeWaitingBy({ name: "test-job", singletonKey: "singleton-1", priority: 3 })).resolves.toBe(0);
+    });
+
+    it("writes on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ id: "job-1" }]);
+      txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await expect(service.prioritizeWaitingBy({ name: "test-job", singletonKey: "singleton-1", priority: 3 })).resolves.toBe(1);
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("singleton_key = $2"), ["test-job", "singleton-1", 3]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cancelCreatedBy", () => {
     it("cancels created jobs on the pg-boss connection when no transaction is active", async () => {
       const { service, pgBoss, txService } = setup();

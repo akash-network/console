@@ -50,6 +50,7 @@ type QueueRow = {
 
 type JobRow = {
   state: string;
+  priority: number;
   output: unknown;
   retry_limit: number;
   retry_backoff: boolean;
@@ -185,6 +186,54 @@ describe(JobQueueService.name, () => {
     await jobQueue.cancelCreatedBy({ name: "cancel-retrying", singletonKey });
 
     expect((await findJob()).state).toBe("cancelled");
+  });
+
+  it("raises the job waiting under a key and makes it due now, and leaves the jobs of other keys as they are", async () => {
+    const { jobQueue, handler, enqueue, findJobs } = await setup({ queueName: "prioritize-waiting", policy: "singleton" });
+    await jobQueue.registerHandlers([handler]);
+    const startAfter = addMinutes(new Date(), 10).toISOString();
+    await enqueue({ singletonKey: "row-1", startAfter });
+    await enqueue({ singletonKey: "row-2", startAfter });
+
+    await expect(jobQueue.prioritizeWaitingBy({ name: "prioritize-waiting", singletonKey: "row-1", priority: 3 })).resolves.toBe(1);
+
+    const [raised, other] = await findJobs();
+    expect(raised).toMatchObject({ state: "created", priority: 3 });
+    expect(new Date(raised.start_after).getTime()).toBeLessThan(addSeconds(new Date(), 5).getTime());
+    expect(other).toMatchObject({ state: "created", priority: 0 });
+    expect(new Date(other.start_after).getTime()).toBeGreaterThan(addMinutes(new Date(), 5).getTime());
+  });
+
+  it("raises a job that is waiting on a retry", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "prioritize-retrying", handle: vi.fn().mockRejectedValue(new Error("boom")) });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "retry");
+
+    await expect(jobQueue.prioritizeWaitingBy({ name: "prioritize-retrying", singletonKey, priority: 3 })).resolves.toBe(1);
+
+    expect((await findJob()).priority).toBe(3);
+  });
+
+  it("raises nothing once a worker holds the job", async () => {
+    const singletonKey = "row-1";
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "prioritize-active", handle: () => held });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "active");
+
+    await expect(jobQueue.prioritizeWaitingBy({ name: "prioritize-active", singletonKey, priority: 3 })).resolves.toBe(0);
+
+    expect((await findJob()).priority).toBe(0);
+    release();
+    await waitForJobState(findJob, "completed");
   });
 
   it("reports a job waiting under the key when it is not due before the instant asked about", async () => {
@@ -445,7 +494,7 @@ describe(JobQueueService.name, () => {
 
     const findJobs = async () => {
       const rows = await db.execute<JobRow>(
-        sql`select state, output, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
+        sql`select state, priority, output, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
             from ${backgroundJobsSchema()}.job where name = ${queueName} order by created_on`
       );
 
