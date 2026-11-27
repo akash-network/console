@@ -10,6 +10,9 @@ import { ReturnedEscrowService } from "./returned-escrow.service";
 export class CreditReturnedEscrowHandler implements JobHandler<CreditReturnedEscrow> {
   public readonly accepts = CreditReturnedEscrow;
 
+  /** With the per-user-wallet singletonKey of its jobs, keeps two checks of one user from running at once, which a `standard` queue would not. */
+  public readonly policy = "singleton";
+
   constructor(
     private readonly returnedEscrowService: ReturnedEscrowService,
     private readonly deploymentAllowanceHistoryRepository: DeploymentAllowanceHistoryRepository

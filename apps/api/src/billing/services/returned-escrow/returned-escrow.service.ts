@@ -1,3 +1,4 @@
+import { addMilliseconds, addMinutes } from "date-fns";
 import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
@@ -16,7 +17,10 @@ import { DeploymentAllowanceService } from "@src/billing/services/deployment-all
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-import { CreditReturnedEscrow } from "./credit-returned-escrow.job";
+import { CreditReturnedEscrow, creditReturnedEscrowKeyFor } from "./credit-returned-escrow.job";
+
+/** Clock-skew slack on the time a credit another run is sending can take, which is one TX_SIGNER_REQUEST_TIMEOUT_MS. */
+const CREDIT_IN_FLIGHT_MARGIN_IN_MIN = 1;
 
 export type ReturnedEscrowCredit = { credited: number; needsReview: number };
 
@@ -76,7 +80,7 @@ export class ReturnedEscrowService {
     const userWalletIds = await this.fundingWalletMoveRepository.findCompletedUserWalletIds(fundingWallet.id);
 
     for (const userWalletId of userWalletIds) {
-      await this.jobQueueService.enqueue(new CreditReturnedEscrow({ userWalletId }));
+      await this.jobQueueService.enqueue(new CreditReturnedEscrow({ userWalletId }), { singletonKey: creditReturnedEscrowKeyFor(network, userWalletId) });
     }
 
     this.#logger.info({ event: "RETURNED_ESCROW_CREDITS_QUEUED", network, address, queued: userWalletIds.length });
@@ -100,14 +104,18 @@ export class ReturnedEscrowService {
   }
 
   /** Marked as crediting before the grant is sent, so a run that dies in between is never mistaken for one that sent nothing. */
-  async #credit(refund: FundingWalletRefundOutput, wallet: CreditedWallet): Promise<"credited" | "needs_review" | "nothing_to_do"> {
-    if (refund.status === "credited") return "nothing_to_do";
+  async #credit(refund: FundingWalletRefundOutput, wallet: CreditedWallet): Promise<"credited" | "needs_review" | undefined> {
+    if (refund.status === "credited") return undefined;
     if (refund.status === "failed") return "needs_review";
-    if (refund.status === "crediting") return await this.#flagForReview(refund, "the credit was interrupted, so it may or may not be on chain");
+    if (refund.status === "crediting") {
+      if (this.#mayStillBeCrediting(refund)) return undefined;
+
+      return await this.#flagForReview(refund, "the credit was interrupted, so it may or may not be on chain");
+    }
 
     const crediting = await this.fundingWalletRefundRepository.updateFrom(refund.id, "pending", { status: "crediting" });
 
-    if (!crediting) return "nothing_to_do";
+    if (!crediting) return undefined;
 
     try {
       await this.deploymentAllowanceService.adjust(wallet, crediting.amount, { redo: true });
@@ -120,7 +128,13 @@ export class ReturnedEscrowService {
       if (!error.txHash) return await this.#flagForReview(crediting, "the signer could not tell whether the credit was sent");
     }
 
-    await this.fundingWalletRefundRepository.updateFrom(crediting.id, "crediting", { status: "credited" });
+    const credited = await this.fundingWalletRefundRepository.updateFrom(crediting.id, "crediting", { status: "credited" });
+
+    if (!credited) {
+      this.#logger.error({ event: "RETURNED_ESCROW_CREDIT_NOT_RECORDED", userWalletId: wallet.id, refundId: crediting.id, txHash: crediting.txHash });
+      return "needs_review";
+    }
+
     this.#logger.info({
       event: "RETURNED_ESCROW_CREDITED",
       userWalletId: wallet.id,
@@ -130,6 +144,16 @@ export class ReturnedEscrowService {
     });
 
     return "credited";
+  }
+
+  /** A refund another run marked a moment ago may have its credit on the way to the signer, so only one left that way for longer than a send can take counts as interrupted. */
+  #mayStillBeCrediting(refund: FundingWalletRefundOutput): boolean {
+    const sendEndsAt = addMinutes(
+      addMilliseconds(refund.updatedAt, this.billingConfigService.get("TX_SIGNER_REQUEST_TIMEOUT_MS")),
+      CREDIT_IN_FLIGHT_MARGIN_IN_MIN
+    );
+
+    return new Date() < sendEndsAt;
   }
 
   async #flagForReview(refund: FundingWalletRefundOutput, failure: string): Promise<"needs_review"> {

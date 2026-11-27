@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { FundingWalletMoveRepository } from "@src/billing/repositories";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-import { CreditReturnedEscrow } from "./credit-returned-escrow.job";
+import { CreditReturnedEscrow, creditReturnedEscrowKeyFor } from "./credit-returned-escrow.job";
 
 /** Gives the chain index time to store the close before the first attempt, which fails and is retried when it has not. */
 const INDEX_DELAY_IN_SECONDS = 60;
@@ -26,11 +26,13 @@ export class ReturnedEscrowQueueService {
   /** Queues nothing for a user wallet that was never moved off a funding wallet, and never fails the close it follows. */
   async queueAfterClose(userWalletId: number, closeTxHash: string): Promise<void> {
     try {
-      const moves = await this.fundingWalletMoveRepository.findCompletedOf(userWalletId, this.coreConfigService.get("NETWORK"));
+      const network = this.coreConfigService.get("NETWORK");
+      const moves = await this.fundingWalletMoveRepository.findCompletedOf(userWalletId, network);
 
       if (moves.length === 0) return;
 
       await this.jobQueueService.enqueue(new CreditReturnedEscrow({ userWalletId, closeTxHash }), {
+        singletonKey: creditReturnedEscrowKeyFor(network, userWalletId),
         startAfter: addSeconds(new Date(), INDEX_DELAY_IN_SECONDS)
       });
     } catch (error) {

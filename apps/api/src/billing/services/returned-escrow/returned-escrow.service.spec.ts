@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type {
@@ -28,8 +28,14 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 const NETWORK = "sandbox";
 const USER_WALLET_ID = 7;
 const NOW = new Date("2026-11-27T12:00:00.000Z");
+const SIGNER_TIMEOUT_MS = 180_000;
+const SEND_CAN_TAKE_MS = SIGNER_TIMEOUT_MS + 60_000;
 
 describe(ReturnedEscrowService.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe("creditTo", () => {
     it("credits nothing for a user wallet that does not exist or has no address", async () => {
       const missing = setup({ wallet: null });
@@ -114,16 +120,50 @@ describe(ReturnedEscrowService.name, () => {
     });
 
     it("credits nothing again for a close it credited on an earlier run", async () => {
-      const { service, deploymentAllowanceService } = setup({ returned: [{ txHash: "CLOSE_A", msgIndex: 0, receivedByGranter: ["500000uact"] }] });
+      const { service, deploymentAllowanceService, fundingWalletRefundRepository } = setup({
+        returned: [{ txHash: "CLOSE_A", msgIndex: 0, receivedByGranter: ["500000uact"] }]
+      });
       await service.creditTo(USER_WALLET_ID);
+      fundingWalletRefundRepository.updateFrom.mockClear();
 
       await expect(service.creditTo(USER_WALLET_ID)).resolves.toEqual({ credited: 0, needsReview: 0 });
 
       expect(deploymentAllowanceService.adjust).toHaveBeenCalledTimes(1);
+      expect(fundingWalletRefundRepository.updateFrom).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a moment ago", 0],
+      ["one millisecond short of the time a send can take", SEND_CAN_TAKE_MS - 1]
+    ])("leaves alone a refund another run marked as crediting %s, since that credit may still be on its way", async (_case, ageInMs) => {
+      const { service, deploymentAllowanceService, refunds, logger } = setup({
+        recorded: [{ status: "crediting", amount: 500_000, updatedAt: new Date(NOW.getTime() - ageInMs) }]
+      });
+
+      await expect(service.creditTo(USER_WALLET_ID)).resolves.toEqual({ credited: 0, needsReview: 0 });
+
+      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(refunds()[0]).toMatchObject({ status: "crediting", failure: null });
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("asks for a review when the refund was taken by another run while its own credit was out", async () => {
+      const { service, deploymentAllowanceService, logger } = setup({
+        recorded: [{ status: "pending", amount: 500_000, txHash: "CLOSE_A" }],
+        isLostAfterCredit: true
+      });
+
+      await expect(service.creditTo(USER_WALLET_ID)).resolves.toEqual({ credited: 0, needsReview: 1 });
+
+      expect(deploymentAllowanceService.adjust).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "RETURNED_ESCROW_CREDIT_NOT_RECORDED", txHash: "CLOSE_A" }));
+      expect(logger.info).not.toHaveBeenCalled();
     });
 
     it("never sends a credit again for a refund that stopped while crediting, and asks for a review instead", async () => {
-      const { service, deploymentAllowanceService, refunds, logger } = setup({ recorded: [{ status: "crediting", amount: 500_000, txHash: "CLOSE_A" }] });
+      const { service, deploymentAllowanceService, refunds, logger } = setup({
+        recorded: [{ status: "crediting", amount: 500_000, txHash: "CLOSE_A", updatedAt: new Date(NOW.getTime() - SEND_CAN_TAKE_MS) }]
+      });
 
       await expect(service.creditTo(USER_WALLET_ID)).resolves.toEqual({ credited: 0, needsReview: 1 });
 
@@ -212,7 +252,9 @@ describe(ReturnedEscrowService.name, () => {
 
       expect(fundingWalletRepository.findByAddress).toHaveBeenCalledWith(NETWORK, fundingWallet.address);
       expect(fundingWalletMoveRepository.findCompletedUserWalletIds).toHaveBeenCalledWith(fundingWallet.id);
-      expect(jobQueueService.enqueue.mock.calls).toEqual([11, 12, 13].map(userWalletId => [new CreditReturnedEscrow({ userWalletId })]));
+      expect(jobQueueService.enqueue.mock.calls).toEqual(
+        [11, 12, 13].map(userWalletId => [new CreditReturnedEscrow({ userWalletId }), { singletonKey: `${NETWORK}.${userWalletId}` }])
+      );
       expect(logger.info).toHaveBeenCalledWith({ event: "RETURNED_ESCROW_CREDITS_QUEUED", network: NETWORK, address: fundingWallet.address, queued: 3 });
     });
 
@@ -244,10 +286,13 @@ describe(ReturnedEscrowService.name, () => {
       returned?: Pick<RefundLeftWithGranter, "txHash" | "msgIndex" | "receivedByGranter">[];
       recorded?: Partial<FundingWalletRefundOutput>[];
       isTakenByAnotherRun?: boolean;
+      isLostAfterCredit?: boolean;
       movedUserWalletIds?: number[];
       isFundingWalletKnown?: boolean;
     } = {}
   ) {
+    vi.useFakeTimers({ now: NOW });
+
     const wallet = { id: USER_WALLET_ID, address: createAkashAddress() };
     const fundingWallet = { id: crypto.randomUUID(), network: NETWORK, address: createAkashAddress(), status: "retired" as const };
     const moves =
@@ -296,7 +341,9 @@ describe(ReturnedEscrowService.name, () => {
     fundingWalletRefundRepository.updateFrom.mockImplementation(async (id, status, patch) => {
       const current = recorded.find(refund => refund.id === id);
 
-      if (!current || current.status !== status || input.isTakenByAnotherRun) return undefined;
+      const isLost = !!input.isLostAfterCredit && patch.status === "credited";
+
+      if (!current || current.status !== status || input.isTakenByAnotherRun || isLost) return undefined;
 
       const updated = { ...current, ...patch };
       recorded = recorded.map(refund => (refund.id === id ? updated : refund));
@@ -313,7 +360,7 @@ describe(ReturnedEscrowService.name, () => {
       deploymentAllowanceHistoryRepository,
       deploymentAllowanceService,
       jobQueueService,
-      mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uact" }),
+      mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uact", TX_SIGNER_REQUEST_TIMEOUT_MS: SIGNER_TIMEOUT_MS }),
       mockConfigService<CoreConfigService>({ NETWORK }),
       createLogger
     );

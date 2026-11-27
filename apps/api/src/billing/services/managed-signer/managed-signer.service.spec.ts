@@ -1319,6 +1319,24 @@ describe(ManagedSignerService.name, () => {
       expect(returnedEscrowQueue.queueAfterClose).toHaveBeenCalledWith(wallet.id, "tx-hash");
     });
 
+    it("asks for the credit of returned escrow when a close is signed together with other messages", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const closeMessage = { typeUrl: MsgCloseDeployment.$type, value: { id: { dseq: "123", owner: wallet.address } } };
+      const otherMessage = { typeUrl: "/cosmos.bank.v1beta1.MsgNotAClose", value: {} };
+
+      const { service, returnedEscrowQueue } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [otherMessage, closeMessage]);
+
+      expect(returnedEscrowQueue.queueAfterClose).toHaveBeenCalledWith(wallet.id, "tx-hash");
+    });
+
     it("does not schedule a credits-low check for a transaction without a close message", async () => {
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
       const user = createUser({ userId: "user-123" });

@@ -24,6 +24,7 @@ describe(ReturnedEscrowQueueService.name, () => {
 
     expect(fundingWalletMoveRepository.findCompletedOf).toHaveBeenCalledWith(7, NETWORK);
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(new CreditReturnedEscrow({ userWalletId: 7, closeTxHash: "CLOSE_HASH" }), {
+      singletonKey: "sandbox.7",
       startAfter: new Date("2026-11-27T12:01:00.000Z")
     });
   });
