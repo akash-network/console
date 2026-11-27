@@ -15,7 +15,7 @@ import {
 import { ReviewRefusedTrial } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
-type Account = Pick<UserOutput, "id" | "userId" | "email" | "lastFingerprint">;
+type Account = Pick<UserOutput, "id" | "userId" | "email" | "emailVerified" | "lastFingerprint">;
 
 interface TrialRefusal {
   latestDeletion: DeletedTrialAccountOutput;
@@ -39,6 +39,11 @@ export class DeletedTrialAccountService {
   async remember(account: Account, wallet: Pick<UserWalletOutput, "address" | "activatedAt" | "isTrialing"> | undefined): Promise<void> {
     const memoryDays = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS");
     if (!memoryDays || !wallet?.activatedAt || !wallet.isTrialing) return;
+
+    if (this.#isE2eAccount(account)) {
+      this.logger.info({ event: "DELETED_TRIAL_ACCOUNT_NOT_REMEMBERED_FOR_E2E", userId: account.id });
+      return;
+    }
 
     const hashes = this.#hashesOf(account);
     if (!hashes.identityHash && !hashes.emailHash && !hashes.fingerprintHash) return;
@@ -86,10 +91,17 @@ export class DeletedTrialAccountService {
 
     const cooldownHours = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS");
     const maxReturns = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS");
-    const isInCooldown = cooldownHours !== undefined && latestDeletion.createdAt > subHours(now, cooldownHours);
-    const isOverMaxReturns = maxReturns !== undefined && deletions.length > maxReturns;
+    const isInCooldown = latestDeletion.createdAt > subHours(now, cooldownHours);
+    const isOverMaxReturns = deletions.length > maxReturns;
 
     return isInCooldown || isOverMaxReturns ? { latestDeletion, deletionsOnRecord: deletions.length } : undefined;
+  }
+
+  /** Only the e2e inbox receives mail for its domain, so a verified address on it cannot belong to anyone else. */
+  #isE2eAccount({ email, emailVerified }: Account): boolean {
+    const e2eEmailDomain = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN");
+
+    return !!e2eEmailDomain && !!emailVerified && !!email && email.trim().toLowerCase().endsWith(`@${e2eEmailDomain}`);
   }
 
   #lookupHashesOf(account: Account): DeletedTrialAccountHashes {
