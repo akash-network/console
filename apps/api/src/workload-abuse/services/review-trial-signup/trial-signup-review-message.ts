@@ -56,3 +56,21 @@ export function buildRefusedTrialReviewMessage(input: {
 
   return { text: messageLines.join("\n") };
 }
+
+export function buildNewEmailDomainReviewMessage(input: {
+  account: ReviewedAccount;
+  domain: string;
+  windowHours: number;
+  domainAccounts: ReviewedAccount[];
+  adminUrl?: string;
+}): TrialSignupReviewMessage {
+  const domainLines = input.domainAccounts.map(domainAccount => `• ${describeAccount(domainAccount, input.adminUrl)}`);
+  const messageLines = [
+    ":no_entry: *Trial held for sign-ups from a new email domain*",
+    describeAccount(input.account, input.adminUrl),
+    `Verified sign-ups on ${escapeSlackText(input.domain)} in the last ${input.windowHours} h (${input.domainAccounts.length}):`,
+    ...domainLines
+  ];
+
+  return { text: messageLines.join("\n") };
+}

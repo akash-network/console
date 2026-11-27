@@ -183,6 +183,21 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return count;
   }
 
+  async findVerifiedCreatedWithEmailDomainSince(domain: string, withinHours: number): Promise<Pick<UserOutput, "id" | "email">[]> {
+    return this.pg
+      .select({ id: this.table.id, email: this.table.email })
+      .from(this.table)
+      .where(
+        and(
+          isEmailWithinDomain(this.table.email, domain),
+          eq(this.table.emailVerified, true),
+          gte(this.table.createdAt, sql`now() - make_interval(hours => ${withinHours})`)
+        )
+      )
+      .orderBy(desc(this.table.createdAt))
+      .limit(MAX_LINKED_ACCOUNTS);
+  }
+
   /** The triggering account never counts as evidence that its own domain predates the attack, or aging one signup past the window would put that domain permanently out of reach. */
   async hasEstablishedUserWithEmailDomain(domain: string, minAgeDays: number, excludeUserId: string): Promise<boolean> {
     const [match] = await this.pg

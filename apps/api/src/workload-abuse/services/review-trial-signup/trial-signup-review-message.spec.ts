@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildRefusedTrialReviewMessage, buildTrialSignupReviewMessage } from "./trial-signup-review-message";
+import { buildNewEmailDomainReviewMessage, buildRefusedTrialReviewMessage, buildTrialSignupReviewMessage } from "./trial-signup-review-message";
 
 const ADMIN_URL = "https://console-admin.example.com";
 
@@ -62,6 +62,42 @@ describe(buildTrialSignupReviewMessage.name, () => {
     });
 
     expect(message.text.split("\n")[1]).toBe(`signup@example.com · <${ADMIN_URL}/users/a%2Fb|Admin>`);
+  });
+});
+
+describe(buildNewEmailDomainReviewMessage.name, () => {
+  it("names the held account and lists the domain's recent sign-ups with their admin links", () => {
+    const message = buildNewEmailDomainReviewMessage({
+      account: { id: "held-id", email: "second@duskvale.xyz" },
+      domain: "duskvale.xyz",
+      windowHours: 24,
+      domainAccounts: [
+        { id: "held-id", email: "second@duskvale.xyz" },
+        { id: "first-id", email: "first@duskvale.xyz" }
+      ],
+      adminUrl: ADMIN_URL
+    });
+
+    expect(message.text).toBe(
+      [
+        ":no_entry: *Trial held for sign-ups from a new email domain*",
+        `second@duskvale.xyz · <${ADMIN_URL}/users/held-id|Admin>`,
+        "Verified sign-ups on duskvale.xyz in the last 24 h (2):",
+        `• second@duskvale.xyz · <${ADMIN_URL}/users/held-id|Admin>`,
+        `• first@duskvale.xyz · <${ADMIN_URL}/users/first-id|Admin>`
+      ].join("\n")
+    );
+  });
+
+  it("escapes Slack control characters in the domain and leaves out the admin links when no admin url is set", () => {
+    const message = buildNewEmailDomainReviewMessage({
+      account: { id: "held-id", email: null },
+      domain: "<duskvale>&.xyz",
+      windowHours: 6,
+      domainAccounts: []
+    });
+
+    expect(message.text.split("\n").slice(1)).toEqual(["held-id", "Verified sign-ups on &lt;duskvale&gt;&amp;.xyz in the last 6 h (0):"]);
   });
 });
 

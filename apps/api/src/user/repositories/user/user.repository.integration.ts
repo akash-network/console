@@ -332,6 +332,29 @@ describe(UserRepository.name, () => {
     });
   });
 
+  describe("findVerifiedCreatedWithEmailDomainSince", () => {
+    it("lists the verified accounts on the domain and its subdomains created within the window, newest first", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      const older = await createUserOnDomain({ createdAt: subHours(new Date(), 5), emailVerified: true }, `eu.${domain}`);
+      const newer = await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true });
+      await createUserOnDomain({ createdAt: subHours(new Date(), 30), emailVerified: true });
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: false });
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true }, `x${domain}`);
+
+      await expect(userRepository.findVerifiedCreatedWithEmailDomainSince(domain, 24)).resolves.toEqual([
+        { id: newer.id, email: newer.email },
+        { id: older.id, email: older.email }
+      ]);
+    });
+
+    it("lists at most 20 accounts", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await Promise.all(Array.from({ length: 21 }, () => createUserOnDomain({ createdAt: subHours(new Date(), 1), emailVerified: true })));
+
+      await expect(userRepository.findVerifiedCreatedWithEmailDomainSince(domain, 24)).resolves.toHaveLength(20);
+    });
+  });
+
   describe("hasVerifiedEmail", () => {
     it("answers true for an address a verified account uses, whatever its case and padding", async () => {
       const { userRepository, domain } = setupDomain();

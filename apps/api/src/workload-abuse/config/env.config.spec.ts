@@ -297,6 +297,45 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: "1.5" })).toThrow(/WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS/);
   });
 
+  it("reports a second sign-up from a new email domain within 24 hours unless told otherwise", () => {
+    const blank = setup({
+      WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE: " ",
+      WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS: " ",
+      WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS: " "
+    });
+
+    expect([
+      setup().WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE,
+      setup().WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS,
+      setup().WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS,
+      blank.WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE,
+      blank.WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS,
+      blank.WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS
+    ]).toEqual(["report", 2, 24, "report", 2, 24]);
+  });
+
+  it.each(["off", "report", "enforce"])("reads the new email domain hold mode %s", mode => {
+    expect(setup({ WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE: mode }).WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE).toBe(mode);
+  });
+
+  it("reads the new email domain limits, from 2 sign-ups and up to seven days", () => {
+    const parsed = setup({ WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS: "3", WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS: "168" });
+
+    expect(parsed.WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS).toBe(3);
+    expect(parsed.WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS).toBe(168);
+  });
+
+  it.each([
+    ["WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE", "on"],
+    ["WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS", "1"],
+    ["WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS", "2.5"],
+    ["WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS", "0"],
+    ["WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS", "1.5"],
+    ["WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS", "169"]
+  ])("rejects %s set to %s", (name, value) => {
+    expect(() => setup({ [name]: value })).toThrow(new RegExp(name));
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 

@@ -7,7 +7,15 @@ import type { TxService } from "@src/core/services/tx/tx.service";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { BlockEmailDomainOfHeldSignup, blockEmailDomainOfHeldSignupKeyFor } from "@src/workload-abuse/events/block-email-domain-of-held-signup";
 import type { HeldSignupBlockEvidence } from "@src/workload-abuse/services/email-domain-block/email-domain-block.service";
-import type { EmailDomainReputationService, EmailDomainSignal } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
+import type {
+  EmailDomainReputationService,
+  EmailDomainSignal,
+  SignupBurst
+} from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
+import {
+  ReviewNewEmailDomainSignups,
+  reviewNewEmailDomainSignupsKeyFor
+} from "@src/workload-abuse/services/review-new-email-domain-signups/review-new-email-domain-signups.handler";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { TrialSignupHoldService } from "./trial-signup-hold.service";
@@ -320,12 +328,97 @@ describe(TrialSignupHoldService.name, () => {
     });
   });
 
+  describe("new email domain", () => {
+    const burst: SignupBurst = { burstDomain: "duskvale.xyz", signups: 2 };
+    const otherRulesOff = { mode: "off", tagMode: "off", domainMode: "off" } as const;
+
+    it("holds a further sign-up from a new domain and queues one review per domain and window, outside the transaction", async () => {
+      const { service, user, emailDomainReputationService, jobQueueService, txService, logger } = setup({
+        ...otherRulesOff,
+        newDomainMode: "enforce",
+        newDomainBurst: burst,
+        newDomainMinSignups: 3,
+        newDomainWindowHours: 6
+      });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(emailDomainReputationService.findSignupBurst).toHaveBeenCalledWith(user, { minSignups: 3, windowHours: 6 });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HELD_FOR_NEW_EMAIL_DOMAIN", userId: user.id, domain: "duskvale.xyz", signups: 2 });
+      expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReviewNewEmailDomainSignups({ userId: user.id, domain: "duskvale.xyz", windowHours: 6 }), {
+        singletonKey: reviewNewEmailDomainSignupsKeyFor("duskvale.xyz"),
+        singletonSeconds: 6 * 60 * 60
+      });
+    });
+
+    it("only logs the hold it would have placed in report mode", async () => {
+      const { service, user, jobQueueService, logger } = setup({ ...otherRulesOff, newDomainMode: "report", newDomainBurst: burst });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.info).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_NEW_EMAIL_DOMAIN_HOLD_DRY_RUN", userId: user.id, domain: "duskvale.xyz", signups: 2 });
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("does not hold a sign-up whose domain shows no burst", async () => {
+      const { service, user, jobQueueService, logger } = setup({ ...otherRulesOff, newDomainMode: "enforce", newDomainBurst: null });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("counts nothing when off", async () => {
+      const { service, user, emailDomainReputationService } = setup({ ...otherRulesOff, newDomainMode: "off", newDomainBurst: burst });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(emailDomainReputationService.findSignupBurst).not.toHaveBeenCalled();
+    });
+
+    it("grants the trial and logs the failure when the count fails", async () => {
+      const { service, user, emailDomainReputationService, logger } = setup({ ...otherRulesOff, newDomainMode: "enforce" });
+      const error = new Error("database unavailable");
+      emailDomainReputationService.findSignupBurst.mockRejectedValue(error);
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_NEW_EMAIL_DOMAIN_CHECK_FAILED", userId: user.id, error });
+    });
+
+    it("still holds the trial and logs the failure when the review cannot be queued", async () => {
+      const { service, user, jobQueueService, logger } = setup({ ...otherRulesOff, newDomainMode: "enforce", newDomainBurst: burst });
+      const error = new Error("queue unavailable");
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId: user.id, error });
+    });
+
+    it("skips the count once the email domain signals hold the trial", async () => {
+      const { service, user, emailDomainReputationService } = setup({
+        mode: "off",
+        tagMode: "off",
+        domainMode: "enforce",
+        domainSignals: [{ signal: "forwarding_only_without_website" }],
+        newDomainMode: "enforce",
+        newDomainBurst: burst
+      });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(emailDomainReputationService.findSignupBurst).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(
     input: {
       mode?: "off" | "report" | "enforce";
       tagMode?: "off" | "report" | "enforce";
       domainMode?: "off" | "report" | "enforce";
       blockMode?: "off" | "report" | "enforce";
+      newDomainMode?: "off" | "report" | "enforce";
+      newDomainBurst?: SignupBurst | null;
+      newDomainMinSignups?: number;
+      newDomainWindowHours?: number;
       domainSignals?: EmailDomainSignal[];
       assessedDomain?: string | null;
       linkedCount?: number;
@@ -347,12 +440,16 @@ describe(TrialSignupHoldService.name, () => {
       WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: input.tagMode ?? "report",
       WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: input.domainMode ?? "report",
       WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: input.blockMode ?? "report",
+      WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE: input.newDomainMode ?? "off",
+      WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS: input.newDomainMinSignups ?? 2,
+      WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS: input.newDomainWindowHours ?? 24,
       WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "windowMinutes" in input ? input.windowMinutes : 45
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const emailDomainReputationService = mock<EmailDomainReputationService>({
-      findSignals: vi.fn().mockResolvedValue({ domain: "assessedDomain" in input ? input.assessedDomain : DOMAIN, signals: input.domainSignals ?? [] })
+      findSignals: vi.fn().mockResolvedValue({ domain: "assessedDomain" in input ? input.assessedDomain : DOMAIN, signals: input.domainSignals ?? [] }),
+      findSignupBurst: vi.fn().mockResolvedValue(input.newDomainBurst ?? null)
     });
     const service = new TrialSignupHoldService(userRepository, jobQueueService, txService, config, emailDomainReputationService, createLogger);
 
