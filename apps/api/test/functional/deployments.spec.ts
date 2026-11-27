@@ -582,8 +582,18 @@ describe("Deployments API", () => {
         return (await response.json()) as { data: { consoleSettings: { sdl: string } | null } };
       };
 
-      expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: firstSdl, definition: yaml.raw(firstSdl), manifestVersion: "BAUG", templateId: null });
-      expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: secondSdl, definition: yaml.raw(secondSdl), manifestVersion: "BAUH", templateId: null });
+      expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({
+        sdl: firstSdl,
+        definition: yaml.raw(firstSdl),
+        manifestVersion: "BAUG",
+        templateId: null
+      });
+      expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({
+        sdl: secondSdl,
+        definition: yaml.raw(secondSdl),
+        manifestVersion: "BAUH",
+        templateId: null
+      });
     });
 
     it("returns the name the console recorded for the deployment", async () => {
@@ -1360,8 +1370,7 @@ describe("Deployments API", () => {
         method: "POST",
         body: JSON.stringify({
           data: {
-            sdl: yml,
-            deposit: 5.5
+            sdl: yml
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -1416,7 +1425,7 @@ describe("Deployments API", () => {
 
       const response = await app.request("/v1/deployments", {
         method: "POST",
-        body: JSON.stringify({ data: { sdl: yml, deposit: 5.5 } }),
+        body: JSON.stringify({ data: { sdl: yml } }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
@@ -1568,8 +1577,7 @@ describe("Deployments API", () => {
         method: "POST",
         body: JSON.stringify({
           data: {
-            sdl: "",
-            deposit: 5.5
+            sdl: ""
           }
         }),
         headers: new Headers({ "Content-Type": "application/json" })
@@ -1586,8 +1594,7 @@ describe("Deployments API", () => {
         method: "POST",
         body: JSON.stringify({
           data: {
-            sdl: yml,
-            deposit: 5.5
+            sdl: yml
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -1605,8 +1612,7 @@ describe("Deployments API", () => {
         method: "POST",
         body: JSON.stringify({
           data: {
-            sdl: "invalid-sdl",
-            deposit: 5.5
+            sdl: "invalid-sdl"
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -1622,7 +1628,7 @@ describe("Deployments API", () => {
 
       const response = await app.request("/v1/deployments", {
         method: "POST",
-        body: JSON.stringify({ data: { sdl: `${HELLO_WORLD_SDL}\n---\n${HELLO_WORLD_SDL}`, deposit: 5.5 } }),
+        body: JSON.stringify({ data: { sdl: `${HELLO_WORLD_SDL}\n---\n${HELLO_WORLD_SDL}` } }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
@@ -1638,8 +1644,7 @@ describe("Deployments API", () => {
         method: "POST",
         body: JSON.stringify({
           data: {
-            sdl: yml,
-            deposit: 5.5
+            sdl: yml
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -1682,7 +1687,7 @@ describe("Deployments API", () => {
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
-    it("creates a deployment without a deposit", async () => {
+    it("still creates a deployment for a client that sends the removed deposit field", async () => {
       const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -1690,7 +1695,8 @@ describe("Deployments API", () => {
         method: "POST",
         body: JSON.stringify({
           data: {
-            sdl: yml
+            sdl: yml,
+            deposit: 5.5
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -2496,133 +2502,30 @@ describe("Deployments API", () => {
     });
   });
 
-  describe("POST /v1/deployments/{dseq}/deposit", () => {
-    it("should deposit into a deployment successfully", async () => {
-      const { userApiKeySecret, wallets } = await mockPersistedUser();
-      const dseq = "1234";
-      await setupDeploymentInfoMock(wallets, dseq);
-
-      const mockTxResult = {
-        code: 0,
-        hash: "test-hash",
-        transactionHash: "test-hash",
-        rawLog: "success"
-      };
-
-      vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
-
-      const response = await app.request(`/v1/deposit-deployment`, {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            dseq,
-            deposit: 5
-          }
-        }),
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(200);
-    });
-
-    it("should return 404 if deployment does not exist", async () => {
-      const { userApiKeySecret } = await mockPersistedUser();
-      const dseq = "1234";
-
-      vi.spyOn(deploymentReaderService, "findByWalletAndDseqWithoutProviderStatus").mockRejectedValueOnce(new NotFound("Deployment not found"));
-
-      const response = await app.request(`/v1/deposit-deployment`, {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            dseq,
-            deposit: 5
-          }
-        }),
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(404);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "NotFoundError",
-        message: "Deployment not found",
-        code: "not_found",
-        type: "client_error"
-      });
-    });
-
-    it("should return 401 for an unauthenticated request", async () => {
-      const response = await app.request("/v1/deposit-deployment", {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            dseq: "1234",
-            deposit: 5
-          }
-        }),
-        headers: new Headers({ "Content-Type": "application/json" })
-      });
-
-      expect(response.status).toBe(401);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "UnauthorizedError",
-        message: "Unauthorized",
-        code: "unauthorized",
-        type: "client_error"
-      });
-    });
-
-    it("should return 400 if deposit amount is not provided", async () => {
-      const { userApiKeySecret } = await mockPersistedUser();
-      const dseq = "1234";
-
-      const response = await app.request(`/v1/deposit-deployment`, {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            dseq
-          }
-        }),
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(400);
-    });
-
-    it.each([0, -1, 0.0000001])("answers 400 without signing for a deposit of %s", async deposit => {
+  describe("POST /v1/deposit-deployment", () => {
+    it("answers 410 pointing at automatic funding and signs nothing", async () => {
       const { userApiKeySecret } = await mockPersistedUser();
       const executeTx = vi.spyOn(signerService, "executeDerivedDecodedTxByUserId");
 
       const response = await app.request("/v1/deposit-deployment", {
         method: "POST",
-        body: JSON.stringify({ data: { dseq: "1234", deposit } }),
+        body: JSON.stringify({ data: { dseq: "1234", deposit: 5 } }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
-      expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({ error: "BadRequestError", code: "validation_error" });
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({
+        code: "deposit_endpoint_removed",
+        message: expect.stringContaining("funds every deployment automatically")
+      });
       expect(executeTx).not.toHaveBeenCalled();
     });
 
-    it("signs a deposit of the smallest amount the chain denominates", async () => {
-      const { userApiKeySecret, wallets } = await mockPersistedUser();
-      await setupDeploymentInfoMock(wallets, "1234");
-      const executeTx = vi
-        .spyOn(signerService, "executeDerivedDecodedTxByUserId")
-        .mockResolvedValueOnce({ code: 0, hash: "test-hash", transactionHash: "test-hash", rawLog: "success" });
+    it("is left out of the document callers read", async () => {
+      const response = await app.request("/v1/doc?scope=console");
+      const document = (await response.json()) as { paths: Record<string, unknown> };
 
-      const response = await app.request("/v1/deposit-deployment", {
-        method: "POST",
-        body: JSON.stringify({ data: { dseq: "1234", deposit: 0.000001 } }),
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(200);
-      expect(executeTx).toHaveBeenCalledWith(expect.any(String), [
-        expect.objectContaining({ value: expect.objectContaining({ deposit: expect.objectContaining({ amount: expect.objectContaining({ amount: "1" }) }) }) })
-      ]);
+      expect(document.paths).not.toHaveProperty("/v1/deposit-deployment");
     });
   });
 

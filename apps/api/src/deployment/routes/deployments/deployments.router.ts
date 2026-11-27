@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import createError from "http-errors";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
@@ -19,8 +20,6 @@ import {
   CreateDeploymentQuerySchema,
   CreateDeploymentRequestSchema,
   CreateDeploymentResponseSchema,
-  DepositDeploymentRequestSchema,
-  DepositDeploymentResponseSchema,
   GetDeploymentByOwnerDseqParamsSchema,
   GetDeploymentByOwnerDseqResponseSchema,
   GetDeploymentNamesQuerySchema,
@@ -355,63 +354,10 @@ deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
   return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 200);
 });
 
-const depositRoute = createRoute({
-  method: "post",
-  path: "/v1/deposit-deployment",
-  summary: "Deposit into a deployment (deprecated)",
-  description: "Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.",
-  operationId: "depositDeployment",
-  deprecated: true,
-  tags: ["Deployments"],
-  security: SECURITY_BEARER_OR_API_KEY,
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: DepositDeploymentRequestSchema
-        }
-      }
-    }
-  },
-  responses: {
-    200: {
-      description: "Deposit successful",
-      content: {
-        "application/json": {
-          schema: DepositDeploymentResponseSchema
-        }
-      }
-    },
-    400: {
-      description: "The dseq is malformed or the deposit is below the minimum",
-      content: {
-        "application/json": {
-          schema: ErrorResponseSchema
-        }
-      }
-    },
-    403: {
-      description: `${PROJECT_FORBIDDEN_DESCRIPTION}. With \`code\` \`project_budget_exceeded\`, the deposit would take a project that stops top-ups past its monthly budget`,
-      content: {
-        "application/json": {
-          schema: ErrorResponseSchema
-        }
-      }
-    },
-    503: {
-      description: "With `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Transient and worth retrying",
-      content: {
-        "application/json": {
-          schema: ErrorResponseSchema
-        }
-      }
-    }
-  }
-});
-deploymentsRouter.openapi(depositRoute, async function routeDepositDeployment(c) {
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).deposit(data);
-  return c.json(result, 200);
+deploymentsRouter.post("/v1/deposit-deployment", function routeRetiredDepositDeployment() {
+  throw createError(410, "This endpoint was removed. Console funds every deployment automatically from your account credits, so no deposit is needed.", {
+    errorCode: "deposit_endpoint_removed"
+  });
 });
 
 const updateRoute = createRoute({

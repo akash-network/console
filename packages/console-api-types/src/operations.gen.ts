@@ -244,7 +244,6 @@ export const operations = {
       queryParams: ["state", "reverse", "search", "skip", "limit", "projectId"],
       hasBody: false
     },
-    depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
     createDeploymentDefinition: {
       path: "/v1/deployments/{dseq}/definition",
       method: "post",

@@ -29,8 +29,6 @@ import {
   CreateDeploymentDefinitionResponse,
   CreateDeploymentRequest,
   CreateDeploymentResponse,
-  DepositDeploymentRequest,
-  DepositDeploymentResponse,
   GetDeploymentByOwnerDseqResponse,
   GetDeploymentNamesResponse,
   GetDeploymentResponse,
@@ -129,16 +127,6 @@ export class DeploymentController {
 
     await this.deploymentWriterService.closeByUserIdAndDseq(userId, dseq, { batchId: query.batchId });
     return { data: { success: true } };
-  }
-
-  @Protected([{ action: "sign", subject: "UserWallet" }])
-  async deposit(input: DepositDeploymentRequest["data"]): Promise<DepositDeploymentResponse> {
-    const result = await this.deploymentWriterService.deposit({
-      dseq: input.dseq,
-      amount: input.deposit,
-      userId: this.authService.currentUser.id
-    });
-    return { data: result };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])

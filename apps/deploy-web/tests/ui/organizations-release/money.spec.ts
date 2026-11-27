@@ -355,10 +355,7 @@ test.describe("Team money", () => {
     }
   });
 
-  test("auto recharge saved with a team key charges the team's card, and with it off a drained balance meets the credits-low email's trigger", async ({
-    page,
-    playwright
-  }) => {
+  test("auto recharge saved with a team key charges the team's card, and the key can turn it off again", async ({ page, playwright }) => {
     const { team, deployment, suffix } = createNames();
     let client: APIRequestContext | undefined;
     let dseq: string | undefined;
@@ -408,15 +405,6 @@ test.describe("Team money", () => {
       await test.step("the key turns auto recharge off", async () => {
         await readJson(await api.request.put(`${api.prefix}v1/wallet-settings`, { data: { data: { autoReloadEnabled: false } } }));
         expect((await getJson<WalletSettings>(api, "v1/wallet-settings")).data.autoReloadEnabled).toBe(false);
-      });
-
-      await test.step("moving the balance into the deployment's escrow leaves less than a week of its cost, the credits-low email's trigger", async () => {
-        const { data: weekly } = await getJson<{ data: { weeklyCost: number } }>(api, "v1/weekly-cost");
-        expect(weekly.weeklyCost).toBeGreaterThan(0);
-        const balance = (await readCredit(api, me.id)) ?? 0;
-        const deposit = Math.floor((balance - weekly.weeklyCost / 2) * 100) / 100;
-        await readJson(await api.request.post(`${api.prefix}v1/deposit-deployment`, { data: { data: { dseq, deposit } } }));
-        await expect.poll(() => readCredit(api, me.id), { timeout: WALLET_FUNDING_DEADLINE_MS, intervals: POLL_INTERVALS_MS }).toBeLessThan(weekly.weeklyCost);
       });
     } finally {
       if (dseq) await closeDeploymentQuietly(sessionApi(page), dseq);

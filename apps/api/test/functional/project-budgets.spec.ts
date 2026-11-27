@@ -22,18 +22,15 @@ import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
 import { findDeploymentDepositsOf } from "@test/seeders/db/deployment-deposit.seeder";
-import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
-import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 /** 5 AKT priced at $2: every top-up below commits $10. */
-const TOP_UP_AKT = 5;
 const AKT_PRICE_USD = 2;
 const GRANTED_UDENOM = 50_000_000;
 
@@ -201,21 +198,6 @@ describe("Project budgets", () => {
     });
   });
 
-  describe("POST /v1/deposit-deployment into a budgeted project", () => {
-    it("keeps topping up running deployments past the budget unless the budget stops top-ups", async () => {
-      const { topUp, budgetOn, defaultProject, setStopTopUps } = await setupSigner();
-      const budgetId = await budgetOn(defaultProject.id, { monthlyAmountCents: 500 });
-
-      const whileOff = await topUp();
-      await setStopTopUps(budgetId, true);
-      const onceOn = await topUp();
-
-      expect(whileOff.status).toBe(200);
-      expect(onceOn.status).toBe(403);
-      expect(await onceOn.json()).toMatchObject({ code: "project_budget_exceeded" });
-    });
-  });
-
   async function alertsFor(projectId: string) {
     return await findJobRows(ProjectBudgetAlert[JOB_NAME], { data: { projectId } });
   }
@@ -294,9 +276,7 @@ describe("Project budgets", () => {
       priceChange24h: 0,
       priceChangePercentage24: 0
     });
-    const runningDseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
-    await seedDeploymentSetting({ userId: user.id, organizationId, projectId: defaultProject.id, dseq: runningDseq });
-    answerChain(wallet.address, runningDseq);
+    answerChain(wallet.address);
 
     const request = (requestPath: string, data: Record<string, unknown>) =>
       app.request(requestPath, {
@@ -305,7 +285,6 @@ describe("Project budgets", () => {
         body: JSON.stringify({ data })
       });
     const createDeployment = () => request("/v1/deployments", { sdl: SDL });
-    const topUp = () => request("/v1/deposit-deployment", { dseq: runningDseq, deposit: TOP_UP_AKT });
     const createDepositCents = Math.round(container.resolve(DeploymentConfigService).get("DEPLOYMENT_DEFAULT_DEPOSIT") * AKT_PRICE_USD * 100);
 
     const budgetOn = async (projectId: string, settings: { monthlyAmountCents: number; alertThresholdPercent?: number }) => {
@@ -317,12 +296,7 @@ describe("Project budgets", () => {
       return budget.id;
     };
 
-    const setStopTopUps = async (budgetId: string, stopTopUps: boolean) => {
-      const budgets = resolveTable("ProjectBudgets");
-      await db.update(budgets).set({ stopTopUps }).where(eq(budgets.id, budgetId));
-    };
-
-    return { createDeployment, topUp, budgetOn, setStopTopUps, defaultProject, organizationId, createDepositCents };
+    return { createDeployment, budgetOn, defaultProject, organizationId, createDepositCents };
   }
 
   async function personalOrganizationOf(userId: string) {
@@ -350,7 +324,7 @@ describe("Project budgets", () => {
       .reply(200, { allowances: [createFeeAllowanceResponse()] });
   }
 
-  function answerChain(address: string, runningDseq: string) {
+  function answerChain(address: string) {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(/\/cosmos\/feegrant\/v1beta1\/allowance\/.*\/.*/)
@@ -359,8 +333,6 @@ describe("Project budgets", () => {
       .reply(200, createDeploymentGrantResponseSeed({ grantee: address, amount: String(GRANTED_UDENOM), grantType: "/akash.escrow.v1.DepositAuthorization" }))
       .get(/\/akash\/deployment\/.*\/deployments\/list\?.*/)
       .reply(200, createDeploymentListResponseSeed({ owner: address }))
-      .get(uri => uri.includes("/deployments/info") && uri.includes(runningDseq))
-      .reply(200, createDeploymentInfoSeed({ owner: address, dseq: runningDseq }))
       .get(uri => uri.includes("/leases/list"))
       .reply(200, { leases: [], pagination: { next_key: null, total: "0" } })
       .get("/cosmos/base/tendermint/v1beta1/blocks/latest")

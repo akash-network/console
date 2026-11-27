@@ -271,12 +271,6 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   },
   { route: "DELETE /v1/deployments/{dseq}", status: 404, ownerStatus: 200, request: team => remove(`/v1/deployments/${team.grantedDseq}`) },
   {
-    route: "POST /v1/deposit-deployment",
-    status: 404,
-    ownerStatus: 200,
-    request: team => post("/v1/deposit-deployment", { dseq: team.grantedDseq, deposit: 5 })
-  },
-  {
     route: "POST /v1/stripe/transactions/{id}/invoice",
     status: 404,
     ownerStatus: 200,
