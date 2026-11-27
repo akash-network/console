@@ -24,7 +24,9 @@ export const DiagnosisBlock: FC<Props> = ({ diagnosis, children }) => (
         {diagnosis.evidence.join("\n")}
       </pre>
     )}
-    <p className="text-sm">{diagnosis.summary}</p>
+    <p dir="auto" className="text-sm">
+      {diagnosis.summary}
+    </p>
     {children}
   </section>
 );
