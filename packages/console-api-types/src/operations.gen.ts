@@ -72,6 +72,30 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    getTrialCard: {
+      path: "/v1/trial-card",
+      method: "get",
+      operationId: "getTrialCard",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    createTrialCardSetupIntent: {
+      path: "/v1/trial-card/setup-intents",
+      method: "post",
+      operationId: "createTrialCardSetupIntent",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    confirmTrialCard: {
+      path: "/v1/trial-card/confirm",
+      method: "post",
+      operationId: "confirmTrialCard",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
     confirmStripeTransaction: {
       path: "/v1/stripe/transactions/confirm",
       method: "post",

@@ -12,6 +12,8 @@ interface StripePrices {
   currency: string;
 }
 
+export const TRIAL_CARD_SETUP_INTENT_MARK = "trial_card";
+
 /**
  * We only support USD for Stripe payments. Hardcoding the currency at every charge-creation
  * chokepoint guarantees no caller can ever create a non-USD charge.
@@ -34,6 +36,21 @@ export class StripeService {
       payment_method_types: isCardOnly ? ["card"] : ["card", "link"],
       ...(isFreeTrial && { metadata: { is_free_trial: "true" } })
     });
+  }
+
+  /** Card only and marked, so the claim that follows can tell this intent asked the issuer for 3D Secure. */
+  async createTrialCardSetupIntent(customerId: string) {
+    return await this.stripe.setupIntents.create({
+      customer: customerId,
+      usage: "off_session",
+      payment_method_types: ["card"],
+      payment_method_options: { card: { request_three_d_secure: "any" } },
+      metadata: { [TRIAL_CARD_SETUP_INTENT_MARK]: "true" }
+    });
+  }
+
+  async retrieveSetupIntentWithPaymentMethod(setupIntentId: string): Promise<Stripe.SetupIntent> {
+    return await this.stripe.setupIntents.retrieve(setupIntentId, { expand: ["payment_method"] });
   }
 
   retrievePaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {

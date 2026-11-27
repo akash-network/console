@@ -59,6 +59,38 @@ describe(StripeService.name, () => {
     });
   });
 
+  describe("createTrialCardSetupIntent", () => {
+    it("creates a card-only setup intent that asks for 3D Secure and is marked as a trial card", async () => {
+      const { service, stripe } = setup();
+      const stripeData = StripeSeederCreate();
+      vi.spyOn(stripe.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
+
+      const result = await service.createTrialCardSetupIntent(TEST_CONSTANTS.CUSTOMER_ID);
+
+      expect(stripe.setupIntents.create).toHaveBeenCalledWith({
+        customer: TEST_CONSTANTS.CUSTOMER_ID,
+        usage: "off_session",
+        payment_method_types: ["card"],
+        payment_method_options: { card: { request_three_d_secure: "any" } },
+        metadata: { trial_card: "true" }
+      });
+      expect(result).toEqual(stripeData.setupIntent);
+    });
+  });
+
+  describe("retrieveSetupIntentWithPaymentMethod", () => {
+    it("retrieves the setup intent with its payment method expanded", async () => {
+      const { service, stripe } = setup();
+      const stripeData = StripeSeederCreate();
+      vi.spyOn(stripe.setupIntents, "retrieve").mockResolvedValue(stripeData.setupIntent);
+
+      const result = await service.retrieveSetupIntentWithPaymentMethod("seti_123");
+
+      expect(stripe.setupIntents.retrieve).toHaveBeenCalledWith("seti_123", { expand: ["payment_method"] });
+      expect(result).toEqual(stripeData.setupIntent);
+    });
+  });
+
   describe("findPrices", () => {
     it("returns sorted prices", async () => {
       const { service, stripe } = setup();

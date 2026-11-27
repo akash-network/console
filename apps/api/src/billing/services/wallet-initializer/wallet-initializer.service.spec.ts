@@ -22,6 +22,7 @@ import { DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { DeletedTrialAccountService } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
+import { TrialCardService } from "@src/workload-abuse/services/trial-card/trial-card.service";
 import { TrialSignupHoldService } from "@src/workload-abuse/services/trial-signup-hold/trial-signup-hold.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { TrialActivationInstrumentationService } from "../activate-trial/trial-activation-instrumentation.service";
@@ -113,6 +114,43 @@ describe(WalletInitializerService.name, () => {
       expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
       expect(updateWalletById).not.toHaveBeenCalled();
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+    });
+
+    it("asks a held user for a card while the card step is on, and grants nothing", async () => {
+      const user = createUser({ emailVerified: true });
+      const di = setup({
+        user,
+        isTrialHeld: true,
+        isTrialCardStepOffered: true,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: createUserWallet({ userId: user.id, activatedAt: null }) })
+      });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toMatchObject({
+        status: 400,
+        errorCode: "trial_card_required"
+      });
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+    });
+
+    it("grants the trial of a held user whose card is verified, without consulting the hold", async () => {
+      const user = createUser({ emailVerified: true });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: null });
+      const di = setup({
+        user,
+        isTrialHeld: true,
+        isTrialCardStepOffered: true,
+        hasVerifiedTrialCard: true,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        updateWalletById: vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }))
+      });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
+
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(di.resolve(TrialCardService).hasVerifiedCard).toHaveBeenCalledWith(user.id);
+      expect(di.resolve(TrialSignupHoldService).isHeld).not.toHaveBeenCalled();
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledTimes(1);
     });
 
     it("returns an already-activated wallet without consulting the hold", async () => {
@@ -700,6 +738,8 @@ describe(WalletInitializerService.name, () => {
     isRefusedAfterDeletion?: boolean;
     referralTrialDeploymentLimit?: number;
     isTrialHeld?: boolean;
+    isTrialCardStepOffered?: boolean;
+    hasVerifiedTrialCard?: boolean;
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
@@ -785,6 +825,13 @@ describe(WalletInitializerService.name, () => {
       })
     );
     di.registerInstance(TrialSignupHoldService, mock<TrialSignupHoldService>({ isHeld: vi.fn().mockResolvedValue(input?.isTrialHeld ?? false) }));
+    di.registerInstance(
+      TrialCardService,
+      mock<TrialCardService>({
+        isOffered: vi.fn(() => input?.isTrialCardStepOffered ?? false),
+        hasVerifiedCard: vi.fn().mockResolvedValue(input?.hasVerifiedTrialCard ?? false)
+      })
+    );
 
     container.clearInstances();
 

@@ -13,6 +13,7 @@ const IDENTITY_HASH_PURPOSE = "deleted-account-identity";
 const EMAIL_HASH_PURPOSE = "deleted-account-email";
 const FINGERPRINT_HASH_PURPOSE = "deleted-account-fingerprint";
 const BROWSER_HASH_PURPOSE = "refused-signup-browser";
+const CARD_HASH_PURPOSE = "trial-card";
 
 export interface Browser {
   ip: string | null | undefined;
@@ -38,6 +39,10 @@ export function hashBrowser(secret: string, { ip, userAgent }: Browser): string 
   if (!ip || !userAgent) return null;
 
   return keyedHash(secret, BROWSER_HASH_PURPOSE, `${ip} ${userAgent.slice(0, userAgentMaxLength)}`);
+}
+
+export function hashCard(secret: string, cardFingerprint: string): string {
+  return keyedHash(secret, CARD_HASH_PURPOSE, cardFingerprint);
 }
 
 function keyedHash(secret: string, purpose: string, value: string): string {

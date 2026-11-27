@@ -166,6 +166,8 @@ export const envSchema = z.object({
     blankToUndefined,
     z.number({ coerce: true }).int().positive().max(MAX_SIGNUP_REVIEW_WINDOW_MINUTES).default(60)
   ),
+  /** `on` lets an account whose trial is held start it by verifying a card, and turns the hold's refusal into a request for one. */
+  WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP: z.preprocess(blankToUndefined, z.enum(["off", "on"]).default("off")),
   /** `report` grants the trial and only logs; unlike the device hold, `enforce` holds without a review window or fingerprint. */
   WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   /** `report` grants the trial and only logs the email domain signals that would have held it. */

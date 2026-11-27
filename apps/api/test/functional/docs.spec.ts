@@ -29,7 +29,10 @@ const WITHHELD_ROUTES = [
   "GET /v1/stripe/transactions",
   "POST /v1/stripe/transactions/confirm",
   "GET /v1/stripe/transactions/export",
-  "POST /v1/stripe/transactions/{id}/invoice"
+  "POST /v1/stripe/transactions/{id}/invoice",
+  "GET /v1/trial-card",
+  "POST /v1/trial-card/setup-intents",
+  "POST /v1/trial-card/confirm"
 ];
 const UNRELEASED_FEEDBACK_ROUTES = [
   "POST /v1/feedback",

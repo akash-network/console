@@ -15,6 +15,7 @@ import {
   stripePricesRouter,
   stripeTransactionsRouter,
   stripeWebhook,
+  trialCardRouter,
   usageRouter,
   walletBalancesRouter,
   walletSettingRouter
@@ -95,6 +96,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   stripePricesRouter,
   stripeCouponsRouter,
   stripePaymentMethodsRouter,
+  trialCardRouter,
   stripeTransactionsRouter,
   billingDetailsRouter,
   firstPurchaseBonusRouter,

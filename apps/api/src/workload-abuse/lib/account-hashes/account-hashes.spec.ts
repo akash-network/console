@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { hashAccount, hashBrowser, hashFingerprint } from "./account-hashes";
+import { hashAccount, hashBrowser, hashCard, hashFingerprint } from "./account-hashes";
 
 const SECRET = "a".repeat(32);
 
@@ -72,6 +72,14 @@ describe(hashBrowser.name, () => {
     { ip: "203.0.113.7", userAgent: "" }
   ])("returns null for %o", incomplete => {
     expect(hashBrowser(SECRET, incomplete)).toBeNull();
+  });
+});
+
+describe(hashCard.name, () => {
+  it("hashes the card fingerprint under the secret, for a purpose of its own", () => {
+    expect(hashCard(SECRET, "fp_visa")).toBe(keyedHash(SECRET, "trial-card:fp_visa"));
+    expect(hashCard("b".repeat(32), "fp_visa")).not.toBe(hashCard(SECRET, "fp_visa"));
+    expect(hashCard(SECRET, "fp_amex")).not.toBe(hashCard(SECRET, "fp_visa"));
   });
 });
 

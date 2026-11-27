@@ -51,6 +51,8 @@ describe(TrialActivationInstrumentationService.name, () => {
       { error: createError(400, "Email not verified"), reason: "email_not_verified" },
       { error: createError(400, "Unable to start trial for this user"), reason: "fingerprint_block" },
       { error: createError(400, TRIAL_BLOCKED_DOMAIN_MESSAGE), reason: "blocked_domain" },
+      { error: createError(400, "Add a card to start your free trial.", { errorCode: "trial_card_required" }), reason: "card_required" },
+      { error: createError(403, "Forbidden", { errorCode: "trial_card_required" }), reason: "grant_failed" },
       { error: createError(400, "some other bad request"), reason: "grant_failed" },
       { error: new Error("chain grant reverted"), reason: "grant_failed" }
     ])("classifies a $reason failure", ({ error, reason }) => {

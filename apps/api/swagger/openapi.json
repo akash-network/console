@@ -1374,6 +1374,233 @@
         ]
       }
     },
+    "/v1/trial-card": {
+      "get": {
+        "summary": "Tell whether the caller's free trial waits for a card",
+        "operationId": "getTrialCard",
+        "tags": [
+          "Payment"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Where the caller stands with the card step of the free trial",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "step": {
+                          "type": "string",
+                          "enum": [
+                            "not_required",
+                            "required",
+                            "verified"
+                          ],
+                          "description": "`required` when the caller's free trial waits for a card, `verified` once a card started it, `not_required` for everyone else, including accounts refused a trial."
+                        }
+                      },
+                      "required": [
+                        "step"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/trial-card/setup-intents": {
+      "post": {
+        "summary": "Create the Stripe SetupIntent a card is saved with to start the free trial",
+        "operationId": "createTrialCardSetupIntent",
+        "tags": [
+          "Payment"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SetupIntent created, limited to cards and asking the issuer for 3D Secure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Sent back to confirm the card once Stripe has saved it."
+                        },
+                        "clientSecret": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "clientSecret"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "The card step is switched off"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/trial-card/confirm": {
+      "post": {
+        "summary": "Start the free trial with the card a SetupIntent saved",
+        "operationId": "confirmTrialCard",
+        "tags": [
+          "Payment"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "setupIntentId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255,
+                        "description": "The SetupIntent the card was saved with.",
+                        "example": "seti_1PxyzAbCdEfGhIjKlMnOpQrS"
+                      }
+                    },
+                    "required": [
+                      "setupIntentId"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The card is verified and the trial is being started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "step": {
+                          "type": "string",
+                          "enum": [
+                            "not_required",
+                            "required",
+                            "verified"
+                          ],
+                          "description": "`required` when the caller's free trial waits for a card, `verified` once a card started it, `not_required` for everyone else, including accounts refused a trial."
+                        }
+                      },
+                      "required": [
+                        "step"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller's email is not confirmed yet (`email_verification_required`)"
+          },
+          "404": {
+            "description": "The card step is switched off, or the SetupIntent is not the caller's"
+          },
+          "422": {
+            "description": "The card cannot start a trial: `trial_card_not_verified`, `trial_card_unsupported`, `trial_card_prepaid` or `trial_card_already_used`. The caller can still add credits"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
     "/v1/stripe/transactions/confirm": {
       "post": {
         "operationId": "confirmStripeTransaction",

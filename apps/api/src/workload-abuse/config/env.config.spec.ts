@@ -364,6 +364,16 @@ describe("workload abuse env config", () => {
     expect(() => setup({ [name]: value })).toThrow(new RegExp(name));
   });
 
+  it("keeps the card step for held trials off unless switched on", () => {
+    expect([
+      setup().WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP,
+      setup({ WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP: " " }).WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP,
+      setup({ WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP: "on" }).WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP,
+      setup({ WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP: "off" }).WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP
+    ]).toEqual(["off", "off", "on", "off"]);
+    expect(() => setup({ WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP: "enforce" })).toThrow(/WORKLOAD_ABUSE_HELD_TRIAL_CARD_STEP/);
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 
