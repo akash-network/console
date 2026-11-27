@@ -33,6 +33,7 @@ import { AccountStatusService } from "@src/user/services/account-status/account-
 import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account-termination/apply-account-termination.handler";
 import { ApplyAccountTermination, applyAccountTerminationKeyFor } from "@src/user/services/apply-account-termination/apply-account-termination.job";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
@@ -723,7 +724,8 @@ describe(UserService.name, () => {
       new VerifiedEmailService(auth0Service),
       container.resolve(HardwareRequestClaimService),
       container.resolve(AccountStatusService),
-      mock<ReferralService>({ attribute: vi.fn().mockResolvedValue(undefined) })
+      mock<ReferralService>({ attribute: vi.fn().mockResolvedValue(undefined) }),
+      container.resolve(RefusedSignupService)
     );
 
     return {

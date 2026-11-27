@@ -336,6 +336,34 @@ describe("workload abuse env config", () => {
     expect(() => setup({ [name]: value })).toThrow(new RegExp(name));
   });
 
+  it("reports a trial asked for within 60 minutes of a refused sign-up unless told otherwise", () => {
+    const blank = setup({ WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE: " ", WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES: " " });
+
+    expect([
+      setup().WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE,
+      setup().WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES,
+      blank.WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE,
+      blank.WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES
+    ]).toEqual(["report", 60, "report", 60]);
+  });
+
+  it.each(["off", "report", "enforce"])("reads the refused sign-up hold mode %s", mode => {
+    expect(setup({ WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE: mode }).WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE).toBe(mode);
+  });
+
+  it("reads the refused sign-up window, up to seven days", () => {
+    expect(setup({ WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES: "10080" }).WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES).toBe(10080);
+  });
+
+  it.each([
+    ["WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE", "on"],
+    ["WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES", "0"],
+    ["WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES", "1.5"],
+    ["WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES", "10081"]
+  ])("rejects %s set to %s", (name, value) => {
+    expect(() => setup({ [name]: value })).toThrow(new RegExp(name));
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 

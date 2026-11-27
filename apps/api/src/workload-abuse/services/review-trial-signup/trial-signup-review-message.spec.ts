@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildNewEmailDomainReviewMessage, buildRefusedTrialReviewMessage, buildTrialSignupReviewMessage } from "./trial-signup-review-message";
+import {
+  buildNewEmailDomainReviewMessage,
+  buildRefusedTrialReviewMessage,
+  buildTrialAfterRefusedSignupReviewMessage,
+  buildTrialSignupReviewMessage
+} from "./trial-signup-review-message";
 
 const ADMIN_URL = "https://console-admin.example.com";
 
@@ -139,5 +144,32 @@ describe(buildRefusedTrialReviewMessage.name, () => {
     });
 
     expect(message.text.split("\n")[2]).toBe("Matched deleted account: wallet &lt;akash&gt;&amp; · deleted &lt;then&gt;&amp;");
+  });
+});
+
+describe(buildTrialAfterRefusedSignupReviewMessage.name, () => {
+  it("names the held account with its admin link and the window the refusal fell in", () => {
+    const message = buildTrialAfterRefusedSignupReviewMessage({
+      account: { id: "held-id", email: "next@fresh-domain.xyz" },
+      windowMinutes: 60,
+      adminUrl: ADMIN_URL
+    });
+
+    expect(message.text).toBe(
+      [
+        ":no_entry: *Trial held after a refused sign-up*",
+        `next@fresh-domain.xyz · <${ADMIN_URL}/users/held-id|Admin>`,
+        "A sign-up from this browser was refused in the 60 min before this account asked for its trial."
+      ].join("\n")
+    );
+  });
+
+  it("leaves out the admin link when no admin url is set", () => {
+    const message = buildTrialAfterRefusedSignupReviewMessage({ account: { id: "held-id", email: null }, windowMinutes: 15 });
+
+    expect(message.text.split("\n").slice(1)).toEqual([
+      "held-id",
+      "A sign-up from this browser was refused in the 15 min before this account asked for its trial."
+    ]);
   });
 });

@@ -81,6 +81,7 @@ import { LockBlockedDomainWalletHandler } from "@src/workload-abuse/services/loc
 import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
 import { ReviewNewEmailDomainSignupsHandler } from "@src/workload-abuse/services/review-new-email-domain-signups/review-new-email-domain-signups.handler";
 import { ReviewRefusedTrialHandler } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
+import { ReviewTrialAfterRefusedSignupHandler } from "@src/workload-abuse/services/review-trial-after-refused-signup/review-trial-after-refused-signup.handler";
 import { ReviewTrialSignupHandler } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeeded/auto-recharge-succeeded.handler";
 import { CloseExpiredDeploymentHandler } from "../services/close-expired-deployment/close-expired-deployment.handler";
@@ -156,6 +157,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReviewTrialSignupHandler),
     container.resolve(ReviewRefusedTrialHandler),
     container.resolve(ReviewNewEmailDomainSignupsHandler),
+    container.resolve(ReviewTrialAfterRefusedSignupHandler),
     container.resolve(DailySignupSummaryHandler),
     container.resolve(GpuAvailableNoticeHandler),
     container.resolve(WatchGpuWaitlistsHandler),

@@ -1100,6 +1100,13 @@
       "when": 1795493352951,
       "tag": "0156_affiliate_invitations",
       "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1795752971559,
+      "tag": "0157_refused_signups",
+      "breakpoints": true
     }
   ]
 }

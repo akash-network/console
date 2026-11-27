@@ -12,14 +12,19 @@ import {
   type EmailDomainSignal,
   type SignupBurst
 } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
+import { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 import {
   ReviewNewEmailDomainSignups,
   reviewNewEmailDomainSignupsKeyFor
 } from "@src/workload-abuse/services/review-new-email-domain-signups/review-new-email-domain-signups.handler";
+import {
+  ReviewTrialAfterRefusedSignup,
+  reviewTrialAfterRefusedSignupKeyFor
+} from "@src/workload-abuse/services/review-trial-after-refused-signup/review-trial-after-refused-signup.handler";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
-type HeldUser = Pick<UserOutput, "id" | "email" | "lastFingerprint">;
+type HeldUser = Pick<UserOutput, "id" | "email" | "lastFingerprint" | "lastIp" | "lastUserAgent">;
 
 function isTiedToBlockedDomain(signal: EmailDomainSignal): signal is HeldSignupBlockEvidence {
   return "blockedDomain" in signal;
@@ -36,6 +41,7 @@ export class TrialSignupHoldService {
     private readonly txService: TxService,
     private readonly config: WorkloadAbuseConfigService,
     private readonly emailDomainReputationService: EmailDomainReputationService,
+    private readonly refusedSignupService: RefusedSignupService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TrialSignupHoldService.name });
@@ -44,6 +50,7 @@ export class TrialSignupHoldService {
   async isHeld(user: HeldUser): Promise<boolean> {
     if (await this.#isHeldForLinkedAccounts(user)) return true;
     if (await this.#isHeldForGeneratedEmailTag(user)) return true;
+    if (await this.#isHeldForRefusedSignup(user)) return true;
     if (await this.#isHeldForEmailDomainReputation(user)) return true;
 
     return await this.#isHeldForNewEmailDomain(user);
@@ -83,6 +90,49 @@ export class TrialSignupHoldService {
     await this.#reportHeldIfLinked(user);
 
     return true;
+  }
+
+  /** Matches on the address and user agent an account last signed in from, since a refused sign-up never becomes an account the device hold could count. */
+  async #isHeldForRefusedSignup(user: HeldUser): Promise<boolean> {
+    const mode = this.config.get("WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE");
+    if (mode === "off" || !(await this.#wasRecentlyRefused(user))) return false;
+
+    if (mode === "report") {
+      this.logger.info({ event: "TRIAL_SIGNUP_REFUSED_SIGNUP_HOLD_DRY_RUN", userId: user.id });
+      return false;
+    }
+
+    this.logger.warn({ event: "TRIAL_SIGNUP_HELD_FOR_REFUSED_SIGNUP", userId: user.id });
+    await this.#reportRefusedSignup(user.id);
+
+    return true;
+  }
+
+  /** Fails open, for the same reason as the email domain signals. */
+  async #wasRecentlyRefused(user: HeldUser): Promise<boolean> {
+    try {
+      return await this.refusedSignupService.wasRecentlyRefused({ ip: user.lastIp, userAgent: user.lastUserAgent });
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_SIGNUP_REFUSED_SIGNUP_CHECK_FAILED", userId: user.id, error });
+      return false;
+    }
+  }
+
+  /** Throttled per account on pg-boss's fixed slots, so an account held on every attempt is posted once per slot, and twice when its attempts straddle a slot boundary. */
+  async #reportRefusedSignup(userId: UserOutput["id"]): Promise<void> {
+    const windowMinutes = this.config.get("WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES");
+
+    try {
+      await this.txService.outsideTransaction(
+        async () =>
+          await this.jobQueueService.enqueue(new ReviewTrialAfterRefusedSignup({ userId, windowMinutes }), {
+            singletonKey: reviewTrialAfterRefusedSignupKeyFor(userId),
+            singletonSeconds: windowMinutes * 60
+          })
+      );
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId, error });
+    }
   }
 
   async #isHeldForEmailDomainReputation(user: HeldUser): Promise<boolean> {
