@@ -381,12 +381,24 @@ describe(AccountDeletionService.name, () => {
 
     it("hands the account and its wallet to the deleted trial record before the user row goes", async () => {
       const wallet = createUserWallet({ isTrialing: true });
-      const { service, user, userRepository, deletedTrialAccountService } = setup({ wallet, storedToken: {} });
+      const { service, user, userRepository, deletedTrialAccountService, logger } = setup({ wallet, storedToken: {} });
 
       await service.confirm({ token: "link-token" });
 
       expect(deletedTrialAccountService.remember).toHaveBeenCalledWith(user, wallet);
       expect(deletedTrialAccountService.remember.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DELETED_TRIAL_RECORD_SKIPPED_FOR_TESTING_CLIENT" }));
+    });
+
+    it("keeps no deleted trial record of an account the e2e testing client deleted", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, user, userRepository, deletedTrialAccountService, logger } = setup({ wallet, storedToken: {} });
+
+      await service.confirm({ token: "link-token", isTestingClient: true });
+
+      expect(deletedTrialAccountService.remember).not.toHaveBeenCalled();
+      expect(userRepository.deleteById).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({ event: "DELETED_TRIAL_RECORD_SKIPPED_FOR_TESTING_CLIENT", userId: user.id });
     });
 
     it("clears the account from the deleted trial records it was refused over before the user row goes", async () => {

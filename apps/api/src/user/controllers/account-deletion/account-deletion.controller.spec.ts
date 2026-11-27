@@ -1,8 +1,9 @@
 import createError from "http-errors";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { TestingClientService } from "@src/auth/services/testing-client/testing-client.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import type { AccountDeletionService } from "@src/user/services/account-deletion/account-deletion.service";
 import { AccountDeletionController } from "./account-deletion.controller";
@@ -105,13 +106,22 @@ describe(AccountDeletionController.name, () => {
     it("confirms the deletion with the link token and the caller's ip", async () => {
       const { controller, accountDeletionService } = setup({ user: null });
 
-      await controller.confirm({ data: { token: "link-token" } }, { authMethod: "none", ip: "203.0.113.7" });
+      await controller.confirm({ data: { token: "link-token" } }, { authMethod: "none", ip: "203.0.113.7", userAgent: "Mozilla/5.0" });
 
-      expect(accountDeletionService.confirm).toHaveBeenCalledWith({ token: "link-token", ip: "203.0.113.7" });
+      expect(accountDeletionService.confirm).toHaveBeenCalledWith({ token: "link-token", ip: "203.0.113.7", isTestingClient: false });
+    });
+
+    it("says so when the e2e testing client confirms the deletion", async () => {
+      const { controller, accountDeletionService, testingClientService } = setup({ user: null, isTestingClient: true });
+
+      await controller.confirm({ data: { token: "link-token" } }, { authMethod: "none", ip: "203.0.113.7", userAgent: "Mozilla/5.0 UIT/e2e-token." });
+
+      expect(testingClientService.isTestingClient).toHaveBeenCalledWith("Mozilla/5.0 UIT/e2e-token.");
+      expect(accountDeletionService.confirm).toHaveBeenCalledWith({ token: "link-token", ip: "203.0.113.7", isTestingClient: true });
     });
   });
 
-  function setup(input: { isEnabled?: boolean; user?: UserOutput | null } = {}) {
+  function setup(input: { isEnabled?: boolean; user?: UserOutput | null; isTestingClient?: boolean } = {}) {
     const user = input.user === null ? undefined : input.user ?? createUser();
     const authService = mock<AuthService>({ safeCurrentUser: user });
 
@@ -120,8 +130,10 @@ describe(AccountDeletionController.name, () => {
       if (input.isEnabled === false) throw createError(404);
     });
 
-    const controller = new AccountDeletionController(authService, accountDeletionService);
+    const testingClientService = mock<TestingClientService>({ isTestingClient: vi.fn().mockReturnValue(input.isTestingClient ?? false) });
 
-    return { controller, accountDeletionService, user };
+    const controller = new AccountDeletionController(authService, accountDeletionService, testingClientService);
+
+    return { controller, accountDeletionService, testingClientService, user };
   }
 });

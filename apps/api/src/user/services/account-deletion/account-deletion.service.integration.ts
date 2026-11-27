@@ -653,6 +653,24 @@ describe(AccountDeletionService.name, () => {
       ]);
     });
 
+    it("grants a trial to a sign-up from the browser the e2e testing client deleted a trial account with", async () => {
+      const { service, account, token, answerActiveDeployments, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      answerActiveDeployments([]);
+      limitReturningTrials({ cooldownHours: 4 });
+      const fingerprint = await setFingerprintOf(account, faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }));
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+
+      await service.confirm({ token, isTestingClient: true });
+      const { wallet, grantTrial } = await signUpAgain({
+        userId: `auth0|${faker.string.alphanumeric(24)}`,
+        email: faker.internet.email().toLowerCase(),
+        lastFingerprint: fingerprint
+      });
+
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date), abuseLockedAt: null });
+    });
+
     it("grants a trial to a sign-up from the browser of a deleted trial account while fingerprint matching is switched off", async () => {
       const { service, account, token, answerActiveDeployments, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
       answerActiveDeployments([]);

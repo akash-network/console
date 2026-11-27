@@ -91,6 +91,6 @@ const confirmRoute = createRoute({
 });
 
 accountDeletionRouter.openapi(confirmRoute, async function confirmAccountDeletion(c) {
-  await container.resolve(AccountDeletionController).confirm(c.req.valid("json"), { ip: c.var.clientInfo?.ip });
+  await container.resolve(AccountDeletionController).confirm(c.req.valid("json"), { ip: c.var.clientInfo?.ip, userAgent: c.var.clientInfo?.userAgent });
   return c.body(null, 204);
 });

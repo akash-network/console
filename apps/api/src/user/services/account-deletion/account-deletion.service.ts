@@ -124,7 +124,7 @@ export class AccountDeletionService {
     });
   }
 
-  async confirm(input: { token: string; ip?: string }): Promise<void> {
+  async confirm(input: { token: string; ip?: string; isTestingClient?: boolean }): Promise<void> {
     const record = await this.tokenRepository.findByTokenHash(hashToken(input.token));
     this.assertEnabledFor(record?.userId);
 
@@ -140,7 +140,7 @@ export class AccountDeletionService {
       throw createError(400, "This deletion link has expired. Request a new one from your account settings.", { errorCode: "expired_deletion_token" });
     }
 
-    const eligibility = await this.eraseAccount(user, record.acknowledgedForfeitUsd);
+    const eligibility = await this.eraseAccount(user, record.acknowledgedForfeitUsd, { isTestingClient: !!input.isTestingClient });
 
     if (!eligibility) return;
 
@@ -234,7 +234,11 @@ export class AccountDeletionService {
   }
 
   /** Templates, favorites, probe evidence and the personal organization have no foreign key that cascades them with the user row; the wallet row is kept, without owner, so its address stays on record. */
-  private async eraseAccount(user: UserOutput, acknowledgedForfeitUsd: number): Promise<AccountDeletionAssessment | undefined> {
+  private async eraseAccount(
+    user: UserOutput,
+    acknowledgedForfeitUsd: number,
+    origin: { isTestingClient: boolean }
+  ): Promise<AccountDeletionAssessment | undefined> {
     return await this.txService.transaction(async () => {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
       if (!lockedUser) return undefined;
@@ -257,7 +261,8 @@ export class AccountDeletionService {
       await this.feedbackErasureService.eraseAccountFeedback(user.id);
       await this.deletedAccountAbuseLockService.rememberLockOf(lockedUser, wallet);
       await this.deletedTrialAccountService.forgetRefusalsOf(lockedUser);
-      await this.deletedTrialAccountService.remember(lockedUser, wallet);
+      if (origin.isTestingClient) this.logger.info({ event: "DELETED_TRIAL_RECORD_SKIPPED_FOR_TESTING_CLIENT", userId: user.id });
+      else await this.deletedTrialAccountService.remember(lockedUser, wallet);
       await this.userRepository.deleteById(user.id);
       if (wallet) await userWallets.detachFromOrganization(wallet.id);
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);
