@@ -187,6 +187,28 @@ describe(FundingWalletMoveRepository.name, () => {
     });
   });
 
+  describe("findUserWalletIdsByStatus", () => {
+    it("finds the user wallets whose move off one source wallet is in one of the given states", async () => {
+      const { repository, moveInput, otherSource } = await setup();
+      const [revoking, revoked] = await Promise.all(
+        (["revoking", "revoked", "completed"] as const).map((status, offset) =>
+          repository.createUnlessStarted(moveInput({ userWalletId: 2000 + offset, status }))
+        )
+      );
+      await repository.createUnlessStarted(moveInput({ userWalletId: 2010, fromFundingWalletId: otherSource.id, status: "revoked" }));
+
+      const found = await repository.findUserWalletIdsByStatus(revoking.fromFundingWalletId, ["revoking", "revoked"]);
+
+      expect(new Set(found)).toEqual(new Set([revoking.userWalletId, revoked.userWalletId]));
+    });
+
+    it("finds nothing for a wallet no user was moved off", async () => {
+      const { repository } = await setup();
+
+      await expect(repository.findUserWalletIdsByStatus(faker.string.uuid(), ["revoking"])).resolves.toEqual([]);
+    });
+  });
+
   async function setup() {
     const network = `net-${faker.string.alphanumeric(12)}`;
     const fundingWallets = container.resolve(FundingWalletRepository);

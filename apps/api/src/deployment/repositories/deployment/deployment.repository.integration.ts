@@ -181,6 +181,37 @@ describe(DeploymentRepository.name, () => {
     });
   });
 
+  describe("findOwnersWithOpenDeployments", () => {
+    it("returns each owner that has a deployment open, once, and leaves out owners with only closed ones or none", async () => {
+      const { repository } = setup();
+      const [withTwoOpen, withOpenAndClosed, withOnlyClosed, withNone] = [1, 2, 3, 4].map(() => createAkashAddress());
+      await createDeployment({ owner: withTwoOpen, closedHeight: undefined });
+      await createDeployment({ owner: withTwoOpen, closedHeight: undefined });
+      await createDeployment({ owner: withOpenAndClosed, closedHeight: undefined });
+      await createDeployment({ owner: withOpenAndClosed, closedHeight: 5_000_000 });
+      await createDeployment({ owner: withOnlyClosed, closedHeight: 5_000_000 });
+
+      const owners = await repository.findOwnersWithOpenDeployments([withTwoOpen, withOpenAndClosed, withOnlyClosed, withNone]);
+
+      expect(owners.sort()).toEqual([withTwoOpen, withOpenAndClosed].sort());
+    });
+
+    it("answers only for the owners it is asked about", async () => {
+      const { repository } = setup();
+      const [asked, notAsked] = [1, 2].map(() => createAkashAddress());
+      await createDeployment({ owner: asked, closedHeight: undefined });
+      await createDeployment({ owner: notAsked, closedHeight: undefined });
+
+      await expect(repository.findOwnersWithOpenDeployments([asked])).resolves.toEqual([asked]);
+    });
+
+    it("returns nothing for an empty batch without querying", async () => {
+      const { repository } = setup();
+
+      await expect(repository.findOwnersWithOpenDeployments([])).resolves.toEqual([]);
+    });
+  });
+
   describe("findLeaseStates", () => {
     it("tells a deployment with an open lease, one whose leases all closed and one never leased apart", async () => {
       const { repository, owner, base } = setup();

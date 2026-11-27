@@ -97,16 +97,18 @@ export class FundingWalletMoveService {
 
     if (!from || !to) return undefined;
 
-    const lateGrantsEndAt = addMinutes(
-      addMilliseconds(from.drainingSince, this.billingConfigService.get("TX_SIGNER_REQUEST_TIMEOUT_MS")),
-      LATE_GRANT_MARGIN_IN_MIN
-    );
+    const lateGrantsEndAt = this.lateGrantsEndAt(from.drainingSince);
 
     if (new Date() < lateGrantsEndAt) {
       throw createError(503, "A grant signed before the promotion can still land on the draining funding wallet", { retryAt: lateGrantsEndAt.toISOString() });
     }
 
     return { from, to };
+  }
+
+  /** A grant signed just before the promotion can land on the draining wallet until then, so no move may read a balance earlier. */
+  lateGrantsEndAt(drainingSince: Date): Date {
+    return addMinutes(addMilliseconds(drainingSince, this.billingConfigService.get("TX_SIGNER_REQUEST_TIMEOUT_MS")), LATE_GRANT_MARGIN_IN_MIN);
   }
 
   async #findOrStart(wallet: MovedWallet, { from, to }: Rotation): Promise<FundingWalletMoveOutput> {

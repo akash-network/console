@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -91,5 +91,14 @@ export class FundingWalletMoveRepository {
       .groupBy(this.table.status);
 
     return Object.fromEntries(rows.map(({ status, count }) => [status, count]));
+  }
+
+  async findUserWalletIdsByStatus(fromFundingWalletId: string, statuses: FundingWalletMoveStatus[]): Promise<number[]> {
+    const rows = await this.#cursor
+      .select({ userWalletId: this.table.userWalletId })
+      .from(this.table)
+      .where(and(eq(this.table.fromFundingWalletId, fromFundingWalletId), inArray(this.table.status, statuses)));
+
+    return rows.map(({ userWalletId }) => userWalletId);
   }
 }

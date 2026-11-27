@@ -10,6 +10,7 @@ import { z } from "zod";
 import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { FundingWalletDrainService } from "@src/billing/services/funding-wallet-drain/funding-wallet-drain.service";
 import { FundingWalletRotationService } from "@src/billing/services/funding-wallet-rotation/funding-wallet-rotation.service";
 import { GpuWinBackCatchUpService } from "@src/billing/services/gpu-win-back-catch-up/gpu-win-back-catch-up.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -250,6 +251,34 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(FundingWalletRotationService).promote(options.address);
+    });
+  });
+
+program
+  .command("queue-funding-wallet-moves")
+  .description("Queue a move to the active funding wallet for every user the draining one still backs, users with running deployments first")
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletDrainService).queueMoves();
+    });
+  });
+
+program
+  .command("funding-wallet-drain-status")
+  .description("Log how many grants the draining funding wallet still backs and how the moves off it stand")
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletDrainService).describe();
+    });
+  });
+
+program
+  .command("retire-funding-wallet")
+  .description("Retire the draining funding wallet once the chain shows no grant of it and no move off it is unfinished")
+  .requiredOption("-a, --address <string>", "Address of the draining wallet to retire", parseAkashAddress)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletDrainService).retire(options.address);
     });
   });
 
