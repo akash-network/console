@@ -626,8 +626,8 @@ describe(AssistantToolRunnerService.name, () => {
       ["read_events", "Could not read the events"],
       ["suggest_live_help", "Could not suggest live help"],
       ["propose_send_manifest_again", "Could not propose send manifest again"],
-      ["open_shell", "Could not use a tool the assistant does not have"],
-      ["toString", "Could not use a tool the assistant does not have"]
+      ["open_shell", "Could not use a tool Sidekick does not have"],
+      ["toString", "Could not use a tool Sidekick does not have"]
     ])("summarizes a refused %s in words the user reads", async (name, summary) => {
       const { runner } = setup();
 

@@ -18,19 +18,19 @@ export const ASSISTANT_ERROR_CODES = {
 } as const;
 
 export function assistantDailyLimitReached() {
-  return createError(429, "You reached today's assistant limit. Try again tomorrow, or ask on Discord.", { errorCode: ASSISTANT_ERROR_CODES.dailyLimit });
+  return createError(429, "You reached today's Sidekick limit. Try again tomorrow, or ask on Discord.", { errorCode: ASSISTANT_ERROR_CODES.dailyLimit });
 }
 
 export function assistantTrialLimitReached() {
-  return createError(429, "You used all your free assistant messages. Add credits to keep using the assistant.", {
+  return createError(429, "You used all your free Sidekick messages. Add credits to keep using Sidekick.", {
     errorCode: ASSISTANT_ERROR_CODES.trialLimit
   });
 }
 
 export function assistantUnavailable() {
-  return createError(503, "The assistant is unavailable right now. Ask on Discord for live help.", { errorCode: ASSISTANT_ERROR_CODES.unavailable });
+  return createError(503, "Sidekick is unavailable right now. Ask on Discord for live help.", { errorCode: ASSISTANT_ERROR_CODES.unavailable });
 }
 
 export function assistantBlocked() {
-  return createError(403, "The assistant is turned off for your account.", { errorCode: ASSISTANT_ERROR_CODES.blocked });
+  return createError(403, "Sidekick is turned off for your account.", { errorCode: ASSISTANT_ERROR_CODES.blocked });
 }

@@ -28,7 +28,7 @@ describe(withPricingGuard.name, () => {
 
     expect(Card).not.toHaveBeenCalled();
     expect(screen.getByRole("region", { name: "This change can't be applied" })).toHaveTextContent(
-      "This change would touch pricing, which the assistant can't change. Edit pricing in the editor yourself."
+      "This change would touch pricing, which Sidekick can't change. Edit pricing in the editor yourself."
     );
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(1);

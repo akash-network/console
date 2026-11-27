@@ -111,7 +111,11 @@ describe(AssistantProblemReportService.name, () => {
             { role: "assistant", content: "Hello", signature }
           ]
         })
-      ).rejects.toMatchObject({ status: 400, errorCode: "assistant_history_unverified" });
+      ).rejects.toMatchObject({
+        status: 400,
+        errorCode: "assistant_history_unverified",
+        message: "The conversation sent with this report does not match what Sidekick answered."
+      });
       expect(problemReportRepository.create).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });

@@ -6,7 +6,7 @@ type Props = {
   onClick: () => void;
 };
 
-const LABEL = "Ask the assistant";
+const LABEL = "Ask Sidekick";
 
 export function AssistantLauncherButton({ onClick }: Props) {
   const gradientId = useId();

@@ -28,14 +28,14 @@ describe("AssistantPrivacySection", () => {
     setup({});
 
     expect(screen.getByRole("region", { name: "Privacy" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Improve Console with my assistant conversations" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "Improve Console with my Sidekick conversations" })).toBeChecked();
     expect(screen.getByText(/Agreed on Nov 4, 2026 · consent 2026-11-draft-1/)).toBeInTheDocument();
   });
 
   it("turns the review opt-in off under the version the user agreed to", async () => {
     const { updateConsent } = setup({});
 
-    await userEvent.click(screen.getByRole("switch", { name: "Improve Console with my assistant conversations" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Improve Console with my Sidekick conversations" }));
 
     expect(updateConsent).toHaveBeenCalledWith({ data: { copyVersion: "2026-11-draft-1", reviewOptIn: false } });
   });
@@ -64,7 +64,7 @@ describe("AssistantPrivacySection", () => {
     setup({ privacy: { consent: null, storedConversationCount: 0 } });
 
     expect(screen.getByRole("switch")).toBeDisabled();
-    expect(screen.getByText("You haven't used the assistant yet. You can choose this the first time you open it.")).toBeInTheDocument();
+    expect(screen.getByText("You haven't used Sidekick yet. You can choose this the first time you open it.")).toBeInTheDocument();
   });
 
   it("deletes the saved conversations once the user confirms", async () => {

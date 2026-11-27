@@ -72,7 +72,7 @@ export class AssistantProblemReportService {
       role === "user" || (!!signature && this.answerSigner.verifies({ userId, conversationId, text: content, signature }));
 
     if (!history.every(isVerified)) {
-      throw createError(400, "The conversation sent with this report does not match what the assistant answered.", {
+      throw createError(400, "The conversation sent with this report does not match what Sidekick answered.", {
         errorCode: ASSISTANT_ERROR_CODES.historyUnverified
       });
     }

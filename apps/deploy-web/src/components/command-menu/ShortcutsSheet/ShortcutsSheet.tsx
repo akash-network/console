@@ -58,7 +58,7 @@ const SHORTCUT_GROUPS: ShortcutGroupProps[] = [
   }
 ];
 
-const ASSISTANT_GROUP: ShortcutGroupProps = { title: "Assistant", rows: [{ label: "Ask the assistant", shortcut: OPEN_ASSISTANT_SHORTCUT }] };
+const ASSISTANT_GROUP: ShortcutGroupProps = { title: "Sidekick", rows: [{ label: "Ask Sidekick", shortcut: OPEN_ASSISTANT_SHORTCUT }] };
 
 export function ShortcutsSheet({ isOpen, onOpenChange, returnFocusRef, hasAssistant }: Props) {
   const groups = hasAssistant ? [...SHORTCUT_GROUPS, ASSISTANT_GROUP] : SHORTCUT_GROUPS;

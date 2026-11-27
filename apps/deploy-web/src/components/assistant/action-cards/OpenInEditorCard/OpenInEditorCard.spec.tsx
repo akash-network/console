@@ -125,7 +125,7 @@ describe("OpenInEditorCard", () => {
     const { chromeProps, redeploy } = setup({ action: { dseq: "42", sdl: STORED_SDL.replace("amount: 1000", "amount: 9000") } });
 
     await expect(chromeProps().onConfirm!("")).rejects.toThrow(
-      "This change would touch pricing, which the assistant can't change. Edit pricing in the editor yourself."
+      "This change would touch pricing, which Sidekick can't change. Edit pricing in the editor yourself."
     );
     expect(redeploy).not.toHaveBeenCalled();
   });

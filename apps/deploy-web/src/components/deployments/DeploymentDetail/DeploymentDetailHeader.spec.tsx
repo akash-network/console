@@ -38,7 +38,7 @@ describe(DeploymentDetailHeader.name, () => {
     expect(AskAssistantButton.mock.lastCall?.[0]).toEqual({
       dseq: "1786440078202",
       question: ASK_ABOUT_DEPLOYMENT_QUESTION,
-      label: "Ask the assistant",
+      label: "Ask Sidekick",
       variant: "ghost"
     });
   });
@@ -56,7 +56,7 @@ describe(DeploymentDetailHeader.name, () => {
     expect(AskAssistantButton.mock.lastCall?.[0]).toEqual({
       dseq: "1786440078202",
       question: 'This deployment shows "Closed by Console" (No provider bid on it). What went wrong, and how do I fix it?',
-      label: "Diagnose with the assistant",
+      label: "Diagnose with Sidekick",
       variant: "default",
       sendsQuestion: true
     });

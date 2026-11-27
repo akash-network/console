@@ -45,7 +45,7 @@ export const AssistantComposer: FC<Props> = ({ initialValue = "", isSending, isD
       )}
       <div className="flex items-end gap-2">
         <textarea
-          aria-label="Message the assistant"
+          aria-label="Message Sidekick"
           placeholder="Ask anything about your deployments..."
           rows={2}
           maxLength={MAX_MESSAGE_LENGTH}

@@ -547,7 +547,7 @@ export class AssistantTurnService {
 
     if (isModelFailure(error)) {
       this.#logger.warn({ event: "ASSISTANT_MODEL_FAILED", error });
-      await emit({ type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." });
+      await emit({ type: "error", code: "assistant_unavailable", message: "Sidekick is unavailable right now. Ask on Discord for live help." });
       return "model_failed";
     }
 

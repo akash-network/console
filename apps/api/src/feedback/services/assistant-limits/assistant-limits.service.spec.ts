@@ -64,7 +64,7 @@ describe(AssistantLimitsService.name, () => {
         await expect(service.countMessage("user-1", isTrialing)).rejects.toMatchObject({
           status: 429,
           errorCode: ASSISTANT_ERROR_CODES.trialLimit,
-          message: "You used all your free assistant messages. Add credits to keep using the assistant."
+          message: "You used all your free Sidekick messages. Add credits to keep using Sidekick."
         });
       }
       await expect(service.countMessage("user-1", false)).resolves.toBeUndefined();
@@ -79,7 +79,7 @@ describe(AssistantLimitsService.name, () => {
       await expect(service.countMessage("user-1", false)).rejects.toMatchObject({
         status: 429,
         errorCode: ASSISTANT_ERROR_CODES.dailyLimit,
-        message: "You reached today's assistant limit. Try again tomorrow, or ask on Discord."
+        message: "You reached today's Sidekick limit. Try again tomorrow, or ask on Discord."
       });
     });
 
@@ -113,7 +113,7 @@ describe(AssistantLimitsService.name, () => {
       await expect(service.assertWithinUserTokens("user-1", false)).rejects.toMatchObject({
         status: 429,
         errorCode: ASSISTANT_ERROR_CODES.dailyLimit,
-        message: "You reached today's assistant limit. Try again tomorrow, or ask on Discord."
+        message: "You reached today's Sidekick limit. Try again tomorrow, or ask on Discord."
       });
     });
 

@@ -158,15 +158,9 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
         </div>
         <d.DeploymentVisitControl leases={leases ?? []} providers={providers} />
         {status.tone === "warning" ? (
-          <d.AskAssistantButton
-            dseq={deployment.dseq}
-            question={diagnoseQuestionOf(status)}
-            label="Diagnose with the assistant"
-            variant="default"
-            sendsQuestion
-          />
+          <d.AskAssistantButton dseq={deployment.dseq} question={diagnoseQuestionOf(status)} label="Diagnose with Sidekick" variant="default" sendsQuestion />
         ) : (
-          <d.AskAssistantButton dseq={deployment.dseq} question={ASK_ABOUT_DEPLOYMENT_QUESTION} label="Ask the assistant" variant="ghost" />
+          <d.AskAssistantButton dseq={deployment.dseq} question={ASK_ABOUT_DEPLOYMENT_QUESTION} label="Ask Sidekick" variant="ghost" />
         )}
       </div>
 

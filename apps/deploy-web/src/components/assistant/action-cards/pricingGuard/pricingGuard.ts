@@ -8,7 +8,7 @@ const PRICING_KEYS = new Set(["pricing", "price", "denom"]);
 /** Its keys are variable names the user chose, not fields of the action, so a variable called `price` is not a pricing change. */
 const ENV_KEY = "env";
 
-export const PRICING_CHANGE_MESSAGE = "This change would touch pricing, which the assistant can't change. Edit pricing in the editor yourself.";
+export const PRICING_CHANGE_MESSAGE = "This change would touch pricing, which Sidekick can't change. Edit pricing in the editor yourself.";
 
 /** A bid's price is the provider's own and only ever shown, so a choice is the one place a price may ride along. */
 export function carriesPricingChange(action: AssistantAction): boolean {
