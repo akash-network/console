@@ -22,6 +22,7 @@ import type { ChainErrorService } from "@src/billing/services/chain-error/chain-
 import type { DeploymentDepositLedgerService } from "@src/billing/services/deployment-deposit-ledger/deployment-deposit-ledger.service";
 import { DeploymentDepositRefusalCache } from "@src/billing/services/deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import type { ReturnedEscrowQueueService } from "@src/billing/services/returned-escrow/returned-escrow-queue.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -1304,7 +1305,7 @@ describe(ManagedSignerService.name, () => {
         value: { id: { dseq: "123", owner: wallet.address } }
       };
 
-      const { service, walletReloadJobService } = setup({
+      const { service, walletReloadJobService, returnedEscrowQueue } = setup({
         findOneUsedBy: vi.fn().mockResolvedValue(wallet),
         findById: vi.fn().mockResolvedValue(user),
         signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
@@ -1315,6 +1316,7 @@ describe(ManagedSignerService.name, () => {
 
       expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: wallet.id });
       expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+      expect(returnedEscrowQueue.queueAfterClose).toHaveBeenCalledWith(wallet.id, "tx-hash");
     });
 
     it("does not schedule a credits-low check for a transaction without a close message", async () => {
@@ -1325,7 +1327,7 @@ describe(ManagedSignerService.name, () => {
         value: { id: { dseq: "123", owner: wallet.address } }
       };
 
-      const { service, walletReloadJobService } = setup({
+      const { service, walletReloadJobService, returnedEscrowQueue } = setup({
         findOneUsedBy: vi.fn().mockResolvedValue(wallet),
         findById: vi.fn().mockResolvedValue(user),
         signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
@@ -1335,6 +1337,7 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
 
       expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).not.toHaveBeenCalled();
+      expect(returnedEscrowQueue.queueAfterClose).not.toHaveBeenCalled();
     });
 
     it("returns the close result even when the credits-low schedule fails", async () => {
@@ -2664,6 +2667,7 @@ describe(ManagedSignerService.name, () => {
       deploymentOrganizationActivityService: mock<DeploymentOrganizationActivityService>({
         recordClosed: vi.fn()
       }),
+      returnedEscrowQueue: mock<ReturnedEscrowQueueService>(),
       logger: mock<ReturnType<CreateLogger>>({
         error: vi.fn(),
         warn: vi.fn(),
@@ -2695,6 +2699,7 @@ describe(ManagedSignerService.name, () => {
       mocks.deploymentOrganizationActivityService,
       mocks.depositLedger,
       new AccountStatusGuard(mocks.userRepository, mocks.accountStatusService),
+      mocks.returnedEscrowQueue,
       createLogger
     );
 

@@ -19,7 +19,7 @@ function applyChange(limit: number, { type, data, spentByGranter, receivedByGran
   return limit - totalOf(spentByGranter, denom) + totalOf(receivedByGranter, denom);
 }
 
-function totalOf(amounts: string[], denom: string): number {
+export function totalOf(amounts: string[], denom: string): number {
   return amounts.flatMap(coins => parseCoins(coins)).reduce((total, coin) => (coin.denom === denom ? total + Number(coin.amount) : total), 0);
 }
 

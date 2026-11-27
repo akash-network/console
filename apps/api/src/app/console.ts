@@ -13,6 +13,7 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import { FundingWalletDrainService } from "@src/billing/services/funding-wallet-drain/funding-wallet-drain.service";
 import { FundingWalletRotationService } from "@src/billing/services/funding-wallet-rotation/funding-wallet-rotation.service";
 import { GpuWinBackCatchUpService } from "@src/billing/services/gpu-win-back-catch-up/gpu-win-back-catch-up.service";
+import { ReturnedEscrowService } from "@src/billing/services/returned-escrow/returned-escrow.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
@@ -279,6 +280,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(FundingWalletDrainService).retire(options.address);
+    });
+  });
+
+program
+  .command("credit-returned-escrow")
+  .description("Queue a check, for every user moved off a funding wallet, that credits escrow their closed deployments returned to it since")
+  .requiredOption("-a, --address <string>", "Address of the funding wallet the users were moved off", parseAkashAddress)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(ReturnedEscrowService).queueForEveryoneMovedOff(options.address);
     });
   });
 

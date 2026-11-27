@@ -169,6 +169,42 @@ describe(FundingWalletMoveRepository.name, () => {
     });
   });
 
+  describe("findCompletedOf", () => {
+    it("finds the completed moves of a user wallet on a network with the address of the funding wallet each one left", async () => {
+      const { repository, moveInput, from, otherSource, network } = await setup();
+      const completed = await repository.createUnlessStarted(moveInput({ status: "completed" }));
+      const earlier = await repository.createUnlessStarted(moveInput({ status: "completed", fromFundingWalletId: otherSource.id }));
+      await repository.createUnlessStarted(moveInput({ status: "completed", userWalletId: completed.userWalletId + 1 }));
+
+      const moves = await repository.findCompletedOf(completed.userWalletId, network);
+
+      expect(moves).toEqual([
+        { ...completed, fromAddress: from.address },
+        { ...earlier, fromAddress: otherSource.address }
+      ]);
+      await expect(repository.findCompletedOf(completed.userWalletId, "other")).resolves.toEqual([]);
+    });
+
+    it.each(["revoking", "revoked", "crediting", "failed"] as const)("leaves out a move that is %s", async status => {
+      const { repository, moveInput, network } = await setup();
+      const move = await repository.createUnlessStarted(moveInput({ status }));
+
+      await expect(repository.findCompletedOf(move.userWalletId, network)).resolves.toEqual([]);
+    });
+  });
+
+  describe("findCompletedUserWalletIds", () => {
+    it("lists the user wallets whose move off that funding wallet completed, in order", async () => {
+      const { repository, moveInput, from, otherSource } = await setup();
+      await repository.createUnlessStarted(moveInput({ status: "completed", userWalletId: 2002 }));
+      await repository.createUnlessStarted(moveInput({ status: "completed", userWalletId: 2001 }));
+      await repository.createUnlessStarted(moveInput({ status: "failed", userWalletId: 2003 }));
+      await repository.createUnlessStarted(moveInput({ status: "completed", userWalletId: 2004, fromFundingWalletId: otherSource.id }));
+
+      await expect(repository.findCompletedUserWalletIds(from.id)).resolves.toEqual([2001, 2002]);
+    });
+  });
+
   describe("countByStatus", () => {
     it("counts the moves off one source wallet by state", async () => {
       const { repository, moveInput, otherSource } = await setup();
@@ -210,6 +246,8 @@ describe(FundingWalletMoveRepository.name, () => {
     return {
       repository: container.resolve(FundingWalletMoveRepository),
       moveInput: (overrides: Partial<FundingWalletMoveInput> = {}) => moveInput({ userWalletId, ...overrides }),
+      from,
+      network,
       otherSource
     };
   }
