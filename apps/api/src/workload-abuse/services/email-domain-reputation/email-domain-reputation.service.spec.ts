@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type {
   BlockedEmailDomainOutput,
@@ -106,6 +107,50 @@ describe(EmailDomainReputationService.name, () => {
     });
 
     it("ignores sign-ups below the minimum", async () => {
+      const { service, user, userRepository, stripeTransactionRepository } = setup({
+        email: "teqz9009@step-sis.help",
+        recentSignups: 4,
+        burstMinSignups: 5,
+        hasPaidUser: true,
+        hasEstablishedUser: true
+      });
+
+      expect((await service.findSignals(user)).signals).toEqual([]);
+      expect(stripeTransactionRepository.hasPaidUserWithEmailDomain).not.toHaveBeenCalled();
+      expect(userRepository.hasEstablishedUserWithEmailDomain).not.toHaveBeenCalled();
+    });
+
+    it("ignores a burst on a domain somebody has paid from", async () => {
+      const { service, user, userRepository, stripeTransactionRepository } = setup({
+        email: "new.hire@mail.example-corp.com",
+        recentSignups: 6,
+        hasPaidUser: true
+      });
+
+      expect((await service.findSignals(user)).signals).toEqual([]);
+      expect(stripeTransactionRepository.hasPaidUserWithEmailDomain).toHaveBeenCalledWith("example-corp.com");
+      expect(userRepository.hasEstablishedUserWithEmailDomain).not.toHaveBeenCalled();
+    });
+
+    it("ignores a burst on a domain with an account older than the configured age, not counting the sign-up itself", async () => {
+      const { service, user, userRepository } = setup({
+        email: "new.hire@mail.example-corp.com",
+        recentSignups: 6,
+        hasEstablishedUser: true,
+        minAccountAgeDays: 21
+      });
+
+      expect((await service.findSignals(user)).signals).toEqual([]);
+      expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalledWith("example-corp.com", 21, user.id);
+    });
+
+    it("reports a burst on a domain with neither a paying nor an established account", async () => {
+      const { service, user } = setup({ email: "teqz9009@step-sis.help", recentSignups: 6, hasPaidUser: false, hasEstablishedUser: false });
+
+      expect((await service.findSignals(user)).signals).toEqual([{ signal: "signup_burst", burstDomain: "step-sis.help", signups: 6 }]);
+    });
+
+    it("ignores a burst that stays under the minimum", async () => {
       const { service, user } = setup({ email: "teqz9009@step-sis.help", recentSignups: 4, burstMinSignups: 5 });
 
       expect((await service.findSignals(user)).signals).toEqual([]);
@@ -216,12 +261,14 @@ describe(EmailDomainReputationService.name, () => {
       blockedDomains?: string[];
       allowedDomains?: string[];
       windowMinutes?: number;
+      hasPaidUser?: boolean;
+      hasEstablishedUser?: boolean;
+      minAccountAgeDays?: number;
     } = {}
   ) {
     const user = input.user ?? createUser({ email: input.email, lastFingerprint: faker.string.hexadecimal({ length: 64 }) });
     const domain = user.email?.split("@")[1] ?? "";
-    const profile =
-      input.profile === null ? null : { domain, mxHosts: [`mail.${domain}`], selfHostedMxIps: ["10.0.0.1"], hasWebsite: true, ...input.profile };
+    const profile = input.profile === null ? null : { domain, mxHosts: [`mail.${domain}`], selfHostedMxIps: ["10.0.0.1"], hasWebsite: true, ...input.profile };
     const profileService = mock<EmailDomainMailProfileService>({ findProfile: vi.fn().mockResolvedValue(profile) });
     const mailHostRepository = mock<EmailDomainMailHostRepository>({
       findBlockedDomainSharingMxIps: vi.fn().mockResolvedValue(input.blockedDomainSharingMxIps)
@@ -231,16 +278,28 @@ describe(EmailDomainReputationService.name, () => {
     });
     const userRepository = mock<UserRepository>({
       countVerifiedCreatedWithEmailDomainSince: vi.fn().mockResolvedValue(input.recentSignups ?? 1),
+      hasEstablishedUserWithEmailDomain: vi.fn().mockResolvedValue(input.hasEstablishedUser ?? false),
       findRecentlyActiveByFingerprint: vi.fn().mockResolvedValue(input.linkedAccounts ?? [])
     });
+    const stripeTransactionRepository = mock<StripeTransactionRepository>({
+      hasPaidUserWithEmailDomain: vi.fn().mockResolvedValue(input.hasPaidUser ?? false)
+    });
     const config = mockConfig<WorkloadAbuseConfigService>({
+      WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS: input.minAccountAgeDays ?? 30,
       WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "windowMinutes" in input ? input.windowMinutes : 45,
       WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: input.burstMinSignups ?? 5,
       WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: input.burstWindowHours ?? 24
     });
-    const service = new EmailDomainReputationService(profileService, mailHostRepository, blockedEmailDomainRepository, userRepository, config);
+    const service = new EmailDomainReputationService(
+      profileService,
+      mailHostRepository,
+      blockedEmailDomainRepository,
+      userRepository,
+      stripeTransactionRepository,
+      config
+    );
 
-    return { service, user, profileService, mailHostRepository, blockedEmailDomainRepository, userRepository };
+    return { service, user, profileService, mailHostRepository, blockedEmailDomainRepository, userRepository, stripeTransactionRepository };
   }
 
   function findRule(domain: string, blockedDomains: string[] = [], allowedDomains: string[] = []): BlockedEmailDomainOutput | undefined {

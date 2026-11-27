@@ -10,6 +10,7 @@ import { PAYMENT_METHOD_REFUSED_ERROR_CODE, REFUSALS_PER_PAYMENT_METHOD } from "
 import { app } from "@src/rest-app";
 import { AccountStatusEventRepository } from "@src/user/repositories/account-status-event/account-status-event.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
 import { seedOwnWalletOf, seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 
@@ -178,6 +179,41 @@ describe("Stripe transactions confirm", () => {
       expect(await stripeTransactionRepository.find({ userId: user.id })).toEqual([]);
     });
 
+    it("charges a user whose trial is held, whose wallet has not been activated", async () => {
+      const { user, token, stripeCustomerId, paymentMethodId, holdTrial } = await setup({ isWalletActivated: false });
+      await holdTrial();
+      const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+      nock("https://api.stripe.com")
+        .get(`/v1/payment_methods/${paymentMethodId}`)
+        .reply(200, { id: paymentMethodId, object: "payment_method", customer: stripeCustomerId });
+      nock("https://api.stripe.com")
+        .get("/v1/payment_intents")
+        .query(true)
+        .reply(200, { object: "list", data: [], has_more: false, url: "/v1/payment_intents" });
+      nock("https://api.stripe.com")
+        .post("/v1/payment_intents")
+        .reply(200, { id: paymentIntentId, object: "payment_intent", status: "succeeded", amount: 2000, currency: "usd" });
+
+      const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: faker.string.uuid() });
+
+      expect(response.status).toBe(200);
+      expect(await stripeTransactionRepository.find({ userId: user.id })).toEqual([
+        expect.objectContaining({ stripePaymentIntentId: paymentIntentId, amount: 2000 })
+      ]);
+    });
+
+    it("asks a user whose trial is still on its way to retry, without charging", async () => {
+      const { user, token, paymentMethodId } = await setup({ isWalletActivated: false });
+      const stripeScope = nock("https://api.stripe.com").post("/v1/payment_intents").reply(500);
+
+      const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: faker.string.uuid() });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "wallet_provisioning" });
+      expect(stripeScope.isDone()).toBe(false);
+      expect(await stripeTransactionRepository.find({ userId: user.id })).toEqual([]);
+    });
+
     it("answers 402 without charging a user who has not set up payments", async () => {
       const { user, token, paymentMethodId } = await setup({ hasStripeCustomer: false });
 
@@ -200,19 +236,36 @@ describe("Stripe transactions confirm", () => {
     });
   }
 
-  async function setup(input: { hasStripeCustomer?: boolean } = {}) {
+  async function setup(input: { hasStripeCustomer?: boolean; isWalletActivated?: boolean } = {}) {
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+    const lastFingerprint = faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" });
     const user = await userRepository.create({
       userId: faker.string.uuid(),
+      email: faker.internet.email().toLowerCase(),
+      emailVerified: true,
+      lastFingerprint,
       stripeCustomerId: input.hasStripeCustomer === false ? undefined : stripeCustomerId
     });
     const wallet = await seedOwnWalletOf(user.id);
-    await userWalletRepository.updateById(wallet.id, { activatedAt: new Date(), isTrialing: false });
+    if (input.isWalletActivated ?? true) await userWalletRepository.updateById(wallet.id, { activatedAt: new Date(), isTrialing: false });
     const token = faker.string.alphanumeric(40);
     const paymentMethodId = `pm_${faker.string.alphanumeric(24)}`;
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async received => (received.replace(/^Bearer +/i, "") === token ? user.userId! : null));
 
-    return { user, token, stripeCustomerId, paymentMethodId, organizationId: await seedPersonalOrganizationIdOf(user.id) };
+    async function holdTrial() {
+      await Promise.all([1, 2].map(async () => await userRepository.create({ userId: faker.string.uuid(), lastFingerprint, lastActiveAt: new Date() })));
+      const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
+      const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
+      const overrides: Partial<Record<Parameters<typeof readWorkloadAbuseConfig>[0], unknown>> = {
+        WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: "enforce",
+        WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: 2,
+        WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: 45
+      };
+      vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
+        key in overrides ? overrides[key] : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);
+    }
+
+    return { user, token, stripeCustomerId, paymentMethodId, organizationId: await seedPersonalOrganizationIdOf(user.id), holdTrial };
   }
 });

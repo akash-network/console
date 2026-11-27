@@ -28,7 +28,7 @@ describe(TopUpService.name, () => {
         errorCode: "account_suspended",
         data: { reason: "Chargeback" }
       });
-      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
+      expect(trialActivationJobService.assertActivatedOrTrialRefused).not.toHaveBeenCalled();
       expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
     });
 
@@ -49,7 +49,7 @@ describe(TopUpService.name, () => {
     it("throws a retriable 409 without charging when the wallet is still provisioning", async () => {
       const { service, stripeTransactionService, trialActivationJobService, userWalletRepository, payingUser } = setup();
       userWalletRepository.findOneUsedBy.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
-      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+      trialActivationJobService.assertActivatedOrTrialRefused.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
 
       await expect(service.topUp(payingUser, { paymentMethodId: faker.string.uuid(), amount: 100 })).rejects.toMatchObject({
         status: 409,
@@ -326,7 +326,7 @@ describe(TopUpService.name, () => {
       await service.topUp(payer, { paymentMethodId: "pm_1", amount: 100, idempotencyKey: clientKey });
 
       expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(payer.user.id);
-      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
+      expect(trialActivationJobService.assertActivatedOrTrialRefused).not.toHaveBeenCalled();
       expect(paymentMethodService.hasPaymentMethod).toHaveBeenCalledWith("pm_1", payer);
       expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(
         expect.objectContaining({

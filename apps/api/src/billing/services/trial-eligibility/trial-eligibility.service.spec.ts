@@ -90,6 +90,61 @@ describe(TrialEligibilityService.name, () => {
     });
   });
 
+  describe("isRefused", () => {
+    it("answers no for a user nothing refuses", async () => {
+      const { service, user } = setup();
+
+      await expect(service.isRefused(user.id)).resolves.toBe(false);
+    });
+
+    it.each([{ hasDuplicateFingerprint: true }, { isBlockedEmailDomain: true }, { isHeld: true }])("answers yes for a user refused over %o", async refusal => {
+      const { service, user } = setup(refusal);
+
+      await expect(service.isRefused(user.id)).resolves.toBe(true);
+    });
+
+    it("leaves a shared fingerprint alone outside production, with the check off, or without a fingerprint", async () => {
+      const notProduction = setup({ hasDuplicateFingerprint: true, isProduction: false });
+      const checkOff = setup({ hasDuplicateFingerprint: true, isFingerprintCheckEnabled: false });
+      const noFingerprint = setup({ hasDuplicateFingerprint: true, user: createUser({ emailVerified: true, lastFingerprint: null }) });
+
+      await expect(notProduction.service.isRefused(notProduction.user.id)).resolves.toBe(false);
+      await expect(checkOff.service.isRefused(checkOff.user.id)).resolves.toBe(false);
+      await expect(noFingerprint.service.isRefused(noFingerprint.user.id)).resolves.toBe(false);
+    });
+
+    it("asks a user who has not confirmed their email to confirm it instead of answering", async () => {
+      const { service, user, trialSignupHoldService } = setup({ user: createUser({ emailVerified: false }), isHeld: true });
+
+      await expect(service.isRefused(user.id)).rejects.toMatchObject({
+        status: 403,
+        message: TRIAL_EMAIL_VERIFICATION_REQUIRED_MESSAGE,
+        errorCode: EMAIL_VERIFICATION_REQUIRED_ERROR_CODE
+      });
+      expect(trialSignupHoldService.isHeld).not.toHaveBeenCalled();
+    });
+
+    it("asks for the hold with the user's own record, and only once nothing else refuses", async () => {
+      const held = setup({ isHeld: true });
+      const blocked = setup({ isBlockedEmailDomain: true, isHeld: true });
+
+      await held.service.isRefused(held.user.id);
+      await blocked.service.isRefused(blocked.user.id);
+
+      expect(held.blockedEmailDomainService.isBlockedEmail).toHaveBeenCalledWith(held.user.email);
+      expect(held.trialSignupHoldService.isHeld).toHaveBeenCalledWith(held.user);
+      expect(blocked.trialSignupHoldService.isHeld).not.toHaveBeenCalled();
+    });
+
+    it("answers no for a user that no longer exists", async () => {
+      const { service, userRepository, trialSignupHoldService } = setup();
+      userRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.isRefused(faker.string.uuid())).resolves.toBe(false);
+      expect(trialSignupHoldService.isHeld).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input?: {
     user?: UserOutput;
     isProduction?: boolean;

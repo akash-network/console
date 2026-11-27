@@ -1,5 +1,6 @@
 import { singleton } from "tsyringe";
 
+import { StripeTransactionRepository } from "@src/billing/repositories";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { extractEmailDomain, getRegistrableDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { isPublicEmailProvider } from "@src/workload-abuse/lib/email-domain/public-email-providers";
@@ -27,23 +28,24 @@ export class EmailDomainReputationService {
     private readonly emailDomainMailHostRepository: EmailDomainMailHostRepository,
     private readonly blockedEmailDomainRepository: BlockedEmailDomainRepository,
     private readonly userRepository: UserRepository,
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly config: WorkloadAbuseConfigService
   ) {}
 
   async findSignals(user: AssessedUser): Promise<EmailDomainAssessment> {
     const domain = extractEmailDomain(user.email);
 
-    const signals = await Promise.all([this.#findDeviceSharedWithBlockedDomain(user), domain ? this.#findDomainSignals(domain) : []]);
+    const signals = await Promise.all([this.#findDeviceSharedWithBlockedDomain(user), domain ? this.#findDomainSignals(domain, user.id) : []]);
 
     return { domain, signals: signals.flat() };
   }
 
   /** An operator's allow on the domain or a parent exempts it, so a reviewed false positive can be cleared for one domain without changing the mode. */
-  async #findDomainSignals(domain: string): Promise<EmailDomainSignal[]> {
+  async #findDomainSignals(domain: string, userId: UserOutput["id"]): Promise<EmailDomainSignal[]> {
     if (isPublicEmailProvider(domain)) return [];
     if ((await this.blockedEmailDomainRepository.findNearestRule(domain))?.status === "allowed") return [];
 
-    const signals = await Promise.all([this.#findMailServerSignals(domain), this.#findSignupBurst(domain)]);
+    const signals = await Promise.all([this.#findMailServerSignals(domain), this.#findSignupBurst(domain, userId)]);
 
     return signals.flat();
   }
@@ -80,13 +82,25 @@ export class EmailDomainReputationService {
   }
 
   /** Counts the whole registrable domain, so rotating subdomains such as inbox. and tempmail. cannot keep each one under the minimum. */
-  async #findSignupBurst(domain: string): Promise<EmailDomainSignal[]> {
+  async #findSignupBurst(domain: string, userId: UserOutput["id"]): Promise<EmailDomainSignal[]> {
     const burstDomain = getRegistrableDomain(domain) ?? domain;
     const signups = await this.userRepository.countVerifiedCreatedWithEmailDomainSince(
       burstDomain,
       this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS")
     );
 
-    return signups >= this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS") ? [{ signal: "signup_burst", burstDomain, signups }] : [];
+    if (signups < this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS")) return [];
+    if (await this.#hasPayingOrEstablishedAccount(burstDomain, userId)) return [];
+
+    return [{ signal: "signup_burst", burstDomain, signups }];
+  }
+
+  /** Deploying or creating API keys does not count, since farmed accounts do both on trial credit within minutes of signing up. */
+  async #hasPayingOrEstablishedAccount(domain: string, excludeUserId: UserOutput["id"]): Promise<boolean> {
+    if (await this.stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)) return true;
+
+    const minAccountAgeDays = this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS");
+
+    return await this.userRepository.hasEstablishedUserWithEmailDomain(domain, minAccountAgeDays, excludeUserId);
   }
 }

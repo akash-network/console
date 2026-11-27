@@ -29,12 +29,17 @@ export class TrialEligibilityService {
   ) {}
 
   async assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
-    if (!this.stripeService.isProduction) return;
-    if (!this.featureFlagsService.isEnabledForSubject(FeatureFlags.TRIAL_FINGERPRINT_CHECK, user.id)) return;
-    if (!user.lastFingerprint) return;
+    assert(!(await this.#hasDuplicateFingerprint(user)), 400, TRIAL_UNAVAILABLE_MESSAGE);
+  }
+
+  async #hasDuplicateFingerprint(user: UserOutput): Promise<boolean> {
+    if (!this.stripeService.isProduction) return false;
+    if (!this.featureFlagsService.isEnabledForSubject(FeatureFlags.TRIAL_FINGERPRINT_CHECK, user.id)) return false;
+    if (!user.lastFingerprint) return false;
 
     const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(user.lastFingerprint, user.id);
-    assert(usersWithSameFingerprint.length === 0, 400, TRIAL_UNAVAILABLE_MESSAGE);
+
+    return usersWithSameFingerprint.length > 0;
   }
 
   async assertEmailDomainNotBlocked(user: UserOutput): Promise<void> {
@@ -52,9 +57,27 @@ export class TrialEligibilityService {
     const user = await this.userRepository.findById(userId);
     if (!user) return;
 
-    assert(user.emailVerified, 403, TRIAL_EMAIL_VERIFICATION_REQUIRED_MESSAGE, { errorCode: EMAIL_VERIFICATION_REQUIRED_ERROR_CODE });
+    this.#assertEmailVerified(user);
     await this.assertNoDuplicateFingerprint(user);
     await this.assertEmailDomainNotBlocked(user);
     await this.assertNotHeld(user);
+  }
+
+  /** An unconfirmed email is asked for rather than counted as a refusal, since confirming it is all that stands between the account and its trial. */
+  async isRefused(userId: UserOutput["id"]): Promise<boolean> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) return false;
+
+    this.#assertEmailVerified(user);
+
+    return (
+      (await this.#hasDuplicateFingerprint(user)) ||
+      (await this.blockedEmailDomainService.isBlockedEmail(user.email)) ||
+      (await this.trialSignupHoldService.isHeld(user))
+    );
+  }
+
+  #assertEmailVerified(user: UserOutput): void {
+    assert(user.emailVerified, 403, TRIAL_EMAIL_VERIFICATION_REQUIRED_MESSAGE, { errorCode: EMAIL_VERIFICATION_REQUIRED_ERROR_CODE });
   }
 }

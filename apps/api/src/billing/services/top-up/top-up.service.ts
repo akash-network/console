@@ -51,7 +51,7 @@ export class TopUpService {
     const userWallet = await this.userWalletRepository.findOneUsedBy(payer.user.id);
 
     if (!payer.team) {
-      await this.trialActivationJobService.assertActivated({ userId: payer.user.id, activatedAt: userWallet?.activatedAt });
+      await this.trialActivationJobService.assertActivatedOrTrialRefused({ userId: payer.user.id, activatedAt: userWallet?.activatedAt });
     }
 
     this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
