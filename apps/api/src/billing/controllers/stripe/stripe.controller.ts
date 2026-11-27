@@ -182,7 +182,7 @@ export class StripeController {
 
     if (!payer.team) {
       const userWallet = await this.userWalletRepository.findOneUsedBy(payer.user.id);
-      await this.trialActivationJobService.assertActivated({ userId: payer.user.id, activatedAt: userWallet?.activatedAt });
+      await this.trialActivationJobService.assertActivatedOrTrialRefused({ userId: payer.user.id, activatedAt: userWallet?.activatedAt });
     }
 
     try {

@@ -33,8 +33,7 @@ export class TrialActivationJobService {
   }
 
   /**
-   * Guards a managed-wallet action (a deployment spend, a paid top-up) that needs the trial's on-chain grants in
-   * place. When the wallet isn't activated yet it (best-effort) re-requests activation and throws a retriable
+   * Guards a managed-wallet spend that needs the trial's on-chain grants in place. When the wallet isn't activated yet it (best-effort) re-requests activation and throws a retriable
    * `wallet_provisioning` 409, so the client waits for provisioning to land instead of hitting a bare chain/funding
    * error. A failed re-enqueue is logged but still yields the 409 — the next client retry re-requests it.
    * A suspended or terminated account is refused with its own 403 instead, and a user whose trial is refused gets
@@ -45,11 +44,24 @@ export class TrialActivationJobService {
 
     await this.accountStatusGuard.assertUserMaySpend(wallet.userId);
     await this.trialEligibilityService.assertEligible(wallet.userId);
+    await this.#requestActivation(wallet.userId);
+  }
 
+  /** Guards a payment into a personal wallet: it waits for a trial still on its way, so paying does not forfeit it, and lets through an account refused its trial, whose wallet the payment activates. */
+  async assertActivatedOrTrialRefused(wallet: { userId: UserOutput["id"]; activatedAt?: Date | null }): Promise<void> {
+    if (wallet.activatedAt) return;
+
+    await this.accountStatusGuard.assertUserMaySpend(wallet.userId);
+    if (await this.trialEligibilityService.isRefused(wallet.userId)) return;
+
+    await this.#requestActivation(wallet.userId);
+  }
+
+  async #requestActivation(userId: UserOutput["id"]): Promise<never> {
     try {
-      await this.schedule(wallet.userId);
+      await this.schedule(userId);
     } catch (error) {
-      this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId: wallet.userId, error });
+      this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId, error });
     }
     throw createError(409, "Wallet is still being provisioned, please retry shortly", { errorCode: "wallet_provisioning" });
   }

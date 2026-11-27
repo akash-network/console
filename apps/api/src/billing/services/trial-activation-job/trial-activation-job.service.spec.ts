@@ -87,13 +87,75 @@ describe(TrialActivationJobService.name, () => {
     });
   });
 
+  describe("assertActivatedOrTrialRefused", () => {
+    it("returns without asking anything when the wallet is already activated", async () => {
+      const { service, jobQueueService, trialEligibilityService, userRepository } = setup();
+
+      await service.assertActivatedOrTrialRefused({ userId: faker.string.uuid(), activatedAt: new Date() });
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(trialEligibilityService.isRefused).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("schedules activation and throws a retriable 409 while the trial is still on its way", async () => {
+      const { service, jobQueueService, trialEligibilityService } = setup();
+      const userId = faker.string.uuid();
+
+      await expect(service.assertActivatedOrTrialRefused({ userId, activatedAt: null })).rejects.toMatchObject({
+        status: 409,
+        message: "Wallet is still being provisioned, please retry shortly",
+        errorCode: "wallet_provisioning"
+      });
+      expect(trialEligibilityService.isRefused).toHaveBeenCalledWith(userId);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(ActivateTrial), { singletonKey: `${ActivateTrial.name}.${userId}` });
+    });
+
+    it("lets an account refused its trial through without requesting an activation", async () => {
+      const { service, jobQueueService } = setup({ isTrialRefused: true });
+
+      await expect(service.assertActivatedOrTrialRefused({ userId: faker.string.uuid(), activatedAt: null })).resolves.toBeUndefined();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("refuses a suspended user before asking whether the trial is refused", async () => {
+      const { service, trialEligibilityService } = setup({ accountStatus: "suspended", isTrialRefused: true });
+
+      await expect(service.assertActivatedOrTrialRefused({ userId: faker.string.uuid(), activatedAt: null })).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(trialEligibilityService.isRefused).not.toHaveBeenCalled();
+    });
+
+    it("passes on the request to confirm the email address", async () => {
+      const emailRequired = createError(403, "Confirm your email address to start your trial.", { errorCode: "email_verification_required" });
+      const { service, jobQueueService } = setup({ eligibilityError: emailRequired });
+
+      await expect(service.assertActivatedOrTrialRefused({ userId: faker.string.uuid(), activatedAt: null })).rejects.toBe(emailRequired);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("still throws the 409 and logs when the re-enqueue fails", async () => {
+      const enqueueError = new Error("queue unavailable");
+      const { service, logger } = setup({ enqueueError });
+      const userId = faker.string.uuid();
+
+      await expect(service.assertActivatedOrTrialRefused({ userId, activatedAt: null })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "wallet_provisioning"
+      });
+      expect(logger.error).toHaveBeenCalledWith({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId, error: enqueueError });
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
     expect(createLogger).toHaveBeenCalledWith({ context: TrialActivationJobService.name });
   });
 
-  function setup(input?: { enqueueError?: Error; accountStatus?: AccountStatus; eligibilityError?: Error }) {
+  function setup(input?: { enqueueError?: Error; accountStatus?: AccountStatus; eligibilityError?: Error; isTrialRefused?: boolean }) {
     const jobQueueService = mock<JobQueueService>();
     if (input?.enqueueError) {
       jobQueueService.enqueue.mockRejectedValue(input.enqueueError);
@@ -103,7 +165,8 @@ describe(TrialActivationJobService.name, () => {
     const userRepository = mock<UserRepository>({ findOneBy: vi.fn().mockResolvedValue(createUser({ accountStatus: input?.accountStatus ?? "active" })) });
     const accountStatusGuard = new AccountStatusGuard(userRepository, mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(null) }));
     const trialEligibilityService = mock<TrialEligibilityService>({
-      assertEligible: input?.eligibilityError ? vi.fn().mockRejectedValue(input.eligibilityError) : vi.fn().mockResolvedValue(undefined)
+      assertEligible: input?.eligibilityError ? vi.fn().mockRejectedValue(input.eligibilityError) : vi.fn().mockResolvedValue(undefined),
+      isRefused: input?.eligibilityError ? vi.fn().mockRejectedValue(input.eligibilityError) : vi.fn().mockResolvedValue(input?.isTrialRefused ?? false)
     });
     const service = new TrialActivationJobService(jobQueueService, accountStatusGuard, trialEligibilityService, createLogger);
     return { service, jobQueueService, logger, createLogger, userRepository, trialEligibilityService };
