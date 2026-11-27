@@ -1,7 +1,7 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it } from "vitest";
 
-import { describeDepositShortfall, extractDepositShortfall, isBalanceTopUpPending } from "./depositShortfall";
+import { describeDepositShortfall, extractDepositShortfall, isBalanceTopUpPending, isTrialUnavailable } from "./depositShortfall";
 
 describe(extractDepositShortfall.name, () => {
   it("reads the deposit and the balance a refused create reports", () => {
@@ -40,6 +40,16 @@ describe(isBalanceTopUpPending.name, () => {
 
   it("does not mistake a refusal that needs credits for one", () => {
     expect(isBalanceTopUpPending(paymentRequired({ code: "insufficient_balance" }))).toBe(false);
+  });
+});
+
+describe(isTrialUnavailable.name, () => {
+  it("recognises a refusal of an account that was given no free trial", () => {
+    expect(isTrialUnavailable(paymentRequired({ code: "trial_unavailable" }))).toBe(true);
+  });
+
+  it("does not mistake a balance that fell short for one", () => {
+    expect(isTrialUnavailable(paymentRequired({ code: "insufficient_balance" }))).toBe(false);
   });
 });
 

@@ -32,7 +32,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
 import type { DepositShortfall } from "../depositShortfall/depositShortfall";
-import { extractDepositShortfall, isBalanceTopUpPending } from "../depositShortfall/depositShortfall";
+import { extractDepositShortfall, isBalanceTopUpPending, isTrialUnavailable } from "../depositShortfall/depositShortfall";
 import { canLeaseElsewhere, deployErrorKindOf } from "./deployErrorKind";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
@@ -49,7 +49,7 @@ export type PendingCreate = { activityId: string };
 /** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
 export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "top-up-pending" | "no-match" | "inherited-unreadable" | "budget-exceeded";
 
-export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall; projectId?: string };
+export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall; projectId?: string; isTrialUnavailable?: true };
 
 export type AbandonedAttemptKind = Extract<FlowErrorKind, "no-match" | "no-providers">;
 
@@ -1289,7 +1289,9 @@ function describeCreateFailure(cause: unknown, deployTargetProjectId: string | u
   const budgetRefusal = readProjectBudgetRefusal(cause);
   if (budgetRefusal) return { message, kind: "budget-exceeded", projectId: budgetRefusal.projectId ?? deployTargetProjectId };
   if (isBalanceTopUpPending(cause)) return { message, kind: "top-up-pending" };
-  if (isPaymentRequired(cause)) return { message, kind: "needs-funds", shortfall: extractDepositShortfall(cause) };
+  if (isPaymentRequired(cause)) {
+    return { message, kind: "needs-funds", shortfall: extractDepositShortfall(cause), isTrialUnavailable: isTrialUnavailable(cause) || undefined };
+  }
   return { message, kind: "create" };
 }
 

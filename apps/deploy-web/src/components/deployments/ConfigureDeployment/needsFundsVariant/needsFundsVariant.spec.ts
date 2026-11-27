@@ -43,6 +43,22 @@ describe(needsFundsVariantOf.name, () => {
     expect(needsFundsVariantOf({ isTrialing: true, minimumDepositUsd: 0.5 })).toEqual({ name: "not_enough_balance" });
   });
 
+  it("says no free trial is available when the refusal says so, whatever the trial wallet holds", () => {
+    expect(needsFundsVariantOf({ isTrialing: true, isTrialUnavailable: true, availableAmountUsd: 0, minimumDepositUsd: 0.5 })).toEqual({
+      name: "trial_unavailable"
+    });
+  });
+
+  it("says no free trial is available while the balance of the refused account is unknown", () => {
+    expect(needsFundsVariantOf({ isTrialing: true, isTrialUnavailable: true })).toEqual({ name: "trial_unavailable" });
+  });
+
+  it("says the balance falls short once the account refused a trial holds credits", () => {
+    expect(needsFundsVariantOf({ isTrialing: false, isTrialUnavailable: true, availableAmountUsd: 20, minimumDepositUsd: 0.5 })).toEqual({
+      name: "not_enough_balance"
+    });
+  });
+
   it("says the balance falls short for a paid account, whatever it holds", () => {
     expect(needsFundsVariantOf({ isTrialing: false, availableAmountUsd: 0, minimumDepositUsd: 0.5 })).toEqual({ name: "not_enough_balance" });
   });
@@ -87,6 +103,10 @@ describe(isHeldForTrialCredit.name, () => {
 
   it("releases a trial once the balance covers what the refused deploy needed", () => {
     expect(isHeldForTrialCredit({ variant: { name: "trial_credit_used_up" }, shortfall, balanceUsd: 0.5 })).toBe(false);
+  });
+
+  it("holds an account that was given no free trial, since asking again is refused until it adds credits", () => {
+    expect(isHeldForTrialCredit({ variant: { name: "trial_unavailable" }, balanceUsd: 0 })).toBe(true);
   });
 
   it("never holds a balance that merely falls short, since a smaller deployment can still fit it", () => {

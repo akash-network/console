@@ -55,6 +55,7 @@ function copyOf(variant: NeedsFundsVariant, balanceDescription: string) {
         title: "Your free trial credit is below the deployment minimum",
         description: `You have ${formatUsd(variant.availableAmountUsd)} of free trial credit left, and every deployment needs at least ${formatUsd(variant.minimumDepositUsd)} up front, so changing the configuration won't help. Add credits to deploy.`
       };
+    case "trial_unavailable":
     case "not_enough_balance":
       return { title: "Add credits to deploy", description: balanceDescription };
   }

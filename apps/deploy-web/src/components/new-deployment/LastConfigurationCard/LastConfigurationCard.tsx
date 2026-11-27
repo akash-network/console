@@ -171,6 +171,7 @@ function copyOfCreditShortfall(shortfall: NeedsFundsVariant): CreditShortfallCop
         warning: "Your free trial credit is below the deployment minimum",
         sheetDescription: `You have ${formatUsd(shortfall.availableAmountUsd)} of free trial credit left, and every deployment needs at least ${formatUsd(shortfall.minimumDepositUsd)} up front. ${ADD_CREDITS_TO_REDEPLOY}`
       };
+    case "trial_unavailable":
     case "not_enough_balance":
       return {
         warning: "Your balance is too low to start a deployment",

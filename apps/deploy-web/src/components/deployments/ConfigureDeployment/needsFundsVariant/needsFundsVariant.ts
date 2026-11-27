@@ -1,23 +1,30 @@
 import { type DepositShortfall, formatUsd } from "../depositShortfall/depositShortfall";
 
 export type NeedsFundsVariant =
+  | { name: "trial_unavailable" }
   | { name: "trial_credit_used_up" }
   | { name: "trial_credit_below_minimum"; availableAmountUsd: number; minimumDepositUsd: number }
   | { name: "not_enough_balance" };
 
 type VariantInput = {
   isTrialing: boolean;
+  isTrialUnavailable?: boolean;
   availableAmountUsd?: number;
   minimumDepositUsd?: number;
 };
 
-export function needsFundsVariantOf({ isTrialing, availableAmountUsd, minimumDepositUsd }: VariantInput): NeedsFundsVariant {
+export function needsFundsVariantOf({ isTrialing, isTrialUnavailable, availableAmountUsd, minimumDepositUsd }: VariantInput): NeedsFundsVariant {
+  if (isTrialUnavailable && !hasCredit(availableAmountUsd)) return { name: "trial_unavailable" };
   if (!isTrialing || availableAmountUsd === undefined) return { name: "not_enough_balance" };
   if (displaysAsNoCredit(availableAmountUsd)) return { name: "trial_credit_used_up" };
   if (minimumDepositUsd !== undefined && availableAmountUsd < minimumDepositUsd) {
     return { name: "trial_credit_below_minimum", availableAmountUsd, minimumDepositUsd };
   }
   return { name: "not_enough_balance" };
+}
+
+function hasCredit(amountUsd: number | undefined): boolean {
+  return amountUsd !== undefined && !displaysAsNoCredit(amountUsd);
 }
 
 function displaysAsNoCredit(amountUsd: number): boolean {

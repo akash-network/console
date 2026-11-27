@@ -3,6 +3,8 @@ import { z } from "zod";
 
 const BALANCE_TOP_UP_PENDING_ERROR_CODE = "balance_top_up_pending";
 
+const TRIAL_UNAVAILABLE_ERROR_CODE = "trial_unavailable";
+
 export const TOP_UP_PENDING_MESSAGE = "A top up from your saved payment method is on the way. Try again in a moment.";
 
 const depositShortfallSchema = z
@@ -20,6 +22,10 @@ export function extractDepositShortfall(cause: unknown): DepositShortfall | unde
 
 export function isBalanceTopUpPending(cause: unknown): boolean {
   return extractApiErrorCode(cause) === BALANCE_TOP_UP_PENDING_ERROR_CODE;
+}
+
+export function isTrialUnavailable(cause: unknown): boolean {
+  return extractApiErrorCode(cause) === TRIAL_UNAVAILABLE_ERROR_CODE;
 }
 
 export function describeDepositShortfall({ requiredAmountUsd, availableAmountUsd }: DepositShortfall): string {
