@@ -168,6 +168,58 @@ describe(FundingWalletRepository.name, () => {
     });
   });
 
+  describe("reassign", () => {
+    it("moves a user wallet to another funding wallet, and records one that had none", async () => {
+      const { repository, network } = setup();
+      const { wallet } = await seedUserWithWallet();
+      const { wallet: unrecorded } = await seedUserWithWallet();
+      const draining = await repository.create({ network, address: createAkashAddress(), status: "draining" });
+      const active = await repository.create({ network, address: createAkashAddress(), status: "active" });
+      await repository.assignUnlessAssigned({ userWalletId: wallet.id, network, fundingWalletId: draining.id });
+
+      await repository.reassign({ userWalletId: wallet.id, network, fundingWalletId: active.id });
+      await repository.reassign({ userWalletId: unrecorded.id, network, fundingWalletId: active.id });
+
+      await expect(repository.findGranterOf(wallet.id, network)).resolves.toEqual(active);
+      await expect(repository.findGranterOf(unrecorded.id, network)).resolves.toEqual(active);
+    });
+
+    it("leaves the same user wallet's granter on another network alone", async () => {
+      const { repository, network } = setup();
+      const otherNetwork = uniqueNetwork();
+      const { wallet } = await seedUserWithWallet();
+      const elsewhere = await repository.create({ network: otherNetwork, address: createAkashAddress(), status: "active" });
+      const active = await repository.create({ network, address: createAkashAddress(), status: "active" });
+      await repository.assignUnlessAssigned({ userWalletId: wallet.id, network: otherNetwork, fundingWalletId: elsewhere.id });
+
+      await repository.reassign({ userWalletId: wallet.id, network, fundingWalletId: active.id });
+
+      await expect(repository.findGranterOf(wallet.id, otherNetwork)).resolves.toEqual(elsewhere);
+    });
+  });
+
+  describe("findDraining", () => {
+    it("finds the network's draining wallet with the time it started draining", async () => {
+      const { repository, network } = setup();
+      const wallet = await repository.create({ network, address: createAkashAddress(), status: "active" });
+      await repository.create({ network: uniqueNetwork(), address: createAkashAddress(), status: "draining" });
+      const before = Date.now();
+
+      await repository.updateStatus(wallet.id, "draining");
+      const draining = await repository.findDraining(network);
+
+      expect(draining).toMatchObject({ id: wallet.id, address: wallet.address, status: "draining" });
+      expect(Math.abs(draining!.drainingSince.getTime() - before)).toBeLessThan(60_000);
+    });
+
+    it("finds nothing while no wallet of the network drains", async () => {
+      const { repository, network } = setup();
+      await repository.create({ network, address: createAkashAddress(), status: "active" });
+
+      await expect(repository.findDraining(network)).resolves.toBeUndefined();
+    });
+  });
+
   describe("when a user wallet's funding wallet is retired", () => {
     it("reads the user wallet as never assigned, by id and by address", async () => {
       const { repository, network } = setup();

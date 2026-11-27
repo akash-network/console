@@ -1,3 +1,4 @@
+import createError from "http-errors";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -7,7 +8,7 @@ import type { TxService } from "@src/core/services";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { FundingWalletRegistryService } from "./funding-wallet-registry.service";
+import { FundingWalletRegistryService, isFundingWalletDrainingError } from "./funding-wallet-registry.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -144,8 +145,22 @@ describe(FundingWalletRegistryService.name, () => {
       expect(fundingWalletRepository.assignUnlessAssigned).toHaveBeenCalledWith({ userWalletId: USER_WALLET_ID, network: NETWORK, fundingWalletId: active.id });
     });
 
-    it("returns the wallet the user is already assigned to and writes nothing", async () => {
+    it("refuses a grant for a user wallet whose funding wallet is draining", async () => {
       const granter = fundingWallet({ status: "draining" });
+      const { service, fundingWalletRepository } = setup({ active: fundingWallet({ status: "active" }), granter });
+
+      await expect(service.assignGranterAddress(USER_WALLET_ID)).rejects.toMatchObject({
+        status: 503,
+        message: "This balance is being moved to another funding wallet, try again shortly",
+        network: NETWORK,
+        errorCode: "funding_wallet_draining"
+      });
+
+      expect(fundingWalletRepository.assignUnlessAssigned).not.toHaveBeenCalled();
+    });
+
+    it("returns the wallet the user is already assigned to and writes nothing", async () => {
+      const granter = fundingWallet({ status: "active" });
       const { service, fundingWalletRepository, txService } = setup({ active: fundingWallet({ status: "active" }), granter });
 
       await expect(service.assignGranterAddress(USER_WALLET_ID)).resolves.toBe(granter.address);
@@ -281,4 +296,21 @@ describe(FundingWalletRegistryService.name, () => {
 
     return { service, fundingWalletRepository, txManagerService, featureFlagsService, txService, configuredAddress, calls };
   }
+});
+
+describe(isFundingWalletDrainingError.name, () => {
+  it("recognises the refusal of a grant from a draining funding wallet", async () => {
+    const refusal = createError(503, "This balance is being moved to another funding wallet, try again shortly", { errorCode: "funding_wallet_draining" });
+
+    expect(isFundingWalletDrainingError(refusal)).toBe(true);
+  });
+
+  it.each([
+    ["another refusal", createError(503, "No funding wallet is active", { errorCode: "no_active_funding_wallet" })],
+    ["a refusal without a code", createError(503, "The signer is unavailable")],
+    ["an error that only carries the same code", Object.assign(new Error("not an http error"), { errorCode: "funding_wallet_draining" })],
+    ["nothing", undefined]
+  ])("does not take %s for it", (_case, error) => {
+    expect(isFundingWalletDrainingError(error)).toBe(false);
+  });
 });

@@ -1,4 +1,4 @@
-import createError from "http-errors";
+import createError, { isHttpError } from "http-errors";
 import { singleton } from "tsyringe";
 
 import { type FundingWalletOutput, FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
@@ -7,6 +7,12 @@ import { TxService } from "@src/core/services";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+
+export const FUNDING_WALLET_DRAINING_ERROR_CODE = "funding_wallet_draining";
+
+export function isFundingWalletDrainingError(error: unknown): boolean {
+  return isHttpError(error) && error.errorCode === FUNDING_WALLET_DRAINING_ERROR_CODE;
+}
 
 /** Answers which funding wallet backs a user wallet, so a network can have more than one over time; with the flag off, or with one wallet registered, that is always the configured wallet. */
 @singleton()
@@ -72,13 +78,25 @@ export class FundingWalletRegistryService {
     if (!this.isEnabled) return await this.txManagerService.getFundingWalletAddress();
 
     const assigned = await this.fundingWalletRepository.findGranterOf(userWalletId, this.#network);
-    if (assigned) return assigned.address;
+    if (assigned) return this.#assertIssuesGrants(assigned).address;
 
     const active = await this.findOrRegisterActive();
     await this.fundingWalletRepository.assignUnlessAssigned({ userWalletId, network: this.#network, fundingWalletId: active.id });
     const granter = await this.fundingWalletRepository.findGranterOf(userWalletId, this.#network);
 
     return (granter ?? active).address;
+  }
+
+  /** A grant issued from a draining wallet could land after its user was moved off it, which would leave that user with a second balance. */
+  #assertIssuesGrants(wallet: FundingWalletOutput): FundingWalletOutput {
+    if (wallet.status === "draining") {
+      throw createError(503, "This balance is being moved to another funding wallet, try again shortly", {
+        network: this.#network,
+        errorCode: FUNDING_WALLET_DRAINING_ERROR_CODE
+      });
+    }
+
+    return wallet;
   }
 
   /** Registers the configured wallet as active when the network has no funding wallet yet. */

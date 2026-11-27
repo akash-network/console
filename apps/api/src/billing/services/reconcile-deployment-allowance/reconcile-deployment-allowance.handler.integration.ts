@@ -1,12 +1,16 @@
 import { faker } from "@faker-js/faker";
 import { subHours } from "date-fns";
+import createError from "http-errors";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
-import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
+import {
+  FUNDING_WALLET_DRAINING_ERROR_CODE,
+  FundingWalletRegistryService
+} from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { CHAIN_DB } from "@src/chain";
 import { JOB_NAME } from "@src/core";
@@ -262,6 +266,27 @@ describe(ReconcileDeploymentAllowanceHandler.name, () => {
 
     expect(chain.limit).toBe(readLimit + credit);
     expect(await findChecksOf(write.write.txHash)).toEqual([]);
+  });
+
+  describe("when the wallet's funding wallet is draining", () => {
+    it("waits for the move without using up an attempt, and restores on the next check once the wallet has moved", async () => {
+      const { chain, readHeight, index, check, handle, findChecksOf, grant } = await setup();
+      await index.deposit({ height: readHeight + 2, amount: 30_000_000 });
+      const write = await check({ landedAt: readHeight + 4, attempt: MAX_CHECK_ATTEMPTS });
+      grant.mockRejectedValueOnce(
+        createError(503, "This balance is being moved to another funding wallet, try again shortly", { errorCode: FUNDING_WALLET_DRAINING_ERROR_CODE })
+      );
+
+      await handle(write);
+
+      expect(chain.limit).toBe(readLimit + credit);
+      const [waiting] = await findChecksOf(write.write.txHash);
+      expect(waiting.data).toMatchObject({ ...write, attempt: MAX_CHECK_ATTEMPTS });
+
+      await handle(waiting.data);
+
+      expect(chain.limit).toBe(readLimit + credit - 30_000_000);
+    });
   });
 
   describe("when the follow-up write fails", () => {

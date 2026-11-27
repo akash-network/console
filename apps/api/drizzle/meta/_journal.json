@@ -1121,6 +1121,13 @@
       "when": 1795822142491,
       "tag": "0159_funding_wallets",
       "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1795822220363,
+      "tag": "0160_funding_wallet_moves",
+      "breakpoints": true
     }
   ]
 }

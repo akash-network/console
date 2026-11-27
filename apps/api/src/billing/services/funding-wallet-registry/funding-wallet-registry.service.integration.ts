@@ -96,7 +96,7 @@ describe(FundingWalletRegistryService.name, () => {
     await expect(repository.findGranterOf(wallet.id, network)).resolves.toMatchObject({ address: configuredAddress });
   });
 
-  it("keeps a user wallet on its first funding wallet after another one becomes active", async () => {
+  it("keeps reading a user wallet from its first funding wallet after another one becomes active, and grants nothing more from it", async () => {
     const { service, repository, network, configuredAddress } = setup();
     const { wallet: existing } = await seedUserWithWallet();
     const { wallet: bystander } = await seedUserWithWallet();
@@ -107,7 +107,8 @@ describe(FundingWalletRegistryService.name, () => {
     await expect(service.getActiveAddress()).resolves.toBe(promoted.address);
     await expect(service.getGranterAddressByWalletId(existing.id)).resolves.toBe(configuredAddress);
     await expect(service.getGranterAddressByWalletAddress(existing.address!)).resolves.toBe(configuredAddress);
-    await expect(service.assignGranterAddress(existing.id)).resolves.toBe(configuredAddress);
+    await expect(service.assignGranterAddress(existing.id)).rejects.toMatchObject({ status: 503 });
+    await expect(repository.findGranterOf(existing.id, network)).resolves.toMatchObject({ address: configuredAddress });
     await expect(service.getGranterAddressByWalletId(bystander.id)).resolves.toBe(configuredAddress);
     await expect(service.getGranterAddressByWalletId(lateComer.id)).resolves.toBe(promoted.address);
     await expect(service.getGranterAddressByWalletAddress(lateComer.address!)).resolves.toBe(promoted.address);
