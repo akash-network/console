@@ -128,7 +128,7 @@ describe(FundingWalletMoveService.name, () => {
       expect(fundingWalletRepository.reassign).toHaveBeenCalledWith({ userWalletId: wallet.id, network: NETWORK, fundingWalletId: active.id });
       expect(calls).toEqual([
         "createUnlessStarted",
-        "update:revokeSentAt",
+        "update:revokeSentAt+revokeTxHash",
         "executeFundingTx",
         "update:revoked",
         "reassign",
@@ -213,9 +213,41 @@ describe(FundingWalletMoveService.name, () => {
       expect(managedSignerService.executeFundingTx).toHaveBeenCalledWith([REVOKE_FEES]);
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledTimes(1);
       expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
-      expect(deploymentAllowanceService.watch).not.toHaveBeenCalled();
       expect(calls).not.toContain("update:crediting");
       expect(currentMove()).toMatchObject({ status: "completed" });
+    });
+
+    it("has escrow returned to a used-up grant between the read and the revoke replayed, though it read no balance to credit", async () => {
+      const { service, wallet, draining, managedSignerService, deploymentAllowanceService, calls, currentMove } = setup({
+        chain: { hasUsedUpDepositGrant: true, readHeight: 1234 }
+      });
+
+      await expect(service.moveToActive(wallet.id)).resolves.toBe("moved");
+
+      expect(managedSignerService.executeFundingTx).toHaveBeenCalledWith([REVOKE_DEPOSIT]);
+      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(deploymentAllowanceService.watch).toHaveBeenCalledWith(wallet, {
+        txHash: "REVOKE_HASH",
+        readHeight: 1234,
+        readLimit: 0,
+        sentAt: NOW.toISOString(),
+        granter: draining.address
+      });
+      expect(calls).not.toContain("update:crediting");
+      expect(currentMove()).toMatchObject({ status: "completed" });
+    });
+
+    it.each([
+      ["a time it was sent but no hash", { revokeSentAt: EARLIER_SEND, revokeTxHash: null }],
+      ["a hash but no time it was sent", { revokeSentAt: null, revokeTxHash: "REVOKE_HASH" }]
+    ])("asks for a review of a move that read no balance and whose revoke has %s, since its window cannot be replayed", async (_case, record) => {
+      const { service, wallet, deploymentAllowanceService, currentMove } = setup({ move: { status: "revoked", readLimit: 0, readHeight: 900, ...record } });
+
+      await expect(service.moveToActive(wallet.id)).resolves.toBe("needs_review");
+
+      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(deploymentAllowanceService.watch).not.toHaveBeenCalled();
+      expect(currentMove()).toMatchObject({ status: "failed" });
     });
 
     it("points a user with no grant on the draining wallet at the active one without sending anything", async () => {
@@ -257,6 +289,32 @@ describe(FundingWalletMoveService.name, () => {
 
       expect(fundingWalletRepository.reassign).not.toHaveBeenCalled();
       expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: null, revokeSentAt: null });
+    });
+
+    it("records the hash of a later revoke that landed in place of an earlier undecided one", async () => {
+      const { service, wallet, currentMove } = setup({
+        chain: { depositLimit: 5_000_000 },
+        move: { status: "revoking", readLimit: 5_000_000, readHeight: 900, revokeTxHash: "UNDECIDED_HASH", revokeSentAt: EARLIER_SEND }
+      });
+
+      await expect(service.moveToActive(wallet.id)).resolves.toBe("moved");
+
+      expect(currentMove()).toMatchObject({ status: "completed", revokeTxHash: "REVOKE_HASH", revokeSentAt: NOW });
+    });
+
+    it.each([
+      ["gave a hash", new TxOutcomeUnknownError("SECOND_UNDECIDED_HASH")],
+      ["gave no hash", new TxOutcomeUnknownError()]
+    ])("keeps no hash when a second revoke is undecided too and the signer %s, since either one may be the revoke", async (_case, error) => {
+      const { service, wallet, managedSignerService, currentMove } = setup({
+        chain: { depositLimit: 5_000_000 },
+        move: { status: "revoking", readLimit: 5_000_000, readHeight: 900, revokeTxHash: "UNDECIDED_HASH", revokeSentAt: EARLIER_SEND }
+      });
+      managedSignerService.executeFundingTx.mockRejectedValue(error);
+
+      await expect(service.moveToActive(wallet.id)).rejects.toBe(error);
+
+      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: null, revokeSentAt: NOW });
     });
 
     it("keeps the record of an earlier revoke that may have landed when a later one is refused", async () => {
@@ -566,7 +624,14 @@ describe(FundingWalletMoveService.name, () => {
       active?: null;
       drainingForMs?: number;
       wallet?: null | { address: null };
-      chain?: { depositLimit?: number; readHeight?: number; feeLimit?: number; feeExpiration?: string; otherFeeDenomLimit?: number };
+      chain?: {
+        depositLimit?: number;
+        hasUsedUpDepositGrant?: boolean;
+        readHeight?: number;
+        feeLimit?: number;
+        feeExpiration?: string;
+        otherFeeDenomLimit?: number;
+      };
       signerTimeoutMs?: number;
       move?: Partial<FundingWalletMoveOutput>;
       isClaimedByAnotherRun?: boolean;
@@ -639,7 +704,7 @@ describe(FundingWalletMoveService.name, () => {
       return move;
     });
     balancesService.retrieveDeploymentLimitAtLatestHeight.mockResolvedValue({ limit: chain.depositLimit, height: chain.readHeight, granter: draining.address });
-    authzHttpService.hasDepositDeploymentGrant.mockResolvedValue(chain.depositLimit > 0);
+    authzHttpService.hasDepositDeploymentGrant.mockResolvedValue(chain.depositLimit > 0 || !!chain.hasUsedUpDepositGrant);
     authzHttpService.hasFeeAllowance.mockResolvedValue(chain.feeLimit > 0);
     const feeAllowance: FeeAllowance = {
       granter: draining.address,

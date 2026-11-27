@@ -81,6 +81,25 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
     expect(checks).toHaveLength(2);
   });
 
+  it("queues the replay of a used-up grant up to its revoke, though it had no balance left to credit", async () => {
+    const { chain, wallet, draining, active, handle, findMove } = await setup({ hasUsedUpGrant: true });
+
+    await handle();
+
+    expect(chain.hasDepositGrantOf(draining.address)).toBe(false);
+    expect(chain.depositOf(active.address)).toBe(0);
+    expect(chain.grantHashes).toEqual([]);
+    const checks = await findJobRows<AllowanceCheck>(CHECK, { state: "created" });
+    expect(checks.map(check => check.data)).toEqual([
+      expect.objectContaining({
+        wallet: { id: wallet.id, address: wallet.address },
+        write: expect.objectContaining({ txHash: chain.revokeHashes[0], readHeight: chain.readHeight, readLimit: 0, granter: draining.address }),
+        adjustment: 0
+      })
+    ]);
+    await expect(findMove()).resolves.toMatchObject({ status: "completed", readLimit: 0, revokeTxHash: chain.revokeHashes[0] });
+  });
+
   it("credits once when the first credit is refused and the move runs again", async () => {
     const { chain, active, handle, findMove, grantDeposit } = await setup({ deposit: 5_000_000 });
     grantDeposit.mockResolvedValueOnce({ code: 5, hash: chain.nextHash(), rawLog: "refused" });
@@ -181,7 +200,9 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
     await expect(registry.assignGranterAddress(wallet.id)).resolves.toBe(active.address);
   });
 
-  async function setup(input: { deposit?: number; fees?: number; drainingSince?: ReturnType<typeof sql>; isAssigned?: boolean } = {}) {
+  async function setup(
+    input: { deposit?: number; hasUsedUpGrant?: boolean; fees?: number; drainingSince?: ReturnType<typeof sql>; isAssigned?: boolean } = {}
+  ) {
     const network = container.resolve(CoreConfigService).get("NETWORK");
     const fundingWallets = container.resolve(FundingWalletRepository);
     const registry = container.resolve(FundingWalletRegistryService);
@@ -197,7 +218,7 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
       .where(eq(table.id, draining.id));
     if (input.isAssigned ?? true) await fundingWallets.reassign({ userWalletId: wallet.id, network, fundingWalletId: draining.id });
 
-    const deposits = new Map<string, number>(input.deposit ? [[draining.address, input.deposit]] : []);
+    const deposits = new Map<string, number>(input.deposit || input.hasUsedUpGrant ? [[draining.address, input.deposit ?? 0]] : []);
     const fees = new Map<string, { limit: number; expiration?: Date }>(
       input.fees ? [[draining.address, { limit: input.fees, expiration: FEE_EXPIRATION }]] : []
     );
@@ -207,6 +228,7 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
       grantHashes: [] as string[],
       nextHash: () => faker.string.hexadecimal({ length: 64, prefix: "" }).toUpperCase(),
       depositOf: (granter: string) => deposits.get(granter) ?? 0,
+      hasDepositGrantOf: (granter: string) => deposits.has(granter),
       feesOf: (granter: string) => fees.get(granter)
     };
     const authz = container.resolve(AuthzHttpService);

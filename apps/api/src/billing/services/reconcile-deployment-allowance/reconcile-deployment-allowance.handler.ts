@@ -11,7 +11,7 @@ import { DeploymentSpendRepository } from "@src/billing/repositories/deployment-
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { DeploymentAllowanceService } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
-import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
+import { FundingWalletRegistryService, isFundingWalletDrainingError } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { type CreateLogger, type JobHandler, type JobMeta, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { type AllowanceCheck, ReconcileDeploymentAllowance } from "./reconcile-deployment-allowance.job";
 
@@ -62,10 +62,18 @@ export class ReconcileDeploymentAllowanceHandler implements JobHandler<Reconcile
         return;
       }
 
+      if (isFundingWalletDrainingError(error)) return await this.#checkAfterMove(check);
+
       this.#logger.warn({ event: "DEPLOYMENT_ALLOWANCE_CHECK_FAILED", ...this.#describe(check), error });
     }
 
     await this.#checkAgain(check);
+  }
+
+  /** Waits without using up an attempt, since moving every user off a funding wallet can take longer than all attempts together and giving up would drop the adjustment. */
+  async #checkAfterMove(check: AllowanceCheck): Promise<void> {
+    this.#logger.info({ event: "DEPLOYMENT_ALLOWANCE_CHECK_AWAITS_MOVE", ...this.#describe(check) });
+    await this.deploymentAllowanceService.scheduleCheck(check);
   }
 
   /** Reads the index tip before the write, since the index stores a block with its transactions, so a tip past the landing window means the lookup saw them all. */

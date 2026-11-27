@@ -145,14 +145,18 @@ export class FundingWalletMoveService {
 
     if (messages.length === 0) return await this.#endRevokeWithNothingLeft(move);
 
-    const sending = await this.#advance(move, { revokeSentAt: new Date() });
-    const revokeTxHash = await this.#sendRevoke(sending, messages, move.revokeSentAt);
+    const sending = await this.#advance(move, { revokeSentAt: new Date(), revokeTxHash: null });
+    const revokeTxHash = await this.#sendRevoke(sending, messages, move);
 
     return await this.#advance(sending, { status: "revoked", revokeTxHash });
   }
 
-  /** A send that provably revoked nothing puts the record of an earlier send back, so only a revoke that may have landed is ever counted as one. */
-  async #sendRevoke(sending: FundingWalletMoveOutput, messages: EncodeObject[], previousRevokeSentAt: Date | null): Promise<string> {
+  /** Keeps a hash only while it names the one send that can have revoked: a send that provably did nothing puts the earlier record back, and a second undecided send leaves none, so that move is reviewed. */
+  async #sendRevoke(
+    sending: FundingWalletMoveOutput,
+    messages: EncodeObject[],
+    earlier: Pick<FundingWalletMoveOutput, "revokeSentAt" | "revokeTxHash">
+  ): Promise<string> {
     try {
       const tx = await this.managedSignerService.executeFundingTx(messages);
 
@@ -160,8 +164,8 @@ export class FundingWalletMoveService {
 
       return tx.hash;
     } catch (error) {
-      if (!isUnknownTxOutcome(error)) await this.#advance(sending, { revokeSentAt: previousRevokeSentAt });
-      else if (error.txHash) await this.#advance(sending, { revokeTxHash: error.txHash });
+      if (!isUnknownTxOutcome(error)) await this.#advance(sending, { revokeSentAt: earlier.revokeSentAt, revokeTxHash: earlier.revokeTxHash });
+      else if (error.txHash && !earlier.revokeSentAt) await this.#advance(sending, { revokeTxHash: error.txHash });
 
       throw error;
     }
@@ -180,29 +184,35 @@ export class FundingWalletMoveService {
     await this.fundingWalletRepository.reassign({ userWalletId: wallet.id, network: to.network, fundingWalletId: to.id });
     await this.#grantFeeAllowance(move, wallet);
 
-    if (move.readLimit === 0) return await this.#complete(move, wallet);
-
-    const credited = await this.#creditBalance(move, wallet);
+    const credited = move.readLimit === 0 ? move : await this.#creditBalance(move, wallet);
 
     if (!credited) return "needs_review";
 
-    if (!credited.revokeTxHash || !credited.revokeSentAt) {
-      await this.#flagForReview(
-        credited,
-        "the balance read before the revoke was credited, but what changed on the old grant between that read and the revoke was not replayed"
-      );
-      return "needs_review";
+    if (credited.revokeTxHash && credited.revokeSentAt) {
+      await this.deploymentAllowanceService.watch(wallet, {
+        txHash: credited.revokeTxHash,
+        readHeight: credited.readHeight,
+        readLimit: credited.readLimit,
+        sentAt: credited.revokeSentAt.toISOString(),
+        granter: from.address
+      });
+
+      return await this.#complete(credited, wallet);
     }
 
-    await this.deploymentAllowanceService.watch(wallet, {
-      txHash: credited.revokeTxHash,
-      readHeight: credited.readHeight,
-      readLimit: credited.readLimit,
-      sentAt: credited.revokeSentAt.toISOString(),
-      granter: from.address
-    });
+    if (this.#hadNothingToRevoke(credited)) return await this.#complete(credited, wallet);
 
-    return await this.#complete(credited, wallet);
+    await this.#flagForReview(
+      credited,
+      "the balance read before the revoke was credited, but what changed on the old grant between that read and the revoke was not replayed"
+    );
+
+    return "needs_review";
+  }
+
+  /** A grant drawn down to nothing stays on chain and still takes back escrow a closing deployment returns, so only a move that sent no revoke at all has no window to replay. */
+  #hadNothingToRevoke(move: FundingWalletMoveOutput): boolean {
+    return move.readLimit === 0 && !move.revokeSentAt && !move.revokeTxHash;
   }
 
   /** Sets the allowance rather than adding to it, so sending it again on a retry changes nothing; one that expired since it was read is left out, as the chain refuses an expiry in the past. */
