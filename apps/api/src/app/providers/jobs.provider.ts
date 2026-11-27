@@ -79,6 +79,7 @@ import { DailySignupSummaryHandler } from "@src/workload-abuse/services/daily-si
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import { LockBlockedDomainWalletHandler } from "@src/workload-abuse/services/lock-blocked-domain-wallet/lock-blocked-domain-wallet.handler";
 import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
+import { ReviewNewEmailDomainSignupsHandler } from "@src/workload-abuse/services/review-new-email-domain-signups/review-new-email-domain-signups.handler";
 import { ReviewRefusedTrialHandler } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
 import { ReviewTrialSignupHandler } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeeded/auto-recharge-succeeded.handler";
@@ -154,6 +155,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(BlockEmailDomainOfHeldSignupHandler),
     container.resolve(ReviewTrialSignupHandler),
     container.resolve(ReviewRefusedTrialHandler),
+    container.resolve(ReviewNewEmailDomainSignupsHandler),
     container.resolve(DailySignupSummaryHandler),
     container.resolve(GpuAvailableNoticeHandler),
     container.resolve(WatchGpuWaitlistsHandler),

@@ -9,8 +9,13 @@ import type { HeldSignupBlockEvidence } from "@src/workload-abuse/services/email
 import {
   type EmailDomainAssessment,
   EmailDomainReputationService,
-  type EmailDomainSignal
+  type EmailDomainSignal,
+  type SignupBurst
 } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
+import {
+  ReviewNewEmailDomainSignups,
+  reviewNewEmailDomainSignupsKeyFor
+} from "@src/workload-abuse/services/review-new-email-domain-signups/review-new-email-domain-signups.handler";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
@@ -39,8 +44,9 @@ export class TrialSignupHoldService {
   async isHeld(user: HeldUser): Promise<boolean> {
     if (await this.#isHeldForLinkedAccounts(user)) return true;
     if (await this.#isHeldForGeneratedEmailTag(user)) return true;
+    if (await this.#isHeldForEmailDomainReputation(user)) return true;
 
-    return await this.#isHeldForEmailDomainReputation(user);
+    return await this.#isHeldForNewEmailDomain(user);
   }
 
   async #isHeldForLinkedAccounts(user: HeldUser): Promise<boolean> {
@@ -98,6 +104,56 @@ export class TrialSignupHoldService {
     await this.#requestDomainBlock(user.id, assessment);
 
     return true;
+  }
+
+  /** Holds every sign-up after a domain's first inside the window, which the larger burst of the reputation rule lets through on domains rotated a few accounts at a time. */
+  async #isHeldForNewEmailDomain(user: HeldUser): Promise<boolean> {
+    const mode = this.config.get("WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE");
+    if (mode === "off") return false;
+
+    const windowHours = this.config.get("WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS");
+    const burst = await this.#findNewEmailDomainBurst(user, windowHours);
+    if (!burst) return false;
+
+    const context = { userId: user.id, domain: burst.burstDomain, signups: burst.signups };
+
+    if (mode === "report") {
+      this.logger.info({ event: "TRIAL_SIGNUP_NEW_EMAIL_DOMAIN_HOLD_DRY_RUN", ...context });
+      return false;
+    }
+
+    this.logger.warn({ event: "TRIAL_SIGNUP_HELD_FOR_NEW_EMAIL_DOMAIN", ...context });
+    await this.#reportNewEmailDomain(user.id, burst.burstDomain, windowHours);
+
+    return true;
+  }
+
+  /** Fails open, for the same reason as the email domain signals. */
+  async #findNewEmailDomainBurst(user: HeldUser, windowHours: number): Promise<SignupBurst | null> {
+    try {
+      return await this.emailDomainReputationService.findSignupBurst(user, {
+        minSignups: this.config.get("WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS"),
+        windowHours
+      });
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_SIGNUP_NEW_EMAIL_DOMAIN_CHECK_FAILED", userId: user.id, error });
+      return null;
+    }
+  }
+
+  /** Throttled per domain, so the review channel gets one post for a domain however many of its sign-ups are held inside the window. */
+  async #reportNewEmailDomain(userId: UserOutput["id"], domain: string, windowHours: number): Promise<void> {
+    try {
+      await this.txService.outsideTransaction(
+        async () =>
+          await this.jobQueueService.enqueue(new ReviewNewEmailDomainSignups({ userId, domain, windowHours }), {
+            singletonKey: reviewNewEmailDomainSignupsKeyFor(domain),
+            singletonSeconds: windowHours * 60 * 60
+          })
+      );
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId, error });
+    }
   }
 
   /** Only a signal naming an already blocked domain blocks, since a burst or a forwarding-only domain can be a real company onboarding its staff. */
