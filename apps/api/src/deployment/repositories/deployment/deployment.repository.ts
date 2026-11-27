@@ -130,6 +130,18 @@ export class DeploymentRepository {
     );
   }
 
+  async findOwnersWithOpenDeployments(owners: string[]): Promise<string[]> {
+    if (owners.length === 0) return [];
+
+    const rows = await this.#chainDb.query<{ owner: string }>(
+      `/* deployment:ownersWithOpenDeployments */
+      SELECT DISTINCT d."owner" FROM deployment d WHERE d."owner" = ANY($1::text[]) AND d."closedHeight" IS NULL`,
+      { bind: [owners], type: QueryTypes.SELECT }
+    );
+
+    return rows.map(({ owner }) => owner);
+  }
+
   /** Whether each indexed deployment ever had a lease and still has one open; like {@link findClosureStates}, a deployment the indexer holds no row for is left out. */
   async findLeaseStates(deployments: DeploymentKey[]): Promise<DeploymentLeaseState[]> {
     if (deployments.length === 0) return [];

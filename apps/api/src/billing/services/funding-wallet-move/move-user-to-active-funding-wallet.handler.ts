@@ -8,6 +8,12 @@ import { MoveUserToActiveFundingWallet } from "./move-user-to-active-funding-wal
 export class MoveUserToActiveFundingWalletHandler implements JobHandler<MoveUserToActiveFundingWallet> {
   public readonly accepts = MoveUserToActiveFundingWallet;
 
+  /** Funding transactions are unordered, so moves of different users run side by side; this bounds how many the signer signs for at once. */
+  public readonly concurrency = 8;
+
+  /** With the per-user-wallet singletonKey of its jobs, keeps two queued moves of one user from running at once, which a `standard` queue would not. */
+  public readonly policy = "singleton";
+
   constructor(private readonly fundingWalletMoveService: FundingWalletMoveService) {}
 
   requiresPermission(): JobPermissions {
