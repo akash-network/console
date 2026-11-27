@@ -56,6 +56,7 @@ const DEFAULT_PROBE_INITIAL_DELAYS_MIN = "5,20,60";
 
 /** The review is throttled per device through a pg-boss job row, which pg-boss deletes 7 days after the job finishes. */
 const MAX_SIGNUP_REVIEW_WINDOW_MINUTES = 7 * 24 * 60;
+const MAX_SIGNUP_REVIEW_WINDOW_HOURS = MAX_SIGNUP_REVIEW_WINDOW_MINUTES / 60;
 
 function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
   const entries = raw.split(",").map(entry => entry.trim());
@@ -166,7 +167,15 @@ export const envSchema = z.object({
   /** `report` logs the block a held sign-up would have placed on its domain; only a hold tied to an already blocked domain blocks. */
   WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(5)),
-  WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(24))
+  WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(24)),
+  /** `report` grants the trial and only logs the hold a further sign-up from a new email domain would have met. */
+  WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
+  /** Counts the sign-up being assessed, so 2 holds every sign-up after a domain's first inside the window. */
+  WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().min(2).default(2)),
+  WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS: z.preprocess(
+    blankToUndefined,
+    z.number({ coerce: true }).int().positive().max(MAX_SIGNUP_REVIEW_WINDOW_HOURS).default(24)
+  )
 });
 
 export type WorkloadAbuseConfig = z.infer<typeof envSchema>;

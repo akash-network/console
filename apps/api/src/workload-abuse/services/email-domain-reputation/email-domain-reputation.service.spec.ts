@@ -201,6 +201,46 @@ describe(EmailDomainReputationService.name, () => {
     });
   });
 
+  describe("findSignupBurst", () => {
+    it("answers with the registrable domain and its sign-ups once they reach the asked minimum inside the asked window", async () => {
+      const { service, user, userRepository, profileService } = setup({ email: "second@inbox.duskvale.xyz", recentSignups: 2 });
+
+      expect(await service.findSignupBurst(user, { minSignups: 2, windowHours: 6 })).toEqual({ burstDomain: "duskvale.xyz", signups: 2 });
+      expect(userRepository.countVerifiedCreatedWithEmailDomainSince).toHaveBeenCalledWith("duskvale.xyz", 6);
+      expect(profileService.findProfile).not.toHaveBeenCalled();
+      expect(userRepository.findRecentlyActiveByFingerprint).not.toHaveBeenCalled();
+    });
+
+    it("answers nothing under the asked minimum, whatever the reputation rule's own minimum is", async () => {
+      const { service, user } = setup({ email: "first@duskvale.xyz", recentSignups: 2, burstMinSignups: 1 });
+
+      expect(await service.findSignupBurst(user, { minSignups: 3, windowHours: 24 })).toBeNull();
+    });
+
+    it.each([{ hasPaidUser: true }, { hasEstablishedUser: true }])(
+      "answers nothing for a domain with a paying or established account, case %o",
+      async established => {
+        const { service, user, userRepository } = setup({ email: "new.hire@example-corp.com", recentSignups: 4, ...established });
+
+        expect(await service.findSignupBurst(user, { minSignups: 2, windowHours: 24 })).toBeNull();
+        expect(userRepository.countVerifiedCreatedWithEmailDomainSince).toHaveBeenCalled();
+      }
+    );
+
+    it("counts nothing for a public provider, an operator-allowed domain or an address without a domain", async () => {
+      const publicProvider = setup({ email: "someone@outlook.com", recentSignups: 100 });
+      const allowed = setup({ email: "team@startup.dev", recentSignups: 9, allowedDomains: ["startup.dev"] });
+      const noDomain = setup({ user: createUser({ email: null }), recentSignups: 9 });
+
+      expect(await publicProvider.service.findSignupBurst(publicProvider.user, { minSignups: 2, windowHours: 24 })).toBeNull();
+      expect(await allowed.service.findSignupBurst(allowed.user, { minSignups: 2, windowHours: 24 })).toBeNull();
+      expect(await noDomain.service.findSignupBurst(noDomain.user, { minSignups: 2, windowHours: 24 })).toBeNull();
+      expect(publicProvider.userRepository.countVerifiedCreatedWithEmailDomainSince).not.toHaveBeenCalled();
+      expect(allowed.userRepository.countVerifiedCreatedWithEmailDomainSince).not.toHaveBeenCalled();
+      expect(noDomain.userRepository.countVerifiedCreatedWithEmailDomainSince).not.toHaveBeenCalled();
+    });
+  });
+
   it("checks only the device of a domain an operator allowed", async () => {
     const { service, user, profileService, userRepository, blockedEmailDomainRepository } = setup({
       email: "team@forwarding-startup.dev",

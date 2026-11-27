@@ -20,6 +20,10 @@ type AssessedUser = Pick<UserOutput, "id" | "email" | "lastFingerprint">;
 
 export type EmailDomainAssessment = { domain: string | null; signals: EmailDomainSignal[] };
 
+export type SignupBurst = { burstDomain: string; signups: number };
+
+type SignupBurstLimits = { minSignups: number; windowHours: number };
+
 /** Public providers skip the domain signals, since millions of unrelated people share them, but a device shared with a blocked domain still counts for them. */
 @singleton()
 export class EmailDomainReputationService {
@@ -40,14 +44,27 @@ export class EmailDomainReputationService {
     return { domain, signals: signals.flat() };
   }
 
-  /** An operator's allow on the domain or a parent exempts it, so a reviewed false positive can be cleared for one domain without changing the mode. */
-  async #findDomainSignals(domain: string, userId: UserOutput["id"]): Promise<EmailDomainSignal[]> {
-    if (isPublicEmailProvider(domain)) return [];
-    if ((await this.blockedEmailDomainRepository.findNearestRule(domain))?.status === "allowed") return [];
+  /** Answers for the sign-up burst alone, so a rule with limits of its own can ask without the mail-server and device signals. */
+  async findSignupBurst(user: AssessedUser, limits: SignupBurstLimits): Promise<SignupBurst | null> {
+    const domain = extractEmailDomain(user.email);
+    if (!domain || !(await this.#isAssessed(domain))) return null;
 
-    const signals = await Promise.all([this.#findMailServerSignals(domain), this.#findSignupBurst(domain, userId)]);
+    return await this.#findBurst(domain, user.id, limits);
+  }
+
+  async #findDomainSignals(domain: string, userId: UserOutput["id"]): Promise<EmailDomainSignal[]> {
+    if (!(await this.#isAssessed(domain))) return [];
+
+    const signals = await Promise.all([this.#findMailServerSignals(domain), this.#findSignupBurstSignal(domain, userId)]);
 
     return signals.flat();
+  }
+
+  /** An operator's allow on the domain or a parent exempts it, so a reviewed false positive can be cleared for one domain without changing the mode. */
+  async #isAssessed(domain: string): Promise<boolean> {
+    if (isPublicEmailProvider(domain)) return false;
+
+    return (await this.blockedEmailDomainRepository.findNearestRule(domain))?.status !== "allowed";
   }
 
   async #findMailServerSignals(domain: string): Promise<EmailDomainSignal[]> {
@@ -81,18 +98,24 @@ export class EmailDomainReputationService {
     return blocked?.rule ? [{ signal: "device_shared_with_blocked_domain", linkedUserId: blocked.linkedUserId, blockedDomain: blocked.rule.domain }] : [];
   }
 
+  async #findSignupBurstSignal(domain: string, userId: UserOutput["id"]): Promise<EmailDomainSignal[]> {
+    const burst = await this.#findBurst(domain, userId, {
+      minSignups: this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS"),
+      windowHours: this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS")
+    });
+
+    return burst ? [{ signal: "signup_burst", ...burst }] : [];
+  }
+
   /** Counts the whole registrable domain, so rotating subdomains such as inbox. and tempmail. cannot keep each one under the minimum. */
-  async #findSignupBurst(domain: string, userId: UserOutput["id"]): Promise<EmailDomainSignal[]> {
+  async #findBurst(domain: string, userId: UserOutput["id"], { minSignups, windowHours }: SignupBurstLimits): Promise<SignupBurst | null> {
     const burstDomain = getRegistrableDomain(domain) ?? domain;
-    const signups = await this.userRepository.countVerifiedCreatedWithEmailDomainSince(
-      burstDomain,
-      this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS")
-    );
+    const signups = await this.userRepository.countVerifiedCreatedWithEmailDomainSince(burstDomain, windowHours);
 
-    if (signups < this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS")) return [];
-    if (await this.#hasPayingOrEstablishedAccount(burstDomain, userId)) return [];
+    if (signups < minSignups) return null;
+    if (await this.#hasPayingOrEstablishedAccount(burstDomain, userId)) return null;
 
-    return [{ signal: "signup_burst", burstDomain, signups }];
+    return { burstDomain, signups };
   }
 
   /** Deploying or creating API keys does not count, since farmed accounts do both on trial credit within minutes of signing up. */
