@@ -180,7 +180,7 @@ export class AssistantConversationService {
     const turn = await this.txService.transaction(async () => {
       const pending = await this.assistantPendingTurnRepository.take(conversationId, userId, new Date());
       if (!pending) {
-        throw createError(409, "The assistant is not waiting on the browser for this conversation.", { errorCode: ASSISTANT_ERROR_CODES.noPendingToolRequest });
+        throw createError(409, "Sidekick is not waiting on the browser for this conversation.", { errorCode: ASSISTANT_ERROR_CODES.noPendingToolRequest });
       }
 
       const requestedIds = pending.state.clientToolCalls.map(({ id }) => id).sort();
@@ -366,7 +366,7 @@ export class AssistantConversationService {
   async #currentConsent(): Promise<AssistantConsentOutput> {
     const consent = await this.#latestConsent();
     if (!consent) {
-      throw createError(409, "Agree to the assistant terms before starting a conversation.", { errorCode: ASSISTANT_ERROR_CODES.consentRequired });
+      throw createError(409, "Agree to the Sidekick terms before starting a conversation.", { errorCode: ASSISTANT_ERROR_CODES.consentRequired });
     }
 
     return consent;

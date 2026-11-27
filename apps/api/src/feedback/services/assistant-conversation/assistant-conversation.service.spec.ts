@@ -85,7 +85,11 @@ describe(AssistantConversationService.name, () => {
       const { service, consentRepository } = setup();
       consentRepository.findLatestByUserId.mockResolvedValue(undefined);
 
-      await expect(service.start({ copyVersion: "v1" })).rejects.toMatchObject({ status: 409, errorCode: "assistant_consent_required" });
+      await expect(service.start({ copyVersion: "v1" })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "assistant_consent_required",
+        message: "Agree to the Sidekick terms before starting a conversation."
+      });
     });
 
     it("refuses a copy version the user did not agree to", async () => {
@@ -739,7 +743,8 @@ describe(AssistantConversationService.name, () => {
 
       await expect(service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: "x", ok: true }] })).rejects.toMatchObject({
         status: 409,
-        errorCode: "assistant_no_pending_tool_request"
+        errorCode: "assistant_no_pending_tool_request",
+        message: "Sidekick is not waiting on the browser for this conversation."
       });
     });
 
