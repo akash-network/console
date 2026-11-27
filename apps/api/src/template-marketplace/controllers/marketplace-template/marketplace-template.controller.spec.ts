@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { TemplateInsights } from "@src/template-marketplace/lib/template-insights/template-insights";
 import type {
   ListedTemplateVersion,
   MarketplaceTemplateOutput,
@@ -9,12 +10,43 @@ import type {
   PublishedTemplateVersion,
   UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import type { TemplateInsightsService } from "@src/template-marketplace/services/template-insights/template-insights.service";
 import type { TemplatePublishService } from "@src/template-marketplace/services/template-publish/template-publish.service";
 import type { TemplateReportService } from "@src/template-marketplace/services/template-report/template-report.service";
+import type { TemplateViewService } from "@src/template-marketplace/services/template-view/template-view.service";
 import type { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 import { MarketplaceTemplateController } from "./marketplace-template.controller";
 
 describe(MarketplaceTemplateController.name, () => {
+  describe("recordView", () => {
+    it("counts the view of the given kind", async () => {
+      const { controller, viewer } = setup();
+      const id = faker.string.uuid();
+
+      await controller.recordView(id, { data: { kind: "configure_open" } });
+
+      expect(viewer.recordView).toHaveBeenCalledWith(id, "configure_open");
+    });
+  });
+
+  describe("getInsights", () => {
+    it.each([
+      ["7", 7],
+      ["30", 30],
+      ["90", 90]
+    ] as const)("answers the insights of the last %s days", async (days, period) => {
+      const { controller, insights } = setup();
+      const id = faker.string.uuid();
+      const answer = mock<TemplateInsights>({ days: period });
+      insights.getInsights.mockResolvedValue(answer);
+
+      const result = await controller.getInsights(id, { days });
+
+      expect(result).toEqual({ data: answer });
+      expect(insights.getInsights).toHaveBeenCalledWith(id, period);
+    });
+  });
+
   describe("getTemplate", () => {
     it("answers the template with ISO dates and a current version without its creator's internal id", async () => {
       const version = createVersion();
@@ -342,8 +374,10 @@ describe(MarketplaceTemplateController.name, () => {
     const writer = mock<TemplateWriterService>();
     const publisher = mock<TemplatePublishService>();
     const reporter = mock<TemplateReportService>();
-    const controller = new MarketplaceTemplateController(service, writer, publisher, reporter);
+    const viewer = mock<TemplateViewService>();
+    const insights = mock<TemplateInsightsService>();
+    const controller = new MarketplaceTemplateController(service, writer, publisher, reporter, viewer, insights);
 
-    return { controller, service, writer, publisher, reporter };
+    return { controller, service, writer, publisher, reporter, viewer, insights };
   }
 });

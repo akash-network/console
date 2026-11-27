@@ -17,6 +17,12 @@ describe("AssistantComposer", () => {
     expect(box).toHaveValue("");
   });
 
+  it("lets the message take the direction of the language it is typed in", () => {
+    setup({});
+
+    expect(screen.getByRole("textbox", { name: "Message Sidekick" })).toHaveAttribute("dir", "auto");
+  });
+
   it("sends nothing for a message of only spaces", async () => {
     const { onSend } = setup({});
 

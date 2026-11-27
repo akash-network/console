@@ -7,8 +7,8 @@ import {
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { TxService } from "@src/core/services";
 
-/** pg-boss runs a higher priority first: a user waiting on a refused top-up goes before the users whose deployments need their next top-up soonest, and those before the rest. */
-export const FUNDING_WALLET_MOVE_PRIORITY = { rest: 0, hasOpenDeployment: 1, isWaiting: 2 } as const;
+/** pg-boss runs a higher priority first: a user waiting on a refused top-up, then a move that stopped halfway and can have left its user without a balance, then a running deployment that needs its next top-up. */
+export const FUNDING_WALLET_MOVE_PRIORITY = { rest: 0, hasOpenDeployment: 1, isUnfinished: 2, isWaiting: 3 } as const;
 
 export type QueuedFundingWalletMove = {
   network: string;

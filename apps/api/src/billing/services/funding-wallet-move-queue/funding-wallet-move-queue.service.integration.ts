@@ -37,7 +37,7 @@ describe(FundingWalletMoveQueueService.name, () => {
     await service.queueAheadOfOthers(network, userWalletId);
 
     const moves = await findMoves();
-    expect(moves.filter(move => move.state === "created")).toEqual([{ state: "created", priority: 2, userWalletId, isDue: true }]);
+    expect(moves.filter(move => move.state === "created")).toEqual([{ state: "created", priority: 3, userWalletId, isDue: true }]);
     expect(moves.filter(move => move.state === "cancelled")).toHaveLength(2);
   });
 
@@ -62,7 +62,7 @@ describe(FundingWalletMoveQueueService.name, () => {
       })
     ).rejects.toBe(refusal);
 
-    await expect(findMoves()).resolves.toEqual([{ state: "created", priority: 2, userWalletId, isDue: true }]);
+    await expect(findMoves()).resolves.toEqual([{ state: "created", priority: 3, userWalletId, isDue: true }]);
   });
 
   async function setup() {

@@ -1111,15 +1111,22 @@
     {
       "idx": 158,
       "version": "7",
-      "when": 1795806354396,
-      "tag": "0158_funding_wallets",
+      "when": 1795814772596,
+      "tag": "0158_template_view_events",
       "breakpoints": true
     },
     {
       "idx": 159,
       "version": "7",
-      "when": 1795815333792,
-      "tag": "0159_funding_wallet_moves",
+      "when": 1795822142491,
+      "tag": "0159_funding_wallets",
+      "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1795822220363,
+      "tag": "0160_funding_wallet_moves",
       "breakpoints": true
     }
   ]

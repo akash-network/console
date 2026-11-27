@@ -43,7 +43,7 @@ describe(FundingWalletDrainService.name, () => {
         ]
       });
 
-      await expect(service.queueMoves()).resolves.toEqual({ queued: 3, alreadyQueued: 0, withOpenDeployments: 0, unknownGrantees: 0 });
+      await expect(service.queueMoves()).resolves.toEqual({ queued: 3, alreadyQueued: 0, withOpenDeployments: 0, unfinished: 0, unknownGrantees: 0 });
 
       expect(authzHttpService.getAllDepositDeploymentGrants).toHaveBeenCalledWith({ granter: draining.address, limit: 500 });
       expect(authzHttpService.getPaginatedFeeAllowancesForGranter).toHaveBeenCalledWith(draining.address, 500, 0);
@@ -76,10 +76,43 @@ describe(FundingWalletDrainService.name, () => {
         ]
       });
 
-      await expect(service.queueMoves()).resolves.toEqual({ queued: 1, alreadyQueued: 1, withOpenDeployments: 0, unknownGrantees: 0 });
+      await expect(service.queueMoves()).resolves.toEqual({ queued: 1, alreadyQueued: 1, withOpenDeployments: 0, unfinished: 0, unknownGrantees: 0 });
 
       expect(fundingWalletMoveQueue.queue).toHaveBeenCalledTimes(1);
       expect(fundingWalletMoveQueue.queue).toHaveBeenCalledWith(expect.objectContaining({ userWalletId: 12 }));
+    });
+
+    it("queues the moves that stopped past their revoke ahead of everyone, though the chain shows no grant of their users any more", async () => {
+      const { service, draining, fundingWalletMoveQueue, fundingWalletMoveRepository } = setup({
+        users: [{ id: 11, hasDepositGrant: true, hasOpenDeployment: true }],
+        unfinishedMovesOf: [21, 22]
+      });
+
+      await expect(service.queueMoves()).resolves.toEqual({ queued: 3, alreadyQueued: 0, withOpenDeployments: 1, unfinished: 2, unknownGrantees: 0 });
+
+      expect(fundingWalletMoveRepository.findUserWalletIdsByStatus).toHaveBeenCalledWith(draining.id, ["revoking", "revoked", "crediting"]);
+      expect(fundingWalletMoveQueue.queue.mock.calls).toEqual([
+        [{ network: NETWORK, userWalletId: 21, priority: 2, startAfter: MOVES_START_AT }],
+        [{ network: NETWORK, userWalletId: 22, priority: 2, startAfter: MOVES_START_AT }],
+        [{ network: NETWORK, userWalletId: 11, priority: 1, startAfter: MOVES_START_AT }]
+      ]);
+    });
+
+    it("queues one move for a user whose unfinished move left a grant on chain", async () => {
+      const { service, fundingWalletMoveQueue } = setup({ users: [{ id: 11, hasDepositGrant: true }], unfinishedMovesOf: [11] });
+
+      await expect(service.queueMoves()).resolves.toEqual({ queued: 1, alreadyQueued: 0, withOpenDeployments: 0, unfinished: 1, unknownGrantees: 0 });
+
+      expect(fundingWalletMoveQueue.queue).toHaveBeenCalledTimes(1);
+      expect(fundingWalletMoveQueue.queue).toHaveBeenCalledWith(expect.objectContaining({ userWalletId: 11, priority: 2 }));
+    });
+
+    it("queues nothing more for an unfinished move that is still queued or running", async () => {
+      const { service, fundingWalletMoveQueue } = setup({ users: [{ id: 11, isAlreadyQueued: true }], unfinishedMovesOf: [11] });
+
+      await expect(service.queueMoves()).resolves.toEqual({ queued: 0, alreadyQueued: 1, withOpenDeployments: 0, unfinished: 0, unknownGrantees: 0 });
+
+      expect(fundingWalletMoveQueue.queue).not.toHaveBeenCalled();
     });
 
     it("counts the grantees that are no user wallet of this console and queues nothing for them", async () => {
@@ -88,7 +121,7 @@ describe(FundingWalletDrainService.name, () => {
         strangers: { withDepositGrant: 2, withFeeAllowance: 1 }
       });
 
-      await expect(service.queueMoves()).resolves.toEqual({ queued: 1, alreadyQueued: 0, withOpenDeployments: 0, unknownGrantees: 3 });
+      await expect(service.queueMoves()).resolves.toEqual({ queued: 1, alreadyQueued: 0, withOpenDeployments: 0, unfinished: 0, unknownGrantees: 3 });
 
       expect(fundingWalletMoveQueue.queue).toHaveBeenCalledTimes(1);
     });
@@ -127,6 +160,7 @@ describe(FundingWalletDrainService.name, () => {
         queued: 1,
         alreadyQueued: 0,
         withOpenDeployments: 1,
+        unfinished: 0,
         unknownGrantees: 0
       });
     });
@@ -258,6 +292,7 @@ describe(FundingWalletDrainService.name, () => {
       strangers?: { withDepositGrant?: number; withFeeAllowance?: number };
       left?: { depositGrants?: number; feeAllowances?: number };
       moves?: Partial<Record<FundingWalletMoveStatus, number>>;
+      unfinishedMovesOf?: number[];
       lateGrantsEndAt?: Date;
     } = {}
   ) {
@@ -297,6 +332,7 @@ describe(FundingWalletDrainService.name, () => {
 
     fundingWalletRepository.findDraining.mockResolvedValue(input.isDraining === false ? undefined : draining);
     fundingWalletMoveRepository.countByStatus.mockResolvedValue(input.moves ?? {});
+    fundingWalletMoveRepository.findUserWalletIdsByStatus.mockResolvedValue(input.unfinishedMovesOf ?? []);
     fundingWalletMoveService.lateGrantsEndAt.mockReturnValue(input.lateGrantsEndAt ?? MOVES_START_AT);
     userWalletRepository.findByAddresses.mockImplementation(async addresses =>
       users.filter(user => addresses.includes(user.address)).map(user => mock<UserWalletOutput>({ id: user.id, address: user.address }))

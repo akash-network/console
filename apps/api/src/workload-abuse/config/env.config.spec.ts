@@ -159,7 +159,7 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "10081" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
   });
 
-  it("leaves the deleted trial account settings unset when their variables are unset or blank", () => {
+  it("remembers a deleted trial account for 30 days, with a 24 hour cooldown and one return, when the variables are unset or blank", () => {
     const unset = setup();
     const blank = setup({
       WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: " ",
@@ -174,7 +174,11 @@ describe("workload abuse env config", () => {
       blank.WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS,
       blank.WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS,
       blank.WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS
-    ]).toEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
+    ]).toEqual([30, 24, 1, 30, 24, 1]);
+  });
+
+  it("accepts a memory of 0 days, which keeps no record of a deleted trial account", () => {
+    expect(setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "0" }).WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS).toBe(0);
   });
 
   it("reads the deleted trial account settings when they carry a value", () => {
@@ -191,8 +195,26 @@ describe("workload abuse env config", () => {
     });
   });
 
+  it("leaves the e2e inbox domain unset unless it is given, and reads it in lower case", () => {
+    expect(setup().WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN).toBeUndefined();
+    expect(setup({ WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: " " }).WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN).toBeUndefined();
+    expect(setup({ WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: " E2E.Akash.Test " }).WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN).toBe("e2e.akash.test");
+  });
+
+  it.each(["akash", "@e2e.akash.test", "e2e.akash.test/", "*.akash.test", "e2e..test"])("rejects %s as the e2e inbox domain", value => {
+    expect(() => setup({ WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: value })).toThrow(/WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN/);
+  });
+
+  it("caps the deleted trial account memory at a year and its cooldown at a year of hours", () => {
+    const config = setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "365", WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: "8760" });
+
+    expect([config.WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS, config.WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS]).toEqual([365, 8760]);
+    expect(() => setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "366" })).toThrow(/WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS/);
+    expect(() => setup({ WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: "8761" })).toThrow(/WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS/);
+  });
+
   it.each([
-    ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "0"],
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "-1"],
     ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "1.5"],
     ["WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS", "0"],
     ["WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS", "1.5"],

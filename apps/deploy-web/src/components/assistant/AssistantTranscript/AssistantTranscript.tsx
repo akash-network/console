@@ -138,7 +138,9 @@ const AssistantQuestion: FC<{ message: AssistantTranscriptMessage; canAddSecretS
   onAddSecretSecurely
 }) => (
   <div className="ml-8 flex flex-col items-end gap-2 self-end">
-    <p className="whitespace-pre-wrap rounded-xl border bg-muted px-4 py-2.5 text-sm">{message.text}</p>
+    <p dir="auto" className="whitespace-pre-wrap rounded-xl border bg-muted px-4 py-2.5 text-sm">
+      {message.text}
+    </p>
     {message.redactedSecretCount > 0 && (
       <div className="flex flex-col items-end gap-2">
         <p role="note" className="text-right text-xs text-muted-foreground">

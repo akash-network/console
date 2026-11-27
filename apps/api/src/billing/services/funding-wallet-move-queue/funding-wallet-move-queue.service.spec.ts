@@ -11,8 +11,8 @@ const USER_WALLET_ID = 42;
 const KEY = "sandbox.42";
 
 describe(FundingWalletMoveQueueService.name, () => {
-  it("ranks a waiting user above one with a running deployment, and that one above the rest", () => {
-    expect(FUNDING_WALLET_MOVE_PRIORITY).toEqual({ rest: 0, hasOpenDeployment: 1, isWaiting: 2 });
+  it("ranks a waiting user above a move that stopped halfway, that one above a running deployment, and that one above the rest", () => {
+    expect(FUNDING_WALLET_MOVE_PRIORITY).toEqual({ rest: 0, hasOpenDeployment: 1, isUnfinished: 2, isWaiting: 3 });
   });
 
   describe("queue", () => {
@@ -40,7 +40,7 @@ describe(FundingWalletMoveQueueService.name, () => {
       expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({ name: "MoveUserToActiveFundingWallet", singletonKey: KEY });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new MoveUserToActiveFundingWallet({ userWalletId: USER_WALLET_ID }), {
         singletonKey: KEY,
-        priority: 2
+        priority: 3
       });
       expect(calls).toEqual(["outsideTransaction:start", "cancelCreatedBy", "enqueue", "outsideTransaction:end"]);
     });

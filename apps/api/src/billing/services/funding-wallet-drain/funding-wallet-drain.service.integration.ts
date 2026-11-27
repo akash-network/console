@@ -36,7 +36,7 @@ describe(FundingWalletDrainService.name, () => {
     const withFeesOnly = await seedGrantee({ hasFeeAllowance: true });
     await seedGrantee({ hasDepositGrant: true, isUserWallet: false });
 
-    await expect(service.queueMoves()).resolves.toEqual({ queued: 3, alreadyQueued: 0, withOpenDeployments: 1, unknownGrantees: 1 });
+    await expect(service.queueMoves()).resolves.toEqual({ queued: 3, alreadyQueued: 0, withOpenDeployments: 1, unfinished: 0, unknownGrantees: 1 });
 
     const queued = await findQueuedMoves();
     expect(queued).toEqual(
@@ -56,9 +56,31 @@ describe(FundingWalletDrainService.name, () => {
     await seedGrantee({ hasFeeAllowance: true });
     await service.queueMoves();
 
-    await expect(service.queueMoves()).resolves.toEqual({ queued: 0, alreadyQueued: 2, withOpenDeployments: 0, unknownGrantees: 0 });
+    await expect(service.queueMoves()).resolves.toEqual({ queued: 0, alreadyQueued: 2, withOpenDeployments: 0, unfinished: 0, unknownGrantees: 0 });
 
     await expect(findQueuedMoves()).resolves.toHaveLength(2);
+  });
+
+  it("queues again the moves that stopped past their revoke, which the chain shows no grant of, and leaves the finished ones alone", async () => {
+    const { service, network, findQueuedMoves, seedMove } = await setup();
+    const [revoked, crediting] = [await seedMove("revoked"), await seedMove("crediting")];
+    await seedMove("completed");
+    await seedMove("failed");
+
+    await expect(service.queueMoves()).resolves.toEqual({ queued: 2, alreadyQueued: 0, withOpenDeployments: 0, unfinished: 2, unknownGrantees: 0 });
+
+    const queued = await findQueuedMoves();
+    expect(queued).toEqual(
+      expect.arrayContaining(
+        [revoked, crediting].map(({ userWalletId }) => ({
+          userWalletId,
+          singletonKey: `${network}.${userWalletId}`,
+          priority: 2,
+          startsWithinMinutes: expect.any(Number)
+        }))
+      )
+    );
+    expect(queued).toHaveLength(2);
   });
 
   it("reports what is left on chain next to how the moves stand", async () => {

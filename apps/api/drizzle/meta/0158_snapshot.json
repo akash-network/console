@@ -1,5 +1,5 @@
 {
-  "id": "6449381e-1ee8-4519-afb5-e5bb4061a40c",
+  "id": "1eecbe5e-2795-4b1f-a98d-fc0ef5ec8a96",
   "prevId": "f00b3b2a-eed4-43b8-ad1d-f792dcdb17c2",
   "version": "7",
   "dialect": "postgresql",
@@ -1526,180 +1526,6 @@
           "columns": [
             "transaction_id",
             "amount_refunded"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.funding_wallets": {
-      "name": "funding_wallets",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuid_generate_v4()"
-        },
-        "network": {
-          "name": "network",
-          "type": "varchar(32)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "address": {
-          "name": "address",
-          "type": "varchar(128)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "funding_wallet_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "funding_wallets_network_address_unique": {
-          "name": "funding_wallets_network_address_unique",
-          "columns": [
-            {
-              "expression": "network",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "address",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "funding_wallets_one_active_per_network": {
-          "name": "funding_wallets_one_active_per_network",
-          "columns": [
-            {
-              "expression": "network",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"funding_wallets\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.user_wallet_granters": {
-      "name": "user_wallet_granters",
-      "schema": "",
-      "columns": {
-        "user_wallet_id": {
-          "name": "user_wallet_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "network": {
-          "name": "network",
-          "type": "varchar(32)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "funding_wallet_id": {
-          "name": "funding_wallet_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "user_wallet_granters_funding_wallet_id_idx": {
-          "name": "user_wallet_granters_funding_wallet_id_idx",
-          "columns": [
-            {
-              "expression": "funding_wallet_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "user_wallet_granters_funding_wallet_id_funding_wallets_id_fk": {
-          "name": "user_wallet_granters_funding_wallet_id_funding_wallets_id_fk",
-          "tableFrom": "user_wallet_granters",
-          "tableTo": "funding_wallets",
-          "columnsFrom": [
-            "funding_wallet_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "user_wallet_granters_pk": {
-          "name": "user_wallet_granters_pk",
-          "columns": [
-            "user_wallet_id",
-            "network"
           ]
         }
       },
@@ -9897,6 +9723,124 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.template_view_events": {
+      "name": "template_view_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuid_generate_v4()"
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "template_view_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viewer_key": {
+          "name": "viewer_key",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_publisher": {
+          "name": "from_publisher",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "network": {
+          "name": "network",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viewed_on": {
+          "name": "viewed_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "template_view_events_once_per_day_unique": {
+          "name": "template_view_events_once_per_day_unique",
+          "columns": [
+            {
+              "expression": "template_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewed_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewer_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "template_view_events_template_id_template_id_fk": {
+          "name": "template_view_events_template_id_template_id_fk",
+          "tableFrom": "template_view_events",
+          "tableTo": "template",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -9962,16 +9906,6 @@
       "values": [
         "pending",
         "landed"
-      ]
-    },
-    "public.funding_wallet_status": {
-      "name": "funding_wallet_status",
-      "schema": "public",
-      "values": [
-        "standby",
-        "active",
-        "draining",
-        "retired"
       ]
     },
     "public.account_status": {
@@ -10464,6 +10398,14 @@
         "held",
         "failed_checks",
         "rejected"
+      ]
+    },
+    "public.template_view_kind": {
+      "name": "template_view_kind",
+      "schema": "public",
+      "values": [
+        "page_view",
+        "configure_open"
       ]
     }
   },

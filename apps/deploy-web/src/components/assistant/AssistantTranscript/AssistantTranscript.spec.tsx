@@ -27,6 +27,12 @@ describe("AssistantTranscript", () => {
     expect(screen.getByText("No provider has 8 GPUs free.")).toBeInTheDocument();
   });
 
+  it("lets a question take the direction of the language it is written in", () => {
+    setup({ messages: [question("1", "لي تطبيقي ميعمل", 0)] });
+
+    expect(screen.getByText("لي تطبيقي ميعمل")).toHaveAttribute("dir", "auto");
+  });
+
   it("warns under a message the api removed a secret from, and offers the secure card on a deployment", async () => {
     const { conversation } = setup({ deploymentDseq: "42", messages: [question("1", "my token is hf_abc", 1), message("2", { text: "Got it." })] });
 
