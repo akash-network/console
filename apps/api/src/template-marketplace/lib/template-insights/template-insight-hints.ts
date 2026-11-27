@@ -32,6 +32,9 @@ type HintInput = { current: InsightTotals; previous: InsightTotals; versions: Ve
 
 const TONE_ORDER: InsightHintTone[] = ["warning", "info", "positive"];
 
+/** Absorbs floating-point error only, so a drop of exactly the minimum still counts. */
+const RATE_DROP_TOLERANCE_POINTS = 1e-9;
+
 /** Only says what the numbers support: every hint needs enough deployments or visitors behind it, and praise never sits next to a warning. */
 export function findInsightHints({ current, previous, versions }: HintInput): InsightHint[] {
   const concerns = [...periodConcerns(current), ...versionConcerns(versions)];
@@ -93,7 +96,7 @@ function periodPraise(current: InsightTotals, previous: InsightTotals): InsightH
 }
 
 function hasDropped(latest: number | null, earlier: number | null): boolean {
-  return latest !== null && earlier !== null && Math.round((earlier - latest) * 100) >= MIN_VERSION_RATE_DROP_POINTS;
+  return latest !== null && earlier !== null && (earlier - latest) * 100 >= MIN_VERSION_RATE_DROP_POINTS - RATE_DROP_TOLERANCE_POINTS;
 }
 
 function hintOf(kind: InsightHintKind, tone: InsightHintTone, value: number, previousValue: number | null = null, version: number | null = null): InsightHint {

@@ -25,6 +25,7 @@ describe("Marketplace template insights", () => {
   }, 20_000);
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -47,14 +48,22 @@ describe("Marketplace template insights", () => {
       expect((await storedViews(template.id)).map(({ kind }) => kind).sort()).toEqual(["configure_open", "page_view"]);
     });
 
-    it("does not count a member of the organization that publishes the template", async () => {
-      const { team, project, owner, request } = await setup();
+    it("marks the views of the organization that publishes the template", async () => {
+      const { team, project, owner, outsider, request } = await setup();
       const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public" });
 
-      const response = await request(owner, `/v1/user-templates/${template.id}/views`, { method: "POST", body: { data: { kind: "page_view" } } });
+      const responses = await Promise.all([
+        request(owner, `/v1/user-templates/${template.id}/views`, { method: "POST", body: { data: { kind: "page_view" } } }),
+        request(outsider, `/v1/user-templates/${template.id}/views`, { method: "POST", body: { data: { kind: "configure_open" } } })
+      ]);
 
-      expect(response.status).toBe(204);
-      expect(await storedViews(template.id)).toEqual([]);
+      expect(responses.map(({ status }) => status)).toEqual([204, 204]);
+      expect(
+        (await storedViews(template.id)).map(({ kind, fromPublisher }) => ({ kind, fromPublisher })).sort((left, right) => left.kind.localeCompare(right.kind))
+      ).toEqual([
+        { kind: "configure_open", fromPublisher: false },
+        { kind: "page_view", fromPublisher: true }
+      ]);
     });
 
     it("answers 401 without a session, 404 for a template the caller may not read, and 400 for an unknown kind", async () => {
@@ -87,6 +96,7 @@ describe("Marketplace template insights", () => {
       const { team, project, owner, outsider, request } = await setup();
       const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public" });
       const [first, second] = await seedVersions(template.id);
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
       const today = new Date();
       await seedViews(template.id, [
         { kind: "page_view", viewedOn: dayOf(today), viewers: 3 },
@@ -118,6 +128,26 @@ describe("Marketplace template insights", () => {
       });
       expect(body.data.daily).toHaveLength(7);
       expect(body.data.daily.at(-1)).toEqual({ day: dayOf(today), views: 3, configureOpens: 2, deploys: 2, leases: 1, stillRunning: 0 });
+    });
+
+    it.each([
+      { visibility: "public" as const, views: 3 },
+      { visibility: "organization" as const, views: 5 }
+    ])("counts the publishing organization's views of a $visibility template as $views of 5", async ({ visibility, views }) => {
+      const { team, project, owner, request } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility });
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
+      const today = dayOf(new Date());
+      await seedViews(template.id, [
+        { kind: "page_view", viewedOn: today, viewers: 3 },
+        { kind: "page_view", viewedOn: today, viewers: 2, fromPublisher: true }
+      ]);
+
+      const response = await request(owner, `/v1/user-templates/${template.id}/insights?days=7`);
+      const body = (await response.json()) as { data: { current: { views: number } } };
+
+      expect(response.status).toBe(200);
+      expect(body.data.current.views).toBe(views);
     });
 
     it.each(["7", "30", "90"])("covers %s days", async days => {
@@ -157,13 +187,23 @@ describe("Marketplace template insights", () => {
     return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(views).where(eq(views.templateId, templateId));
   }
 
-  async function seedViews(templateId: string, days: { kind: "page_view" | "configure_open"; viewedOn: string; viewers: number; network?: string }[]) {
+  async function seedViews(
+    templateId: string,
+    days: { kind: "page_view" | "configure_open"; viewedOn: string; viewers: number; network?: string; fromPublisher?: boolean }[]
+  ) {
     await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("TemplateViewEvents"))
       .values(
-        days.flatMap(({ kind, viewedOn, viewers, network = "mainnet" }) =>
-          Array.from({ length: viewers }, () => ({ templateId, kind, viewedOn, network, viewerKey: faker.string.hexadecimal({ length: 64, prefix: "" }) }))
+        days.flatMap(({ kind, viewedOn, viewers, network = "mainnet", fromPublisher = false }) =>
+          Array.from({ length: viewers }, () => ({
+            templateId,
+            kind,
+            viewedOn,
+            network,
+            fromPublisher,
+            viewerKey: faker.string.hexadecimal({ length: 64, prefix: "" })
+          }))
         )
       );
   }

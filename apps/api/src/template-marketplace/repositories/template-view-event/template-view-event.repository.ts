@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, ne, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -6,6 +6,7 @@ import { TxService } from "@src/core/services";
 import type { TemplateViewKind } from "@src/template-marketplace/model-schemas/template-view-event/template-view-event.schema";
 
 type Table = ApiPgTables["TemplateViewEvents"];
+type TemplatesTable = ApiPgTables["Templates"];
 
 export type TemplateViewInput = Omit<Table["$inferInsert"], "id" | "createdAt">;
 
@@ -16,6 +17,7 @@ export class TemplateViewEventRepository {
   constructor(
     @InjectPg() private readonly pg: ApiPgDatabase,
     @InjectPgTable("TemplateViewEvents") private readonly table: Table,
+    @InjectPgTable("Templates") private readonly templates: TemplatesTable,
     private readonly txManager: TxService
   ) {}
 
@@ -30,11 +32,20 @@ export class TemplateViewEventRepository {
     return recorded.length > 0;
   }
 
+  /** A public template's own organization cannot raise its numbers, even with views from before it went public. */
   async countDailyViewers({ templateId, network, since }: { templateId: string; network: string; since: string }): Promise<DailyViewCount[]> {
     return await this.#cursor
       .select({ day: this.table.viewedOn, kind: this.table.kind, viewers: sql<number>`count(*)`.mapWith(Number) })
       .from(this.table)
-      .where(and(eq(this.table.templateId, templateId), eq(this.table.network, network), gte(this.table.viewedOn, since)))
+      .innerJoin(this.templates, eq(this.templates.id, this.table.templateId))
+      .where(
+        and(
+          eq(this.table.templateId, templateId),
+          eq(this.table.network, network),
+          gte(this.table.viewedOn, since),
+          or(ne(this.templates.visibility, "public"), eq(this.table.fromPublisher, false))
+        )
+      )
       .groupBy(this.table.viewedOn, this.table.kind);
   }
 }

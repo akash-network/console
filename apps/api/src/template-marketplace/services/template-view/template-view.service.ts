@@ -18,19 +18,17 @@ export class TemplateViewService {
     private readonly coreConfig: CoreConfigService
   ) {}
 
-  /** Counts a signed-in viewer once a day, and never a member of the organization that publishes a public template, which cannot raise its own numbers. */
+  /** Counts a signed-in viewer once a day, noting whether they belong to the publishing organization, the only one that can read a template that is not public. */
   async recordView(templateId: string, kind: TemplateViewKind, now = new Date()): Promise<void> {
     const template = await this.marketplaceTemplateService.findReadable(templateId);
     const userId = this.authService.currentUser.id;
-
-    if (template.visibility === "public" && (await this.#belongsToPublisher(template.organizationId, userId))) return;
-
     const viewedOn = now.toISOString().slice(0, 10);
 
     await this.templateViewEventRepository.recordOncePerDay({
       templateId: template.id,
       kind,
-      viewerKey: createHash("sha256").update(`${viewedOn}:${userId}`).digest("hex"),
+      viewerKey: createHash("sha256").update(`${template.id}:${kind}:${viewedOn}:${userId}`).digest("hex"),
+      fromPublisher: template.visibility !== "public" || (await this.#belongsToPublisher(template.organizationId, userId)),
       network: this.coreConfig.get("NETWORK"),
       viewedOn
     });

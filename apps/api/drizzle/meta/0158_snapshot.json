@@ -9754,6 +9754,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "from_publisher": {
+          "name": "from_publisher",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
         "network": {
           "name": "network",
           "type": "varchar(16)",

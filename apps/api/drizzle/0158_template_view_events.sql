@@ -5,6 +5,7 @@ CREATE TABLE "template_view_events" (
 	"template_id" uuid NOT NULL,
 	"kind" "template_view_kind" NOT NULL,
 	"viewer_key" varchar(64) NOT NULL,
+	"from_publisher" boolean NOT NULL,
 	"network" varchar(16) NOT NULL,
 	"viewed_on" date NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL

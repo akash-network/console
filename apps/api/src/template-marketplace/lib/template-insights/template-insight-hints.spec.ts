@@ -76,7 +76,7 @@ describe(findInsightHints.name, () => {
     });
 
     it.each([
-      { label: "drops less than 20 points", earlier: { leaseRate: 0.9, stillRunningRate: 0.9 }, latest: { leaseRate: 0.71, stillRunningRate: 0.71 } },
+      { label: "drops just under 20 points", earlier: { leaseRate: 0.9, stillRunningRate: 0.9 }, latest: { leaseRate: 0.704, stillRunningRate: 0.704 } },
       { label: "has too few deploys for its lease rate", earlier: { leaseRate: 0.9, deploys: 9 }, latest: { leaseRate: 0.1 } },
       { label: "has no rate", earlier: { leaseRate: 0.9, stillRunningRate: 0.9 }, latest: { leaseRate: null, stillRunningRate: null } },
       { label: "compares to no rate", earlier: { leaseRate: null, stillRunningRate: null }, latest: { leaseRate: 0, stillRunningRate: 0 } }

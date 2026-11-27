@@ -22,7 +22,7 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 const NOW = new Date("2026-11-27T15:00:00Z");
 
 describe(TemplateViewService.name, () => {
-  it("counts the viewer under a key of their id and the day, on the API's network", async () => {
+  it("counts an outside viewer under a key of their id, the template, the kind and the day, on the API's network", async () => {
     const { service, templateViewEventRepository, template, user } = setup({ visibility: "public" });
 
     await service.recordView(template.id, "configure_open", NOW);
@@ -30,29 +30,30 @@ describe(TemplateViewService.name, () => {
     expect(templateViewEventRepository.recordOncePerDay).toHaveBeenCalledWith({
       templateId: template.id,
       kind: "configure_open",
-      viewerKey: createHash("sha256").update(`2026-11-27:${user.id}`).digest("hex"),
+      viewerKey: createHash("sha256").update(`${template.id}:configure_open:2026-11-27:${user.id}`).digest("hex"),
+      fromPublisher: false,
       network: "sandbox",
       viewedOn: "2026-11-27"
     });
   });
 
-  it("skips a member of the organization that publishes a public template", async () => {
+  it("marks a member of the organization that publishes a public template", async () => {
     const { service, templateViewEventRepository, organizationMemberRepository, template, user } = setup({ visibility: "public", isMember: true });
 
     await service.recordView(template.id, "page_view", NOW);
 
     expect(organizationMemberRepository.unscoped).toHaveBeenCalledWith("template-view-counting");
     expect(organizationMemberRepository.findWithUserByUserId).toHaveBeenCalledWith(template.organizationId, user.id);
-    expect(templateViewEventRepository.recordOncePerDay).not.toHaveBeenCalled();
+    expect(templateViewEventRepository.recordOncePerDay).toHaveBeenCalledWith(expect.objectContaining({ fromPublisher: true }));
   });
 
-  it.each<TemplateVisibility>(["organization", "private"])("counts members viewing an %s template, who are all its viewers", async visibility => {
-    const { service, templateViewEventRepository, organizationMemberRepository, template } = setup({ visibility, isMember: true });
+  it.each<TemplateVisibility>(["organization", "private"])("marks every viewer of an %s template, who can only be members", async visibility => {
+    const { service, templateViewEventRepository, organizationMemberRepository, template } = setup({ visibility });
 
     await service.recordView(template.id, "page_view", NOW);
 
     expect(organizationMemberRepository.findWithUserByUserId).not.toHaveBeenCalled();
-    expect(templateViewEventRepository.recordOncePerDay).toHaveBeenCalled();
+    expect(templateViewEventRepository.recordOncePerDay).toHaveBeenCalledWith(expect.objectContaining({ fromPublisher: true }));
   });
 
   it("refuses a template the caller may not read", async () => {

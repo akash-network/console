@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { date, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 
@@ -19,8 +19,9 @@ export const TemplateViewEvents = pgTable(
       .references(() => Templates.id, { onDelete: "cascade" })
       .notNull(),
     kind: templateViewKindEnum("kind").notNull(),
-    /** A hash of the viewer's id and the day, so the table holds no user id and a viewer's days do not link up through it. */
+    /** A hash of the viewer's id with the template, kind and day, so the table holds no user id and a key never repeats across templates or days. */
     viewerKey: varchar("viewer_key", { length: 64 }).notNull(),
+    fromPublisher: boolean("from_publisher").notNull(),
     network: varchar("network", { length: 16 }).notNull(),
     viewedOn: date("viewed_on", { mode: "string" }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
