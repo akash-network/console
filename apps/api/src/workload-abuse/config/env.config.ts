@@ -155,6 +155,16 @@ export const envSchema = z.object({
     blankToUndefined,
     z.number({ coerce: true }).int().positive().max(MAX_DELETED_TRIAL_COOLDOWN_HOURS).default(24)
   ),
+  /** The e2e suite deletes trial accounts on its own inbox domain and signs up again from the same browser, so those deletions are not recorded. */
+  WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: z.preprocess(
+    blankToUndefined,
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/)
+      .optional()
+  ),
   WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().default(1)),
   /** A browser fingerprint is shared by everyone behind one address with the same browser, so this switches that match off without touching the others. */
   WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: z.preprocess(

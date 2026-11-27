@@ -40,6 +40,11 @@ export class DeletedTrialAccountService {
     const memoryDays = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS");
     if (!memoryDays || !wallet?.activatedAt || !wallet.isTrialing) return;
 
+    if (this.#isE2eAccount(account)) {
+      this.logger.info({ event: "DELETED_TRIAL_ACCOUNT_NOT_REMEMBERED_FOR_E2E", userId: account.id });
+      return;
+    }
+
     const hashes = this.#hashesOf(account);
     if (!hashes.identityHash && !hashes.emailHash && !hashes.fingerprintHash) return;
 
@@ -90,6 +95,12 @@ export class DeletedTrialAccountService {
     const isOverMaxReturns = deletions.length > maxReturns;
 
     return isInCooldown || isOverMaxReturns ? { latestDeletion, deletionsOnRecord: deletions.length } : undefined;
+  }
+
+  #isE2eAccount({ email }: Account): boolean {
+    const e2eEmailDomain = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN");
+
+    return !!e2eEmailDomain && !!email && email.trim().toLowerCase().endsWith(`@${e2eEmailDomain}`);
   }
 
   #lookupHashesOf(account: Account): DeletedTrialAccountHashes {

@@ -195,6 +195,16 @@ describe("workload abuse env config", () => {
     });
   });
 
+  it("leaves the e2e inbox domain unset unless it is given, and reads it in lower case", () => {
+    expect(setup().WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN).toBeUndefined();
+    expect(setup({ WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: " " }).WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN).toBeUndefined();
+    expect(setup({ WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: " E2E.Akash.Test " }).WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN).toBe("e2e.akash.test");
+  });
+
+  it.each(["akash", "@e2e.akash.test", "e2e.akash.test/", "*.akash.test", "e2e..test"])("rejects %s as the e2e inbox domain", value => {
+    expect(() => setup({ WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: value })).toThrow(/WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN/);
+  });
+
   it("caps the deleted trial account memory at a year and its cooldown at a year of hours", () => {
     const config = setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "365", WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: "8760" });
 

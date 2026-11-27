@@ -48,6 +48,46 @@ describe(DeletedTrialAccountService.name, () => {
       });
     });
 
+    it("records nothing for a deleted account on the e2e inbox domain, and says so", async () => {
+      const { service, repository, logger } = setup({ e2eEmailDomain: "e2e.akash.test" });
+      const account = createUser({ email: " E2E-1a2b3c4d@E2E.Akash.Test " });
+
+      await service.remember(account, trialWallet());
+
+      expect(repository.create).not.toHaveBeenCalled();
+      expect(repository.deleteOlderThan).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({ event: "DELETED_TRIAL_ACCOUNT_NOT_REMEMBERED_FOR_E2E", userId: account.id });
+    });
+
+    it.each(["jane@akash.test", "jane@sub.e2e.akash.test", "jane@note2e.akash.test", "e2e.akash.test@example.com"])(
+      "records the deleted account %s, which is not on the e2e inbox domain",
+      async email => {
+        const { service, repository, logger } = setup({ e2eEmailDomain: "e2e.akash.test" });
+
+        await service.remember(createUser({ email }), trialWallet());
+
+        expect(repository.create).toHaveBeenCalledTimes(1);
+        expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DELETED_TRIAL_ACCOUNT_NOT_REMEMBERED_FOR_E2E" }));
+      }
+    );
+
+    it("records every deleted account while no e2e inbox domain is configured", async () => {
+      const { service, repository } = setup();
+
+      await service.remember(createUser({ email: "e2e-1a2b3c4d@e2e.akash.test" }), trialWallet());
+      await service.remember(createUser({ email: "jane@undefined" }), trialWallet());
+
+      expect(repository.create).toHaveBeenCalledTimes(2);
+    });
+
+    it("records a deleted account that has no email even with an e2e inbox domain configured", async () => {
+      const { service, repository } = setup({ e2eEmailDomain: "e2e.akash.test" });
+
+      await service.remember(createUser({ userId: "auth0|abc123", email: null }), trialWallet());
+
+      expect(repository.create).toHaveBeenCalledTimes(1);
+    });
+
     it("drops the records past the configured age before adding one", async () => {
       const { service, repository } = setup();
 
@@ -262,7 +302,14 @@ describe(DeletedTrialAccountService.name, () => {
   }
 
   function setup(
-    input: { memoryDays?: number; cooldownHours?: number; maxReturns?: number; matchesFingerprint?: boolean; deletionAgesInHours?: number[] } = {}
+    input: {
+      memoryDays?: number;
+      cooldownHours?: number;
+      maxReturns?: number;
+      matchesFingerprint?: boolean;
+      deletionAgesInHours?: number[];
+      e2eEmailDomain?: string;
+    } = {}
   ) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
@@ -276,7 +323,8 @@ describe(DeletedTrialAccountService.name, () => {
       WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: input.memoryDays ?? MEMORY_DAYS,
       WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: input.cooldownHours ?? COOLDOWN_HOURS,
       WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: input.maxReturns ?? MAX_RETURNS,
-      WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: input.matchesFingerprint ?? true
+      WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: input.matchesFingerprint ?? true,
+      WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN: input.e2eEmailDomain
     });
     const jobQueueService = mock<JobQueueService>();
     const txService = mock<TxService>();

@@ -11,7 +11,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
@@ -24,6 +23,7 @@ import { app } from "@src/rest-app";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
+import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
@@ -40,7 +40,7 @@ interface ErrorBody {
 
 const STRIPE_API = "https://api.stripe.com";
 
-const BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const E2E_EMAIL_DOMAIN = "e2e.akash.test";
 
 describe("Account deletion", () => {
   const userRepository = container.resolve(UserRepository);
@@ -152,41 +152,42 @@ describe("Account deletion", () => {
     });
 
     it("records a deleted trial account so its browser is not handed another trial", async () => {
-      const { address, linkToken } = await setupIssuedTrialAccountLink();
+      const { address, linkToken } = await setupIssuedTrialAccountLink({ email: `jane-${faker.string.alphanumeric(8).toLowerCase()}@example.com` });
 
-      const response = await confirm(linkToken, { userAgent: BROWSER_USER_AGENT });
+      const response = await confirm(linkToken);
 
       expect(response.status).toBe(204);
       expect(await findDeletedTrialAccountsOf(address)).toHaveLength(1);
     });
 
-    it("records nothing for a trial account the e2e testing client deleted", async () => {
-      const { address, linkToken, testingClientToken } = await setupIssuedTrialAccountLink();
+    it("records nothing for a trial account on the e2e inbox domain", async () => {
+      const { address, linkToken } = await setupIssuedTrialAccountLink({
+        email: `e2e-${faker.string.alphanumeric(8).toLowerCase()}@${E2E_EMAIL_DOMAIN}`
+      });
 
-      const response = await confirm(linkToken, { userAgent: `${BROWSER_USER_AGENT} UIT/${testingClientToken}.` });
+      const response = await confirm(linkToken);
 
       expect(response.status).toBe(204);
       expect(await findDeletedTrialAccountsOf(address)).toEqual([]);
     });
 
-    async function setupIssuedTrialAccountLink() {
+    async function setupIssuedTrialAccountLink(input: { email: string }) {
       const { user, address } = await seedUserWithWallet({
         isTrialing: true,
         activatedAt: new Date(),
-        user: { userId: `auth0|${faker.string.alphanumeric(24)}`, email: faker.internet.email().toLowerCase() }
+        user: { userId: `auth0|${faker.string.alphanumeric(24)}`, email: input.email }
       });
       const linkToken = faker.string.alphanumeric(43);
       await tokenRepository.replaceForUser({ userId: user.id, tokenHash: sha256(linkToken), acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });
       answerActiveDeployments([]);
       answerBalanceOf(address, undefined);
 
-      const testingClientToken = faker.string.alphanumeric(32);
-      const authConfig = container.resolve(AuthConfigService);
-      const readAuthConfig = authConfig.get.bind(authConfig);
-      vi.spyOn(authConfig, "get").mockImplementation((key =>
-        key === "E2E_TESTING_CLIENT_TOKEN" ? testingClientToken : readAuthConfig(key)) as typeof authConfig.get);
+      const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
+      const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
+      vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
+        key === "WORKLOAD_ABUSE_E2E_EMAIL_DOMAIN" ? E2E_EMAIL_DOMAIN : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);
 
-      return { user, address, linkToken, testingClientToken };
+      return { user, address, linkToken };
     }
 
     async function findDeletedTrialAccountsOf(walletAddress: string) {
@@ -515,16 +516,12 @@ describe("Account deletion", () => {
     });
   }
 
-  async function confirm(token: string, client: { userAgent?: string } = {}) {
-    return await app.request(
-      "/v1/user/me/confirm-deletion",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(client.userAgent ? { "User-Agent": client.userAgent } : {}) },
-        body: JSON.stringify({ data: { token } })
-      },
-      { incoming: { socket: { remoteAddress: "203.0.113.7", remotePort: 443, remoteFamily: "IPv4" } } }
-    );
+  async function confirm(token: string) {
+    return await app.request("/v1/user/me/confirm-deletion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: { token } })
+    });
   }
 
   function answerBalanceOf(address: string, balanceUakt: string | undefined) {

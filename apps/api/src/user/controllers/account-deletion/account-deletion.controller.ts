@@ -2,7 +2,6 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { TestingClientService } from "@src/auth/services/testing-client/testing-client.service";
 import type { AuthMethod } from "@src/core/types/app-context";
 import type {
   AccountDeletionEligibilityResponse,
@@ -21,8 +20,7 @@ export interface AccountDeletionRequestOrigin {
 export class AccountDeletionController {
   constructor(
     private readonly authService: AuthService,
-    private readonly accountDeletionService: AccountDeletionService,
-    private readonly testingClientService: TestingClientService
+    private readonly accountDeletionService: AccountDeletionService
   ) {}
 
   async initiate({ data }: InitiateAccountDeletionRequest, origin: AccountDeletionRequestOrigin): Promise<void> {
@@ -59,10 +57,6 @@ export class AccountDeletionController {
   }
 
   async confirm({ data }: ConfirmAccountDeletionRequest, origin: AccountDeletionRequestOrigin): Promise<void> {
-    await this.accountDeletionService.confirm({
-      token: data.token,
-      ip: origin.ip,
-      isTestingClient: this.testingClientService.isTestingClient(origin.userAgent)
-    });
+    await this.accountDeletionService.confirm({ token: data.token, ip: origin.ip });
   }
 }
