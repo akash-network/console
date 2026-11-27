@@ -20,7 +20,7 @@ export class HealthzController {
     };
   }
 
-  /** A pod that cannot name its funding wallets would refuse every transaction, so it must not take traffic. */
+  /** Guards start-up only: a pod names its wallets once, and a key service outage after that must not take pods out, since most transactions need no key service signature. */
   async #assertEveryFundingWalletIsReachable(): Promise<void> {
     try {
       await this.txManagerService.getFundingWalletAddresses();
