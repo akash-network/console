@@ -131,6 +131,6 @@ export class ReconcileDeploymentAllowanceHandler implements JobHandler<Reconcile
   }
 
   #describe({ wallet, write, round, attempt }: AllowanceCheck) {
-    return { address: wallet.address, txHash: write.txHash, readHeight: write.readHeight, round, attempt };
+    return { address: wallet.address, granter: write.granter, txHash: write.txHash, readHeight: write.readHeight, round, attempt };
   }
 }

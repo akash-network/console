@@ -55,7 +55,8 @@ export class DeploymentAllowanceService {
       const tx = await this.managedUserWalletService.authorizeDeploymentSpendingOnly(this.managedSignerService, {
         address: wallet.address,
         derivationIndex: wallet.id,
-        limit: nextLimit
+        limit: nextLimit,
+        readGranter: read.granter
       });
 
       if (tx && tx.code !== COSMOS_TX_CODE_OK) throw createError(502, "The chain refused the deployment allowance grant", { txHash: tx.hash });

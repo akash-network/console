@@ -275,7 +275,7 @@ describe(ManagedUserWalletService.name, () => {
       rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(grantMsg);
       signer.executeFundingTx.mockResolvedValue(tx as never);
 
-      const result = await service.authorizeDeploymentSpendingOnly(signer, { address, derivationIndex, limit: 110_000_000 });
+      const result = await service.authorizeDeploymentSpendingOnly(signer, { address, derivationIndex, limit: 110_000_000, readGranter: granter });
 
       expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith({
         granter,
@@ -288,6 +288,18 @@ describe(ManagedUserWalletService.name, () => {
       expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg], { granteeDerivationIndex: derivationIndex });
       expect(rpcMessageService.getFeesAllowanceGrantMsg).not.toHaveBeenCalled();
       expect(result).toBe(tx);
+    });
+
+    it("refuses a deployment allowance computed from another funding wallet than the one it would be granted from", async () => {
+      const { service, signer, rpcMessageService } = setup();
+      const address = createAkashAddress();
+
+      await expect(
+        service.authorizeDeploymentSpendingOnly(signer, { address, derivationIndex: 7, limit: 110_000_000, readGranter: createAkashAddress() })
+      ).rejects.toMatchObject({ status: 409, message: "The funding wallet changed since this balance was read, try again", address });
+
+      expect(rpcMessageService.getDepositDeploymentGrantMsg).not.toHaveBeenCalled();
+      expect(signer.executeFundingTx).not.toHaveBeenCalled();
     });
 
     it("keeps refilling the fee allowance when the deployment limit drops to zero", async () => {
