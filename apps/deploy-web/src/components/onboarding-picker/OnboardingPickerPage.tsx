@@ -15,6 +15,7 @@ import { OnboardingHeader } from "@src/components/layout/OnboardingHeader/Onboar
 import type { DeployClickVia } from "@src/components/onboarding-picker/IntentFirstPicker/IntentFirstPicker";
 import { IntentFirstPicker } from "@src/components/onboarding-picker/IntentFirstPicker/IntentFirstPicker";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
+import { TrialCardStep } from "@src/components/onboarding-picker/TrialCardStep/TrialCardStep";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
@@ -22,6 +23,7 @@ import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { useFlag } from "@src/hooks/useFlag";
 import { useIsOutOfDeployCredit } from "@src/hooks/useIsOutOfDeployCredit/useIsOutOfDeployCredit";
 import { useReferralQuery } from "@src/queries/useReferralQuery";
+import { useTrialCardQuery } from "@src/queries/useTrialCardQuery";
 
 /**
  * Template ids the picker cards deploy. Each card marks its template and redirects to the bid-screening (configure) view
@@ -39,16 +41,19 @@ const DEPLOY_CTA = { label: "Deploy now", icon: "arrow" } as const;
 
 const ADD_CREDITS_TO_DEPLOY_CTA = { label: "Add credits to deploy", icon: "lock" } as const;
 
-type AddCreditsPrompt = { context: "unlock-gpu" | "out-of-credit"; templateId: string } | { context: "hackathon-coupon" };
+type AddCreditsPrompt = { context: "unlock-gpu" | "out-of-credit"; templateId: string } | { context: "hackathon-coupon" } | { context: "trial-card" };
 
 const ADD_CREDITS_SHEET_DESCRIPTIONS: Partial<Record<AddCreditsPrompt["context"], string>> = {
   "unlock-gpu":
     "This template needs a top-tier GPU, which isn't covered by your free trial. Add credits to unlock high-end GPUs, longer runtimes, and the full Console.",
-  "out-of-credit": "Your balance is too low to start a deployment. Add credits, then continue to deploy this template."
+  "out-of-credit": "Your balance is too low to start a deployment. Add credits, then continue to deploy this template.",
+  "trial-card": "Add credits to deploy right away, without the free trial."
 };
 
 /** One shared object, so the deep-link effect re-running sets identical state and React skips the re-render instead of looping. */
 const HACKATHON_COUPON_PROMPT: AddCreditsPrompt = { context: "hackathon-coupon" };
+
+const TRIAL_CARD_PROMPT: AddCreditsPrompt = { context: "trial-card" };
 
 export const DEPENDENCIES = {
   useRouter,
@@ -60,6 +65,8 @@ export const DEPENDENCIES = {
   useServices,
   useFlag,
   useReferralQuery,
+  useTrialCardQuery,
+  TrialCardStep,
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
   OnboardingHeader,
@@ -74,7 +81,10 @@ type OnboardingPickerPageProps = {
 
 export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: OnboardingPickerPageProps) {
   const router = d.useRouter();
-  const { isTrialing } = d.useWallet();
+  const { isTrialing, hasWallet } = d.useWallet();
+  const { data: trialCardStep, isLoading: isTrialCardStepLoading } = d.useTrialCardQuery();
+  const [isTrialCardSkipped, setIsTrialCardSkipped] = useState(false);
+  const isTrialCardRequired = trialCardStep === "required" && !hasWallet && !isTrialCardSkipped;
   const { publicConfig, urlService, analyticsService } = d.useServices();
   const { data: referral, isLoading: isReferralLoading } = d.useReferralQuery();
   const trialCreditsAmount = referral?.trialCreditsUsd ?? publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
@@ -139,6 +149,14 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     setAddCreditsPrompt(null);
   }
 
+  function addCreditsInsteadOfTrialCard() {
+    setAddCreditsPrompt(TRIAL_CARD_PROMPT);
+  }
+
+  function skipTrialCard() {
+    setIsTrialCardSkipped(true);
+  }
+
   function continueAfterAddingCredits() {
     if (templateIdToDeployAfterCredits) {
       redirectToConfigure(templateIdToDeployAfterCredits);
@@ -163,6 +181,27 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
       onDone={continueAfterAddingCredits}
     />
   );
+
+  if (isTrialCardStepLoading) {
+    return (
+      <>
+        <PageHead />
+        <div className="flex min-h-dvh flex-col bg-background">
+          <d.OnboardingHeader />
+        </div>
+      </>
+    );
+  }
+
+  if (isTrialCardRequired) {
+    return (
+      <>
+        <PageHead />
+        <d.TrialCardStep onAddCredits={addCreditsInsteadOfTrialCard} onSkip={skipTrialCard} />
+        {addCreditsSheet}
+      </>
+    );
+  }
 
   if (isIntentFirst) {
     return (

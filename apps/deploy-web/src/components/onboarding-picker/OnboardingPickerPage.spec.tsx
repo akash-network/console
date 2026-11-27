@@ -20,6 +20,7 @@ type PickerCardProps = Parameters<typeof DEPENDENCIES.DeploymentTemplatePickerCa
 type SheetProps = Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0];
 type ButtonProps = Parameters<typeof DEPENDENCIES.Button>[0];
 type IntentFirstPickerProps = Parameters<typeof DEPENDENCIES.IntentFirstPicker>[0];
+type TrialCardStepProps = Parameters<typeof DEPENDENCIES.TrialCardStep>[0];
 
 describe(OnboardingPickerPage.name, () => {
   it("renders a card per template", () => {
@@ -629,6 +630,94 @@ describe(OnboardingPickerPage.name, () => {
     return DeploymentTemplatePickerCard.mock.calls.find(call => (call[0] as PickerCardProps).title === title)![0] as PickerCardProps;
   }
 
+  describe("when the free trial waits for a card", () => {
+    it("shows the card step in place of the picker, in either picker variant", () => {
+      const classic = renderCardStep({ isIntentFirst: false });
+      const intentFirst = renderCardStep({ isIntentFirst: true });
+
+      expect(classic.TrialCardStep).toHaveBeenCalled();
+      expect(classic.DeploymentTemplatePickerCard).not.toHaveBeenCalled();
+      expect(intentFirst.TrialCardStep).toHaveBeenCalled();
+      expect(intentFirst.IntentFirstPicker).not.toHaveBeenCalled();
+    });
+
+    it.each(["not_required", "verified", undefined] as const)("shows the picker when the card step is %s", trialCardStep => {
+      const { TrialCardStep, DeploymentTemplatePickerCard } = renderCardStep({ trialCardStep });
+
+      expect(TrialCardStep).not.toHaveBeenCalled();
+      expect(DeploymentTemplatePickerCard).toHaveBeenCalled();
+    });
+
+    it("shows the picker once the account has a wallet, whatever the card step last said", () => {
+      const { TrialCardStep, DeploymentTemplatePickerCard } = renderCardStep({ hasWallet: true });
+
+      expect(TrialCardStep).not.toHaveBeenCalled();
+      expect(DeploymentTemplatePickerCard).toHaveBeenCalled();
+    });
+
+    it("holds the picker back while the card step is being looked up", () => {
+      const { TrialCardStep, DeploymentTemplatePickerCard, OnboardingHeader } = renderCardStep({ trialCardStep: undefined, isTrialCardStepLoading: true });
+
+      expect(OnboardingHeader).toHaveBeenCalled();
+      expect(TrialCardStep).not.toHaveBeenCalled();
+      expect(DeploymentTemplatePickerCard).not.toHaveBeenCalled();
+    });
+
+    it("shows the picker after the card is left for later", () => {
+      const { TrialCardStep, DeploymentTemplatePickerCard } = renderCardStep();
+
+      act(() => getTrialCardStepProps(TrialCardStep).onSkip());
+
+      expect(DeploymentTemplatePickerCard).toHaveBeenCalled();
+    });
+
+    it("opens the add-credits sheet on the purchase tab when credits are chosen over the card", () => {
+      const { TrialCardStep, AddCreditsSheet } = renderCardStep();
+      expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+
+      act(() => getTrialCardStepProps(TrialCardStep).onAddCredits());
+
+      expect(AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).toMatchObject({
+        open: true,
+        context: "trial-card",
+        initialTab: "purchase",
+        description: "Add credits to deploy right away, without the free trial.",
+        nextStepLabel: undefined
+      });
+    });
+
+    it("closes the add-credits sheet without deploying once the credits are bought", () => {
+      const push = vi.fn();
+      const { TrialCardStep, AddCreditsSheet } = renderCardStep({ push });
+      act(() => getTrialCardStepProps(TrialCardStep).onAddCredits());
+
+      act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(20));
+
+      expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    function renderCardStep(input: Parameters<typeof setup>[0] = {}) {
+      const TrialCardStep = vi.fn(ComponentMock);
+      const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      const AddCreditsSheet = vi.fn(ComponentMock);
+      const OnboardingHeader = vi.fn(ComponentMock);
+      setup({
+        trialCardStep: "required",
+        hasWallet: false,
+        ...input,
+        dependencies: { TrialCardStep, DeploymentTemplatePickerCard, IntentFirstPicker, AddCreditsSheet, OnboardingHeader }
+      });
+
+      return { TrialCardStep, DeploymentTemplatePickerCard, IntentFirstPicker, AddCreditsSheet, OnboardingHeader };
+    }
+
+    function getTrialCardStepProps(TrialCardStep: ReturnType<typeof vi.fn>) {
+      return TrialCardStep.mock.calls.at(-1)![0] as TrialCardStepProps;
+    }
+  });
+
   function getButtonByText(Button: ReturnType<typeof vi.fn>, text: string) {
     return Button.mock.calls
       .map(call => call[0] as ButtonProps)
@@ -651,6 +740,9 @@ describe(OnboardingPickerPage.name, () => {
       referral?: { trialCreditsUsd: number };
       isReferralLoading?: boolean;
       isAffiliateProgramEnabled?: boolean;
+      hasWallet?: boolean;
+      trialCardStep?: "not_required" | "required" | "verified";
+      isTrialCardStepLoading?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -669,7 +761,11 @@ describe(OnboardingPickerPage.name, () => {
         isLoading: false
       })
     );
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
+    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing, hasWallet: input.hasWallet ?? true });
+    const useTrialCardQuery: typeof DEPENDENCIES.useTrialCardQuery = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useTrialCardQuery>>(
+        input.isTrialCardStepLoading ? { isLoading: true } : { data: input.trialCardStep, isLoading: false }
+      );
     const useIsOutOfDeployCredit: typeof DEPENDENCIES.useIsOutOfDeployCredit = () => input.isOutOfCredit ?? false;
     const flags: Partial<Record<Parameters<typeof DEPENDENCIES.useFlag>[0], boolean>> = {
       hackathons: isHackathonsEnabled,
@@ -699,6 +795,7 @@ describe(OnboardingPickerPage.name, () => {
           useWallet,
           useFlag,
           useReferralQuery,
+          useTrialCardQuery,
           useServices,
           ...input.dependencies
         })}
