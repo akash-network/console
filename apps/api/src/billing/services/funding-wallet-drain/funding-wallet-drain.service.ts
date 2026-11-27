@@ -17,8 +17,8 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 
 const GRANTEES_PAGE_SIZE = 500;
 
-/** pg-boss runs a higher priority first, so the users whose deployments need their next top-up soonest are moved before the rest. */
-const OPEN_DEPLOYMENT_PRIORITY = 1;
+/** pg-boss runs a higher priority first: a move that stopped halfway can have left its user without a balance, and a running deployment needs its next top-up soonest. */
+const MOVE_PRIORITY = { rest: 0, hasOpenDeployment: 1, isUnfinished: 2 };
 
 const UNFINISHED_MOVE_STATUSES: FundingWalletMoveStatus[] = ["revoking", "revoked", "crediting"];
 
@@ -32,7 +32,9 @@ export type FundingWalletDrainStatus = {
   moves: Partial<Record<FundingWalletMoveStatus, number>>;
 };
 
-export type FundingWalletMovesQueued = { queued: number; alreadyQueued: number; withOpenDeployments: number; unknownGrantees: number };
+export type FundingWalletMovesQueued = { queued: number; alreadyQueued: number; withOpenDeployments: number; unfinished: number; unknownGrantees: number };
+
+type MovesToQueue = { priorityByUserWalletId: Map<number, number>; unknownGrantees: number };
 
 /** Empties the funding wallet a promotion replaced: queues a move for every user it still backs, reports how far that is, and retires it once nothing is left. */
 @singleton()
@@ -53,40 +55,27 @@ export class FundingWalletDrainService {
     this.#logger = createLogger({ context: FundingWalletDrainService.name });
   }
 
-  /** Lists who to move from the chain rather than from the registry, whose row rolls back with its caller while the grant it recorded can still land. */
   async queueMoves(): Promise<FundingWalletMovesQueued> {
     const draining = await this.#findDraining();
-    const [grantees, queuedKeys] = await Promise.all([
-      this.#findGrantees(draining.address),
+    const [{ priorityByUserWalletId, unknownGrantees }, queuedKeys] = await Promise.all([
+      this.#findMovesToQueue(draining),
       this.jobQueueService.findPendingSingletonKeys(MoveUserToActiveFundingWallet[JOB_NAME])
     ]);
     const startAfter = this.fundingWalletMoveService.lateGrantsEndAt(draining.drainingSince);
-    const queued: FundingWalletMovesQueued = { queued: 0, alreadyQueued: 0, withOpenDeployments: 0, unknownGrantees: 0 };
+    const queued: FundingWalletMovesQueued = { queued: 0, alreadyQueued: 0, withOpenDeployments: 0, unfinished: 0, unknownGrantees };
 
-    for (const addresses of chunk(grantees, GRANTEES_PAGE_SIZE)) {
-      const [wallets, ownersWithOpenDeployments] = await Promise.all([
-        this.userWalletRepository.findByAddresses(addresses),
-        this.deploymentRepository.findOwnersWithOpenDeployments(addresses)
-      ]);
-      queued.unknownGrantees += addresses.length - wallets.length;
+    for (const [userWalletId, priority] of priorityByUserWalletId) {
+      const singletonKey = moveUserToActiveFundingWalletKeyFor(draining.network, userWalletId);
 
-      for (const wallet of wallets) {
-        const singletonKey = moveUserToActiveFundingWalletKeyFor(draining.network, wallet.id);
-        const hasOpenDeployment = ownersWithOpenDeployments.some(owner => owner === wallet.address);
-
-        if (queuedKeys.has(singletonKey)) {
-          queued.alreadyQueued += 1;
-          continue;
-        }
-
-        await this.jobQueueService.enqueue(new MoveUserToActiveFundingWallet({ userWalletId: wallet.id }), {
-          singletonKey,
-          startAfter,
-          priority: hasOpenDeployment ? OPEN_DEPLOYMENT_PRIORITY : 0
-        });
-        queued.queued += 1;
-        queued.withOpenDeployments += hasOpenDeployment ? 1 : 0;
+      if (queuedKeys.has(singletonKey)) {
+        queued.alreadyQueued += 1;
+        continue;
       }
+
+      await this.jobQueueService.enqueue(new MoveUserToActiveFundingWallet({ userWalletId }), { singletonKey, startAfter, priority });
+      queued.queued += 1;
+      queued.withOpenDeployments += priority === MOVE_PRIORITY.hasOpenDeployment ? 1 : 0;
+      queued.unfinished += priority === MOVE_PRIORITY.isUnfinished ? 1 : 0;
     }
 
     this.#logger.info({ event: "FUNDING_WALLET_MOVES_QUEUED", address: draining.address, startAfter: startAfter.toISOString(), ...queued });
@@ -151,6 +140,33 @@ export class FundingWalletDrainService {
       feeAllowancesLeft: feeAllowances.pagination.total,
       moves
     };
+  }
+
+  /** Lists who to move from the chain rather than from the registry, whose row rolls back with its caller while the grant it recorded can still land, and adds the moves already past their revoke, which the chain no longer shows. */
+  async #findMovesToQueue(draining: DrainingWallet): Promise<MovesToQueue> {
+    const [grantees, unfinished] = await Promise.all([
+      this.#findGrantees(draining.address),
+      this.fundingWalletMoveRepository.findUserWalletIdsByStatus(draining.id, UNFINISHED_MOVE_STATUSES)
+    ]);
+    const priorityByUserWalletId = new Map(unfinished.map(userWalletId => [userWalletId, MOVE_PRIORITY.isUnfinished]));
+    let unknownGrantees = 0;
+
+    for (const addresses of chunk(grantees, GRANTEES_PAGE_SIZE)) {
+      const [wallets, ownersWithOpenDeployments] = await Promise.all([
+        this.userWalletRepository.findByAddresses(addresses),
+        this.deploymentRepository.findOwnersWithOpenDeployments(addresses)
+      ]);
+      unknownGrantees += addresses.length - wallets.length;
+
+      for (const wallet of wallets) {
+        if (priorityByUserWalletId.has(wallet.id)) continue;
+
+        const hasOpenDeployment = ownersWithOpenDeployments.some(owner => owner === wallet.address);
+        priorityByUserWalletId.set(wallet.id, hasOpenDeployment ? MOVE_PRIORITY.hasOpenDeployment : MOVE_PRIORITY.rest);
+      }
+    }
+
+    return { priorityByUserWalletId, unknownGrantees };
   }
 
   /** A user wallet can hold a deposit grant, a fee allowance or both, and either one alone has to be moved. */
