@@ -159,7 +159,7 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "10081" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
   });
 
-  it("leaves the deleted trial account settings unset when their variables are unset or blank", () => {
+  it("remembers a deleted trial account for 30 days, with a 24 hour cooldown and one return, when the variables are unset or blank", () => {
     const unset = setup();
     const blank = setup({
       WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: " ",
@@ -174,7 +174,11 @@ describe("workload abuse env config", () => {
       blank.WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS,
       blank.WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS,
       blank.WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS
-    ]).toEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
+    ]).toEqual([30, 24, 1, 30, 24, 1]);
+  });
+
+  it("accepts a memory of 0 days, which keeps no record of a deleted trial account", () => {
+    expect(setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "0" }).WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS).toBe(0);
   });
 
   it("reads the deleted trial account settings when they carry a value", () => {
@@ -192,7 +196,7 @@ describe("workload abuse env config", () => {
   });
 
   it.each([
-    ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "0"],
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "-1"],
     ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "1.5"],
     ["WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS", "0"],
     ["WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS", "1.5"],

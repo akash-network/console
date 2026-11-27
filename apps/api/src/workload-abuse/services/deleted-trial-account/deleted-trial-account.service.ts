@@ -86,8 +86,8 @@ export class DeletedTrialAccountService {
 
     const cooldownHours = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS");
     const maxReturns = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS");
-    const isInCooldown = cooldownHours !== undefined && latestDeletion.createdAt > subHours(now, cooldownHours);
-    const isOverMaxReturns = maxReturns !== undefined && deletions.length > maxReturns;
+    const isInCooldown = latestDeletion.createdAt > subHours(now, cooldownHours);
+    const isOverMaxReturns = deletions.length > maxReturns;
 
     return isInCooldown || isOverMaxReturns ? { latestDeletion, deletionsOnRecord: deletions.length } : undefined;
   }

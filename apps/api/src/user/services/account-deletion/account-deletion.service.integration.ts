@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { createHash } from "crypto";
-import { addMinutes } from "date-fns";
+import { addMinutes, subHours } from "date-fns";
 import { eq, inArray, type SQL, sql } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import nock from "nock";
@@ -673,13 +673,17 @@ describe(AccountDeletionService.name, () => {
     });
 
     it("grants a trial again to a returning account outside the configured limits", async () => {
-      const { service, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      const { service, db, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
       answerActiveDeployments([]);
-      limitReturningTrials({ maxReturns: 1 });
+      limitReturningTrials({ cooldownHours: 4, maxReturns: 1 });
       const email = await setEmailOf(account, faker.internet.email().toLowerCase());
       await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
 
       await service.confirm({ token });
+      await db
+        .update(resolveTable("DeletedTrialAccounts"))
+        .set({ createdAt: subHours(new Date(), 5) })
+        .where(eq(resolveTable("DeletedTrialAccounts").walletAddress, account.address));
       const { user, wallet, grantTrial, refusal } = await signUpAgain({ userId: account.user.userId!, email });
 
       expect(refusal).toBeUndefined();
@@ -988,13 +992,13 @@ describe(AccountDeletionService.name, () => {
         .where(eq(resolveTable("UserWallets").id, wallet.id));
     }
 
-    function limitReturningTrials(limits: { cooldownHours?: number; maxReturns?: number; matchesFingerprint?: boolean }) {
+    function limitReturningTrials(limits: { cooldownHours: number; maxReturns?: number; matchesFingerprint?: boolean }) {
       const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
       const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
       const overrides: Partial<Record<Parameters<typeof readWorkloadAbuseConfig>[0], unknown>> = {
         WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: 9,
         WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: limits.cooldownHours,
-        WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: limits.maxReturns,
+        WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: limits.maxReturns ?? 5,
         WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: limits.matchesFingerprint ?? true
       };
       vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>

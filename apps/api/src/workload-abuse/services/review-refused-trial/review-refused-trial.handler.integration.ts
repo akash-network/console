@@ -112,7 +112,7 @@ describe(ReviewRefusedTrialHandler.name, () => {
       WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: "webhookUrl" in input ? input.webhookUrl : `${SLACK_ORIGIN}${SLACK_PATH}`,
       WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: 9,
       WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: 4,
-      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: undefined
+      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: 5
     };
     vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
       key in workloadAbuseOverrides ? workloadAbuseOverrides[key] : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);

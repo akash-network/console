@@ -143,10 +143,10 @@ export const envSchema = z.object({
     z.number({ coerce: true }).int().positive().max(MAX_SIGNUP_REVIEW_WINDOW_MINUTES).optional()
   ),
   WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional()),
-  /** Lives in Doppler only, as do the two values after it. */
-  WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),
-  WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),
-  WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().optional()),
+  /** 0 keeps no record of a deleted trial account, which is the only way to switch its refusal off. */
+  WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().default(30)),
+  WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(24)),
+  WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().nonnegative().default(1)),
   /** A browser fingerprint is shared by everyone behind one address with the same browser, so this switches that match off without touching the others. */
   WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: z.preprocess(
     blankToUndefined,

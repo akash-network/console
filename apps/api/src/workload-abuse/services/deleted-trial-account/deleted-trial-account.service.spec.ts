@@ -23,6 +23,8 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 const SECRET = "a".repeat(32);
 const NOW = new Date("2026-06-15T12:00:00.000Z");
 const MEMORY_DAYS = 9;
+const COOLDOWN_HOURS = 4;
+const MAX_RETURNS = 3;
 
 describe(DeletedTrialAccountService.name, () => {
   afterEach(() => {
@@ -77,8 +79,8 @@ describe(DeletedTrialAccountService.name, () => {
       }
     );
 
-    it("records nothing while the record age is not configured", async () => {
-      const { service, repository } = setup({ memoryDays: undefined });
+    it("records nothing while the record age is 0 days", async () => {
+      const { service, repository } = setup({ memoryDays: 0 });
 
       await service.remember(createUser(), trialWallet());
 
@@ -143,8 +145,8 @@ describe(DeletedTrialAccountService.name, () => {
       expect(repository.findByAnyHashSince).toHaveBeenCalledWith({ ...hashAccount(SECRET, account), fingerprintHash: null }, subDays(NOW, MEMORY_DAYS));
     });
 
-    it("refuses nothing and reads no record while the record age is not configured", async () => {
-      const { service, repository, txService } = setup({ memoryDays: undefined, cooldownHours: 4, maxReturns: 0, deletionAgesInHours: [1] });
+    it("refuses nothing and reads no record while the record age is 0 days", async () => {
+      const { service, repository, txService } = setup({ memoryDays: 0, cooldownHours: 4, maxReturns: 0, deletionAgesInHours: [1] });
 
       await expect(service.refusesTrialOf(createUser())).resolves.toBe(false);
 
@@ -153,14 +155,12 @@ describe(DeletedTrialAccountService.name, () => {
     });
 
     it.each([
-      { cooldownHours: 4, maxReturns: undefined, deletionAgesInHours: [], isRefused: false },
-      { cooldownHours: undefined, maxReturns: undefined, deletionAgesInHours: [1], isRefused: false },
-      { cooldownHours: 4, maxReturns: undefined, deletionAgesInHours: [3], isRefused: true },
-      { cooldownHours: 4, maxReturns: undefined, deletionAgesInHours: [4], isRefused: false },
-      { cooldownHours: 4, maxReturns: undefined, deletionAgesInHours: [5, 6, 7], isRefused: false },
-      { cooldownHours: undefined, maxReturns: 0, deletionAgesInHours: [50], isRefused: true },
-      { cooldownHours: undefined, maxReturns: 1, deletionAgesInHours: [50], isRefused: false },
-      { cooldownHours: undefined, maxReturns: 1, deletionAgesInHours: [50, 60], isRefused: true },
+      { cooldownHours: 4, maxReturns: 3, deletionAgesInHours: [], isRefused: false },
+      { cooldownHours: 4, maxReturns: 3, deletionAgesInHours: [3], isRefused: true },
+      { cooldownHours: 4, maxReturns: 3, deletionAgesInHours: [4], isRefused: false },
+      { cooldownHours: 4, maxReturns: 3, deletionAgesInHours: [5, 6, 7], isRefused: false },
+      { cooldownHours: 4, maxReturns: 0, deletionAgesInHours: [50], isRefused: true },
+      { cooldownHours: 4, maxReturns: 1, deletionAgesInHours: [50], isRefused: false },
       { cooldownHours: 4, maxReturns: 2, deletionAgesInHours: [50, 60], isRefused: false },
       { cooldownHours: 4, maxReturns: 2, deletionAgesInHours: [3, 60], isRefused: true },
       { cooldownHours: 4, maxReturns: 1, deletionAgesInHours: [50, 60], isRefused: true }
@@ -273,9 +273,9 @@ describe(DeletedTrialAccountService.name, () => {
 
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: SECRET,
-      WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "memoryDays" in input ? input.memoryDays : MEMORY_DAYS,
-      WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: input.cooldownHours,
-      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: input.maxReturns,
+      WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: input.memoryDays ?? MEMORY_DAYS,
+      WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: input.cooldownHours ?? COOLDOWN_HOURS,
+      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: input.maxReturns ?? MAX_RETURNS,
       WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: input.matchesFingerprint ?? true
     });
     const jobQueueService = mock<JobQueueService>();
