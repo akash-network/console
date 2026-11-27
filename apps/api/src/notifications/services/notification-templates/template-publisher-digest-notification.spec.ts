@@ -39,7 +39,10 @@ describe(templatePublisherDigestNotification.name, () => {
   it.each([
     [0, 0, "none the week before either"],
     [4, 4, "same as the week before"],
-    [3, 4, "−25% vs the week before"]
+    [3, 4, "−25% vs the week before"],
+    [1001, 1000, "same as the week before"],
+    [999, 1000, "same as the week before"],
+    [1006, 1000, "+1% vs the week before"]
   ])("compares %s deploys to %s", (deploys, previousDeploys, change) => {
     const { payload } = templatePublisherDigestNotification(
       { id: "user-1", email: null },

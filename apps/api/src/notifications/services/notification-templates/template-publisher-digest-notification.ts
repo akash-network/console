@@ -65,9 +65,10 @@ function entryParagraph(entry: DigestEntry, templateUrl: string): string {
 
 function changeOf(current: number, previous: number): string {
   if (previous === 0) return current === 0 ? "none the week before either" : "none the week before";
-  if (current === previous) return "same as the week before";
 
   const change = Math.round(((current - previous) / previous) * 100);
+
+  if (change === 0) return "same as the week before";
 
   return `${change > 0 ? "+" : "−"}${Math.abs(change)}% vs the week before`;
 }
