@@ -80,9 +80,12 @@ export class BalancesService {
 
   /** The height is where a write based on this limit starts overwriting what lands after it, on the grant of the funding wallet it names. */
   @Trace()
-  async retrieveDeploymentLimitAtLatestHeight(userWallet: Pick<UserWalletOutput, "address">): Promise<{ limit: number; height: number; granter: string }> {
+  async retrieveDeploymentLimitAtLatestHeight(
+    userWallet: Pick<UserWalletOutput, "address">,
+    options?: { granter?: string }
+  ): Promise<{ limit: number; height: number; granter: string }> {
     const [fundingWalletAddress, height] = await Promise.all([
-      this.fundingWalletRegistry.getGranterAddressByWalletAddress(userWallet.address!),
+      options?.granter ?? this.fundingWalletRegistry.getGranterAddressByWalletAddress(userWallet.address!),
       this.blockHttpService.getFreshCurrentHeight()
     ]);
     const grant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!, { height });

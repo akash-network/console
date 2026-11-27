@@ -144,8 +144,21 @@ describe(FundingWalletRegistryService.name, () => {
       expect(fundingWalletRepository.assignUnlessAssigned).toHaveBeenCalledWith({ userWalletId: USER_WALLET_ID, network: NETWORK, fundingWalletId: active.id });
     });
 
-    it("returns the wallet the user is already assigned to and writes nothing", async () => {
+    it("refuses a grant for a user wallet whose funding wallet is draining", async () => {
       const granter = fundingWallet({ status: "draining" });
+      const { service, fundingWalletRepository } = setup({ active: fundingWallet({ status: "active" }), granter });
+
+      await expect(service.assignGranterAddress(USER_WALLET_ID)).rejects.toMatchObject({
+        status: 503,
+        message: "This balance is being moved to another funding wallet, try again shortly",
+        network: NETWORK
+      });
+
+      expect(fundingWalletRepository.assignUnlessAssigned).not.toHaveBeenCalled();
+    });
+
+    it("returns the wallet the user is already assigned to and writes nothing", async () => {
+      const granter = fundingWallet({ status: "active" });
       const { service, fundingWalletRepository, txService } = setup({ active: fundingWallet({ status: "active" }), granter });
 
       await expect(service.assignGranterAddress(USER_WALLET_ID)).resolves.toBe(granter.address);

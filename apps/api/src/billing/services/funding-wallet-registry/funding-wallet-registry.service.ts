@@ -72,13 +72,22 @@ export class FundingWalletRegistryService {
     if (!this.isEnabled) return await this.txManagerService.getFundingWalletAddress();
 
     const assigned = await this.fundingWalletRepository.findGranterOf(userWalletId, this.#network);
-    if (assigned) return assigned.address;
+    if (assigned) return this.#assertIssuesGrants(assigned).address;
 
     const active = await this.findOrRegisterActive();
     await this.fundingWalletRepository.assignUnlessAssigned({ userWalletId, network: this.#network, fundingWalletId: active.id });
     const granter = await this.fundingWalletRepository.findGranterOf(userWalletId, this.#network);
 
     return (granter ?? active).address;
+  }
+
+  /** A grant issued from a draining wallet could land after its user was moved off it, which would leave that user with a second balance. */
+  #assertIssuesGrants(wallet: FundingWalletOutput): FundingWalletOutput {
+    if (wallet.status === "draining") {
+      throw createError(503, "This balance is being moved to another funding wallet, try again shortly", { network: this.#network });
+    }
+
+    return wallet;
   }
 
   /** Registers the configured wallet as active when the network has no funding wallet yet. */

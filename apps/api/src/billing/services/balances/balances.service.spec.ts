@@ -106,6 +106,21 @@ describe(BalancesService.name, () => {
       expect(result).toEqual({ limit: 5_000_000, height: 1234, granter: "akash1funding" });
     });
 
+    it("reads the grant of the funding wallet it is told to, without asking which one backs the user wallet", async () => {
+      const { service, fundingWalletRegistry, authzHttpService, blockHttpService } = setup({ denom: "uact" });
+      blockHttpService.getFreshCurrentHeight.mockResolvedValue(1234);
+      authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue({
+        authorization: { "@type": "/akash.escrow.v1.DepositAuthorization", spend_limits: [{ denom: "uact", amount: "42" }] },
+        expiration: ""
+      });
+
+      const result = await service.retrieveDeploymentLimitAtLatestHeight({ address: "akash1grantee" }, { granter: "akash1draining" });
+
+      expect(result).toEqual({ limit: 42, height: 1234, granter: "akash1draining" });
+      expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).toHaveBeenCalledWith("akash1draining", "akash1grantee", { height: 1234 });
+      expect(fundingWalletRegistry.getGranterAddressByWalletAddress).not.toHaveBeenCalled();
+    });
+
     it("reads a limit of zero when the wallet holds no deposit grant at that height", async () => {
       const { service, fundingWalletRegistry, authzHttpService, blockHttpService } = setup({ denom: "uact" });
       fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue("akash1funding");

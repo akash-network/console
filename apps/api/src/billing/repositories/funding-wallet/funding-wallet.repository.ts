@@ -125,6 +125,27 @@ export class FundingWalletRepository {
       });
   }
 
+  /** For a user wallet whose grants were just removed from the funding wallet it was on, which is the one case where its granter changes. */
+  async reassign(assignment: GranterAssignment): Promise<void> {
+    await this.#cursor
+      .insert(this.granters)
+      .values(assignment)
+      .onConflictDoUpdate({
+        target: [this.granters.userWalletId, this.granters.network],
+        set: { fundingWalletId: assignment.fundingWalletId, updatedAt: sql`now()` }
+      });
+  }
+
+  /** The time it started draining is when new grants stopped being issued from it. */
+  async findDraining(network: string): Promise<(FundingWalletOutput & { drainingSince: Date }) | undefined> {
+    const [wallet] = await this.#cursor
+      .select({ ...this.#fields, drainingSince: this.table.updatedAt })
+      .from(this.table)
+      .where(and(eq(this.table.network, network), eq(this.table.status, "draining")));
+
+    return wallet;
+  }
+
   /** Covers every user wallet with an address, since any of them may already hold a grant from the network's first funding wallet. */
   async assignInitializedUserWallets({ network, fundingWalletId }: Omit<GranterAssignment, "userWalletId">): Promise<void> {
     await this.#cursor.execute(sql`

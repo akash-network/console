@@ -37,7 +37,7 @@ describe(FundingWalletRotationService.name, () => {
     await expect(rotation.addStandby(configuredAddress)).rejects.toMatchObject({ status: 409 });
   });
 
-  it("promotes the standby: new users go to it, existing users stay on the wallet that now drains", async () => {
+  it("promotes the standby: new users go to it, existing users stay on the wallet that now drains and get no new grant from it", async () => {
     const { rotation, registry, repository, network, configuredAddress } = setup();
     const { wallet: existing } = await seedUserWithWallet();
     const standbyAddress = createAkashAddress();
@@ -49,7 +49,8 @@ describe(FundingWalletRotationService.name, () => {
     expect(promotion).toMatchObject({ active: { address: standbyAddress, status: "active" }, draining: { address: configuredAddress, status: "draining" } });
     await expect(repository.findByStatus(network, "draining")).resolves.toEqual([expect.objectContaining({ address: configuredAddress })]);
     await expect(registry.getActiveAddress()).resolves.toBe(standbyAddress);
-    await expect(registry.assignGranterAddress(existing.id)).resolves.toBe(configuredAddress);
+    await expect(registry.getGranterAddressByWalletId(existing.id)).resolves.toBe(configuredAddress);
+    await expect(registry.assignGranterAddress(existing.id)).rejects.toMatchObject({ status: 503 });
     await expect(registry.assignGranterAddress(lateComer.id)).resolves.toBe(standbyAddress);
   });
 
