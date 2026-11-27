@@ -4772,12 +4772,10 @@ describe(DeploymentWriterService.name, () => {
 
         await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, sealedSecrets: CLIENT_SEAL }, ability);
 
-        expect(sdlSecretsService.openStored).toHaveBeenCalledWith({
-          userId: "user-1",
-          organizationId: "organization-of-the-row",
-          dseq: "1234",
-          sealedSecrets: STORED_TOKEN
-        });
+        expect(sdlSecretsService.openStoredForReplacement).toHaveBeenCalledWith(
+          { userId: "user-1", organizationId: "organization-of-the-row", dseq: "1234", sealedSecrets: STORED_TOKEN },
+          { sdl: yaml.raw<SDLInput>(STORED_SDL), rawSdl: STORED_SDL, sealedSecrets: CLIENT_SEAL }
+        );
         expect(sdlSecretsService.receive).toHaveBeenCalledWith(
           expect.objectContaining({ rawSdl: STORED_SDL, sealedSecrets: CLIENT_SEAL, inherited: { s0_e0: "token" } })
         );
@@ -4793,8 +4791,24 @@ describe(DeploymentWriterService.name, () => {
           ability
         );
 
-        expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+        expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
         expect(sdlSecretsService.receive).toHaveBeenCalledWith(expect.objectContaining({ inherited: {} }));
+      });
+
+      it("stores only the supplied values once the opening sets the stored token aside", async () => {
+        const { service, ability, sealedFor } = setup({ held: {}, received: { s0_e0: "fresh-token", s0_e1: "postgres://fresh" } });
+
+        await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, sealedSecrets: CLIENT_SEAL }, ability);
+
+        expect(sealedFor()).toEqual({ s0_e0: "fresh-token", s0_e1: "postgres://fresh" });
+      });
+
+      it("answers what the opening refuses, recording nothing", async () => {
+        const refusal = createError(409, "sealed for another member", { errorCode: "stored_secrets_unavailable" });
+        const { service, ability, deploymentSettingRepository } = setup({ openStoredError: refusal });
+
+        await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability)).rejects.toBe(refusal);
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
       });
 
       it("prefers a supplied value over the held one", async () => {
@@ -4830,7 +4844,7 @@ describe(DeploymentWriterService.name, () => {
         const { service, ability, sdlSecretsService } = setup();
 
         await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: "services: [" }, ability)).rejects.toMatchObject({ status: 400 });
-        expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+        expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
       });
 
       it("refuses a resource change before recording anything", async () => {
@@ -5158,6 +5172,8 @@ describe(DeploymentWriterService.name, () => {
       const sdlSecretsService = mock<SdlSecretsService>();
       if (input?.openStoredError) sdlSecretsService.openStored.mockRejectedValue(input.openStoredError);
       else sdlSecretsService.openStored.mockResolvedValue(input?.held ?? {});
+      if (input?.openStoredError) sdlSecretsService.openStoredForReplacement.mockRejectedValue(input.openStoredError);
+      else sdlSecretsService.openStoredForReplacement.mockResolvedValue(input?.held ?? {});
       sdlSecretsService.receiveForMerge.mockResolvedValue(input?.supplied ?? {});
       sdlSecretsService.receive.mockResolvedValue(
         input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} }

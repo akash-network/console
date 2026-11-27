@@ -174,7 +174,37 @@ describe(DeploymentDefinitionCheckService.name, () => {
     it("opens the stored secrets under the row's organization and lists the references they answer", async () => {
       const { service, sdlSecretsService, ability } = setup({ stored: { sdl: sdlWith(["KEY=ac-secret://KEY"]), held: { KEY: "value" } } });
 
-      const result = await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["KEY=ac-secret://KEY", "MODE=production"]), secretEnv: [] }, ability);
+      const sdl = sdlWith(["KEY=ac-secret://KEY", "MODE=production"]);
+
+      const result = await service.checkReplacement("user-1", DSEQ, { sdl, sealedSecrets: "client-seal", secretEnv: [] }, ability);
+
+      expect(sdlSecretsService.openStoredForReplacement).toHaveBeenCalledWith(
+        { userId: "user-1", organizationId: "organization-1", dseq: DSEQ, sealedSecrets: STORED_TOKEN },
+        { sdl: yaml.raw<SDLInput>(sdl), rawSdl: sdl, sealedSecrets: "client-seal" }
+      );
+      expect(result).toEqual({ valid: true, errors: [], keptSecrets: ["KEY"] });
+    });
+
+    it("keeps no reference for a stored token the opening set aside", async () => {
+      const { service, ability } = setup({ stored: { sdl: sdlWith(["KEY=ac-secret://KEY"]), held: {} }, received: { KEY: "fresh" } });
+
+      const result = await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["KEY=ac-secret://KEY"]), sealedSecrets: "client-seal" }, ability);
+
+      expect(result).toEqual({ valid: true, errors: [], keptSecrets: [] });
+    });
+
+    it("answers what the opening refuses", async () => {
+      const refusal = createError(409, "sealed for another member", { errorCode: "stored_secrets_unavailable" });
+      const { service, sdlSecretsService, ability } = setup({ stored: { sdl: sdlWith(["KEY=ac-secret://KEY"]) } });
+      sdlSecretsService.openStoredForReplacement.mockRejectedValue(refusal);
+
+      await expect(service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["KEY=ac-secret://KEY"]) }, ability)).rejects.toBe(refusal);
+    });
+
+    it("opens the stored token as it always has for an sdl that does not parse, reporting the parse errors", async () => {
+      const { service, sdlSecretsService, ability } = setup({ stored: { sdl: sdlWith(["KEY=ac-secret://KEY"]) } });
+
+      const result = await service.checkReplacement("user-1", DSEQ, { sdl: "services: [" }, ability);
 
       expect(sdlSecretsService.openStored).toHaveBeenCalledWith({
         userId: "user-1",
@@ -182,7 +212,8 @@ describe(DeploymentDefinitionCheckService.name, () => {
         dseq: DSEQ,
         sealedSecrets: STORED_TOKEN
       });
-      expect(result).toEqual({ valid: true, errors: [], keptSecrets: ["KEY"] });
+      expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
+      expect(result.valid).toBe(false);
     });
 
     it("opens nothing for a deployment that stores no token", async () => {
@@ -191,6 +222,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
       await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["MODE=production"]) }, ability);
 
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+      expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
     });
 
     it("counts a plain value left as stored as readable, as the replacement would", async () => {
@@ -340,6 +372,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
     const sdlSecretsService = mock<SdlSecretsService>();
     sdlSecretsService.receive.mockResolvedValue(input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} });
     sdlSecretsService.openStored.mockResolvedValue(stored?.held ?? {});
+    sdlSecretsService.openStoredForReplacement.mockResolvedValue(stored?.held ?? {});
     const maxCount = input?.maxCount;
     sdlSecretsService.assertStorable.mockImplementation((secrets, origin) => {
       if (maxCount !== undefined && Object.keys(secrets).length > maxCount) throw createError(400, `At most ${maxCount} secrets may be ${origin}`);

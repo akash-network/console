@@ -11,7 +11,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ownValue, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { SdlSecretsService, type StoredSecretsOfDeployment } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService, sealedEnvOf } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
@@ -75,15 +75,18 @@ export class DeploymentDefinitionCheckService {
     }
 
     const held = setting.sealedSecrets
-      ? await this.sdlSecretsService.openStored({
-          userId: filedUserId,
-          organizationId: setting.organizationId ?? null,
-          dseq,
-          sealedSecrets: setting.sealedSecrets
-        })
+      ? await this.#heldFor({ userId: filedUserId, organizationId: setting.organizationId ?? null, dseq, sealedSecrets: setting.sealedSecrets }, input)
       : {};
 
     return await this.#check(input, { wallet, held, storedDocument, dseq });
+  }
+
+  async #heldFor(stored: StoredSecretsOfDeployment, input: Pick<DefinitionCheckInput, "sdl" | "sealedSecrets">): Promise<SdlSecrets> {
+    const parsed = this.sdlService.parse(input.sdl);
+
+    if (!parsed.ok) return await this.sdlSecretsService.openStored(stored);
+
+    return await this.sdlSecretsService.openStoredForReplacement(stored, { sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets });
   }
 
   async #check(input: DefinitionCheckInput, context: CheckContext): Promise<DefinitionCheck> {

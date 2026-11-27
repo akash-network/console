@@ -26,7 +26,7 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
 export const STORED_SECRETS_UNAVAILABLE_ERROR_CODE = "stored_secrets_unavailable";
 
 const STORED_SECRETS_UNAVAILABLE_MESSAGE =
-  "The secrets stored for this deployment were sealed for another member and can no longer be opened. Update the deployment with its full SDL and secret values to store them again.";
+  "The secrets stored for this deployment were sealed for another member and can no longer be opened. Replace its definition through PUT /v1/deployments/{dseq}/definition, supplying every secret value, to store them again.";
 
 /** The kind of SDL Reference a sealed payload answers. Other kinds resolve from elsewhere and are none of this service's business. */
 const SECRET_REFERENCE_KIND = "secret";
@@ -35,6 +35,8 @@ const SECRET_REFERENCE_KIND = "secret";
 export type ReceiveSdlSecretsResult = { ok: true; value: SdlSecrets } | { ok: false; value: ValidationError[] };
 
 const NOTHING_SUPPLIED: SdlSecrets = {};
+
+export type SdlSecretsRequest = { sdl: SDLInput; rawSdl: string; sealedSecrets?: string };
 
 /** Which set broke a limit, because a redeploy that inherits its values supplied none of them and must not be told to supply fewer. */
 type SdlSecretsOrigin = "supplied" | "carried" | "stored";
@@ -55,6 +57,10 @@ type ReceivedSdlSecretSets = { supplied: SdlSecrets; inherited: SdlSecrets };
 /** Each set is asked separately, so a non-string sitting under a name in one of them cannot shadow a usable value in the other. */
 function isCovered(sets: ReceivedSdlSecretSets, name: string): boolean {
   return typeof ownValue(sets.supplied, name) === "string" || typeof ownValue(sets.inherited, name) === "string";
+}
+
+export function isSealedForAnotherMember(error: unknown): boolean {
+  return isHttpError(error) && error.errorCode === STORED_SECRETS_UNAVAILABLE_ERROR_CODE;
 }
 
 /** An unreachable key service answers 503 and will succeed on retry, so it is not evidence that anything moved the stored data. */
@@ -222,6 +228,19 @@ export class SdlSecretsService {
     this.#loggerService.info({ event: "SDL_SECRETS_STORED_OPENED", userId: input.userId, dseq: input.dseq, secretCount: Object.keys(secrets).length });
 
     return secrets;
+  }
+
+  /** Sets aside only a token sealed for a departed member, never one that failed to decrypt, and only for a replacement whose own values cover every reference. */
+  async openStoredForReplacement(stored: StoredSecretsOfDeployment, replacement: SdlSecretsRequest): Promise<SdlSecrets> {
+    try {
+      return await this.openStored(stored);
+    } catch (error) {
+      if (!isSealedForAnotherMember(error) || !(await this.receive(replacement)).ok) throw error;
+
+      this.#loggerService.info({ event: "SDL_SECRETS_UNAVAILABLE_TOKEN_SET_ASIDE", userId: stored.userId, dseq: stored.dseq });
+
+      return {};
+    }
   }
 
   /** The key and binding come from the row rather than the token, whose header only says which kind of owner sealed it and is authenticated by the decrypt that follows. */

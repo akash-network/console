@@ -12604,7 +12604,7 @@ export interface operations {
           };
         };
       };
-      /** @description The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      /** @description The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so replace its definition through PUT /v1/deployments/{dseq}/definition, supplying every secret value its SDL references */
       409: {
         headers: {
           [name: string]: unknown;
@@ -13862,7 +13862,7 @@ export interface operations {
           };
         };
       };
-      /** @description The deployment definition changed between this request reading it and writing it, or since the `ifManifestVersion` it names: `code` is `deployment_definition_changed`, and reloading the definition cures it. A 409 without that code answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      /** @description The deployment definition changed between this request reading it and writing it, or since the `ifManifestVersion` it names: `code` is `deployment_definition_changed`, and reloading the definition cures it. A 409 without that code answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so replace its definition through PUT /v1/deployments/{dseq}/definition, supplying every secret value its SDL references */
       409: {
         headers: {
           [name: string]: unknown;
@@ -14469,7 +14469,7 @@ export interface operations {
           };
         };
       };
-      /** @description The `sealedSecrets` value was sealed to a key the console no longer holds, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      /** @description The `sealedSecrets` value was sealed to a key the console no longer holds, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so replace its definition through PUT /v1/deployments/{dseq}/definition, supplying every secret value its SDL references */
       409: {
         headers: {
           [name: string]: unknown;
@@ -15035,7 +15035,7 @@ export interface operations {
           };
         };
       };
-      /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values. With `async=true`, also when a lease is already being created for the deployment by another request. */
+      /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so replace its definition through PUT /v1/deployments/{dseq}/definition, supplying every secret value its SDL references. With `async=true`, also when a lease is already being created for the deployment by another request. */
       409: {
         headers: {
           [name: string]: unknown;
