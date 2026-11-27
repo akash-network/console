@@ -63,19 +63,28 @@ describe(FundingWalletRepository.name, () => {
     });
   });
 
-  describe("hasAny", () => {
-    it("answers true for a network with a wallet in any state", async () => {
+  describe("findActiveOrAny", () => {
+    it("finds the active wallet when the network has wallets in other states too", async () => {
       const { repository, network } = setup();
-      await repository.create({ network, address: createAkashAddress(), status: "retired" });
+      await repository.create({ network, address: createAkashAddress(), status: "draining" });
+      const active = await repository.create({ network, address: createAkashAddress(), status: "active" });
+      await repository.create({ network, address: createAkashAddress(), status: "standby" });
 
-      await expect(repository.hasAny(network)).resolves.toBe(true);
+      await expect(repository.findActiveOrAny(network)).resolves.toEqual(active);
     });
 
-    it("answers false for a network without wallets, whatever other networks have", async () => {
+    it("finds a wallet in another state when the network has no active one", async () => {
+      const { repository, network } = setup();
+      const draining = await repository.create({ network, address: createAkashAddress(), status: "draining" });
+
+      await expect(repository.findActiveOrAny(network)).resolves.toEqual(draining);
+    });
+
+    it("finds nothing for a network without wallets, whatever other networks have", async () => {
       const { repository, network } = setup();
       await repository.create({ network: uniqueNetwork(), address: createAkashAddress(), status: "active" });
 
-      await expect(repository.hasAny(network)).resolves.toBe(false);
+      await expect(repository.findActiveOrAny(network)).resolves.toBeUndefined();
     });
   });
 

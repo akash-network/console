@@ -41,10 +41,16 @@ export class FundingWalletRepository {
     return wallet;
   }
 
-  async hasAny(network: string): Promise<boolean> {
-    const [wallet] = await this.#cursor.select({ id: this.table.id }).from(this.table).where(eq(this.table.network, network)).limit(1);
+  /** One read tells whether the network has an active wallet and, failing that, whether it has any, so the two answers come from the same snapshot. */
+  async findActiveOrAny(network: string): Promise<FundingWalletOutput | undefined> {
+    const [wallet] = await this.#cursor
+      .select(this.#fields)
+      .from(this.table)
+      .where(eq(this.table.network, network))
+      .orderBy(sql`(${this.table.status} = 'active') DESC`)
+      .limit(1);
 
-    return !!wallet;
+    return wallet;
   }
 
   async create(input: FundingWalletInput): Promise<FundingWalletOutput> {
