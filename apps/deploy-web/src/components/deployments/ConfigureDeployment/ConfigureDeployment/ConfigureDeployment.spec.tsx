@@ -1072,6 +1072,39 @@ describe(ConfigureDeployment.name, () => {
       });
     });
 
+    describe("the Configure open counted for the publisher", () => {
+      it("names the Console template Configure opened for", () => {
+        const { useRecordTemplateView } = setup({
+          userTemplateId: "tpl-9",
+          isTemplateMarketplaceEnabled: true,
+          marketplaceTemplate: { isSuccess: true, data: deployableTemplate({ visibility: "public" }) }
+        });
+
+        expect(useRecordTemplateView).toHaveBeenLastCalledWith("configure_open", "tpl-9");
+      });
+
+      it.each([
+        { label: "an awesome-akash template", input: { templateId: "tpl-1", isTemplateMarketplaceEnabled: true } },
+        { label: "a resumed draft", input: { templateId: "tpl-1", isTemplateMarketplaceEnabled: true, draftId: "resumed", drafts: { resumed: { sdl: "resumed: sdl" } } } },
+        {
+          label: "a resumed draft of a Console template",
+          input: {
+            userTemplateId: "tpl-9",
+            isTemplateMarketplaceEnabled: true,
+            marketplaceTemplate: { isSuccess: true, data: deployableTemplate() },
+            draftId: "resumed",
+            drafts: { resumed: { sdl: "resumed: sdl" } }
+          }
+        },
+        { label: "the template marketplace off", input: { userTemplateId: "tpl-9", marketplaceTemplate: { isSuccess: true, data: deployableTemplate() } } }
+      ])("names nothing for $label", ({ input }) => {
+        const { useRecordTemplateView } = setup(input);
+
+        expect(useRecordTemplateView.mock.calls).not.toHaveLength(0);
+        expect(useRecordTemplateView.mock.calls.every(([, templateId]) => templateId === undefined)).toBe(true);
+      });
+    });
+
     function deployableTemplate(overrides: Partial<MarketplaceTemplate> = {}) {
       return buildMarketplaceTemplate({
         id: "tpl-9",
@@ -1801,6 +1834,7 @@ describe(ConfigureDeployment.name, () => {
     const useTemplateVersion = vi.fn(() => templateVersionResult as never);
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const useTrackTemplateEvent = vi.fn<typeof DEPENDENCIES.useTrackTemplateEvent>();
+    const useRecordTemplateView = vi.fn<typeof DEPENDENCIES.useRecordTemplateView>();
     const DeploymentFlowProvider = vi.fn(function FlowProviderMock({ children }) {
       const [flow] = useState(() => mock<DeploymentFlow>({ phase: "configuring", dseq: null, pendingClose: null, ...input.flow }));
       return <>{children({ flow })}</>;
@@ -1897,6 +1931,7 @@ describe(ConfigureDeployment.name, () => {
       useParams: (() => (dseq ? { dseq: [dseq] } : {})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useTrackTemplateEvent,
+      useRecordTemplateView,
       Snackbar: vi.fn(() => null) as never
     };
 
@@ -1980,6 +2015,7 @@ describe(ConfigureDeployment.name, () => {
       useMarketplaceTemplate,
       useTemplateVersion,
       useTrackTemplateEvent,
+      useRecordTemplateView,
       router,
       AutoDeployFlow,
       DeploymentFlowProvider,

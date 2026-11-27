@@ -301,7 +301,7 @@ describe(TemplatePage.name, () => {
     });
   });
 
-  it("shows editors Edit configuration and Settings, and viewers neither", () => {
+  it("shows editors Edit configuration, Insights and Settings, and viewers none of them", () => {
     const { unmount } = setup({ template: { ...TEMPLATE, canEdit: true } });
 
     expect(screen.getByRole("link", { name: "Edit configuration" })).toHaveAttribute(
@@ -309,14 +309,16 @@ describe(TemplatePage.name, () => {
       UrlService.configureTemplate({ mode: "edit", userTemplateId: TEMPLATE_ID, baseVersion: TEMPLATE.currentVersion?.version })
     );
     expect(screen.getByRole("link", { name: "Edit configuration" }).getAttribute("href")).toMatch(/[?&]baseVersion=\d+/);
+    expect(screen.getByRole("tab", { name: "Insights" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Version" })).toBeInTheDocument();
-    expect(screen.getByText("Edit configuration and Settings show only to members of Northwind Labs")).toBeInTheDocument();
+    expect(screen.getByText("Edit configuration, Insights and Settings show only to members of Northwind Labs")).toBeInTheDocument();
 
     unmount();
     setup({ template: { ...TEMPLATE, canEdit: false } });
 
     expect(screen.queryByRole("link", { name: "Edit configuration" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Insights" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Settings" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Version" })).not.toBeInTheDocument();
     expect(screen.queryByText(/show only to members of/)).not.toBeInTheDocument();
@@ -325,7 +327,7 @@ describe(TemplatePage.name, () => {
   it("names the editor's organization generically when the template has no publisher", () => {
     setup({ template: { ...TEMPLATE, canEdit: true, publisher: null } });
 
-    expect(screen.getByText("Edit configuration and Settings show only to members of your organization")).toBeInTheDocument();
+    expect(screen.getByText("Edit configuration, Insights and Settings show only to members of your organization")).toBeInTheDocument();
   });
 
   it("deploys the current version by default", () => {
@@ -572,6 +574,32 @@ describe(TemplatePage.name, () => {
     const viewer = setup({ template: { ...TEMPLATE, canEdit: false }, tab: "settings" });
 
     expect(viewer.TemplateSettingsTab).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["public", true],
+    ["organization", false]
+  ] as const)("shows an editor the insights of a %s template on the Insights tab", (visibility, isPublic) => {
+    const { TemplateInsightsTab } = setup({ template: { ...TEMPLATE, visibility, canEdit: true }, tab: "insights" });
+
+    expect(TemplateInsightsTab).toHaveBeenCalledWith({ templateId: TEMPLATE_ID, isPublic }, expect.anything());
+  });
+
+  it("keeps the insights from a viewer who asks for them", () => {
+    const { TemplateInsightsTab } = setup({ template: { ...TEMPLATE, canEdit: false }, tab: "insights" });
+
+    expect(TemplateInsightsTab).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "README" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("counts the view of the template once it is loaded", () => {
+    const { useRecordTemplateView, unmount } = setup({ isLoading: true });
+    expect(useRecordTemplateView).toHaveBeenLastCalledWith("page_view", undefined);
+
+    unmount();
+    const loaded = setup({ template: TEMPLATE });
+
+    expect(loaded.useRecordTemplateView).toHaveBeenLastCalledWith("page_view", TEMPLATE_ID);
   });
 
   it("explains a template saved without a version", () => {
@@ -1017,6 +1045,7 @@ describe(TemplatePage.name, () => {
       </>
     ));
     const TemplateSettingsTab = vi.fn<typeof DEPENDENCIES.TemplateSettingsTab>(() => null);
+    const TemplateInsightsTab = vi.fn<typeof DEPENDENCIES.TemplateInsightsTab>(() => null);
     const TemplateIcon = vi.fn<typeof DEPENDENCIES.TemplateIcon>(() => null);
     const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
     const ShareTemplateDialog = vi.fn<typeof DEPENDENCIES.ShareTemplateDialog>(({ onClose }) => (
@@ -1043,6 +1072,7 @@ describe(TemplatePage.name, () => {
     const TemplatePublisherCard = vi.fn<typeof DEPENDENCIES.TemplatePublisherCard>(() => null);
 
     const useTrackTemplateEvent = vi.fn<typeof DEPENDENCIES.useTrackTemplateEvent>();
+    const useRecordTemplateView = vi.fn<typeof DEPENDENCIES.useRecordTemplateView>();
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       NotFoundPage,
@@ -1050,6 +1080,7 @@ describe(TemplatePage.name, () => {
       TemplateConfigurationTab,
       TemplateVersionsTab,
       TemplateSettingsTab,
+      TemplateInsightsTab,
       TemplateIcon,
       NextSeo,
       ShareTemplateDialog,
@@ -1066,7 +1097,8 @@ describe(TemplatePage.name, () => {
       useCustomUser: () => customUser,
       useSnackbar: () => snackbar,
       useRouter: () => router,
-      useTrackTemplateEvent
+      useTrackTemplateEvent,
+      useRecordTemplateView
     });
 
     const renderPage = () => (
@@ -1098,6 +1130,8 @@ describe(TemplatePage.name, () => {
       enqueueSnackbar,
       analyticsService,
       ShareTemplateDialog,
+      TemplateInsightsTab,
+      useRecordTemplateView,
       ReportTemplateDialog,
       RemovedTemplateNotice,
       TemplateReviewNotice,

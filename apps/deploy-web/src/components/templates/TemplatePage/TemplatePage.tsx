@@ -36,6 +36,7 @@ import { RemovedTemplateNotice } from "@src/components/templates/removed/Removed
 import { canReportTemplate } from "@src/components/templates/reporting/reportEligibility";
 import { ReportTemplateDialog } from "@src/components/templates/reporting/ReportTemplateDialog/ReportTemplateDialog";
 import { describeConsoleTemplate } from "@src/components/templates/templateEvents/templateEvents";
+import { useRecordTemplateView } from "@src/components/templates/templateEvents/useRecordTemplateView";
 import { useTrackTemplateEvent } from "@src/components/templates/templateEvents/useTrackTemplateEvent";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { TemplateVisibilityBadge } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
@@ -47,6 +48,7 @@ import { useMarketplaceTemplate, useTemplateVersion, useTemplateVersions } from 
 import type { MarketplaceTemplate, TemplateVersionDetail, TemplateVersionSummary } from "@src/types/marketplace-template";
 import { UrlService } from "@src/utils/urlUtils";
 import { TemplateConfigurationTab } from "./TemplateConfigurationTab/TemplateConfigurationTab";
+import { TemplateInsightsTab } from "./TemplateInsightsTab/TemplateInsightsTab";
 import { TemplatePublisherCard } from "./TemplatePublisherCard/TemplatePublisherCard";
 import { TemplateReadmeTab } from "./TemplateReadmeTab/TemplateReadmeTab";
 import { TemplateReviewNotice } from "./TemplateReviewNotice/TemplateReviewNotice";
@@ -61,6 +63,7 @@ export const DEPENDENCIES = {
   TemplateReadmeTab,
   TemplateConfigurationTab,
   TemplateVersionsTab,
+  TemplateInsightsTab,
   TemplateSettingsTab,
   ShareTemplateDialog,
   ReportTemplateDialog,
@@ -76,13 +79,16 @@ export const DEPENDENCIES = {
   useActiveOrganization,
   useSnackbar,
   useRouter,
-  useTrackTemplateEvent
+  useTrackTemplateEvent,
+  useRecordTemplateView
 };
 
-const TABS = ["readme", "configuration", "versions", "settings"] as const;
+const TABS = ["readme", "configuration", "versions", "insights", "settings"] as const;
 type Tab = (typeof TABS)[number];
 
-const VIEWER_TABS: readonly Tab[] = TABS.filter(tab => tab !== "settings");
+const EDITOR_ONLY_TABS: readonly Tab[] = ["insights", "settings"];
+
+const VIEWER_TABS: readonly Tab[] = TABS.filter(tab => !EDITOR_ONLY_TABS.includes(tab));
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
 
@@ -120,6 +126,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: remov
   const arrivalSource = router.query[TEMPLATE_ARRIVAL_SOURCE_PARAM];
   const hasRecordedArrival = useRef(false);
   d.useTrackTemplateEvent("template_page_viewed", template && describeConsoleTemplate(template, template.currentVersion?.version));
+  d.useRecordTemplateView("page_view", template?.id);
 
   useEffect(
     function followFavoriteFromServer() {
@@ -330,14 +337,19 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: remov
                   Versions {versionsQuery.data && <span className="rounded-full bg-muted px-1.5 font-mono text-xs">{versionsQuery.data.length}</span>}
                 </TabsTrigger>
                 {template.canEdit && (
-                  <TabsTrigger value="settings" className={TAB_TRIGGER_CLASSES}>
-                    Settings
-                  </TabsTrigger>
+                  <>
+                    <TabsTrigger value="insights" className={TAB_TRIGGER_CLASSES}>
+                      Insights
+                    </TabsTrigger>
+                    <TabsTrigger value="settings" className={TAB_TRIGGER_CLASSES}>
+                      Settings
+                    </TabsTrigger>
+                  </>
                 )}
               </TabsList>
               {template.canEdit && (
                 <p className="py-2 text-[12.5px] text-muted-foreground">
-                  Edit configuration and Settings show only to members of {template.publisher?.name ?? "your organization"}
+                  Edit configuration, Insights and Settings show only to members of {template.publisher?.name ?? "your organization"}
                 </p>
               )}
             </div>
@@ -371,9 +383,14 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: remov
               )}
             </TabsContent>
             {template.canEdit && (
-              <TabsContent value="settings" className="mt-5">
-                <d.TemplateSettingsTab template={template} />
-              </TabsContent>
+              <>
+                <TabsContent value="insights" className="mt-5">
+                  <d.TemplateInsightsTab templateId={id} isPublic={template.visibility === "public"} />
+                </TabsContent>
+                <TabsContent value="settings" className="mt-5">
+                  <d.TemplateSettingsTab template={template} />
+                </TabsContent>
+              </>
             )}
           </Tabs>
 

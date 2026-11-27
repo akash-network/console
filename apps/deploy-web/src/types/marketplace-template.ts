@@ -43,3 +43,13 @@ export type TemplatePublisherLink = TemplatePublisherPage["links"][number];
 export type CurrentTemplatePublisher = components["schemas"]["CurrentTemplatePublisher"];
 
 export type TemplatePublisherProfileChange = components["schemas"]["UpdateCurrentTemplatePublisherRequest"]["data"];
+
+export type TemplateInsights = components["schemas"]["GetTemplateInsightsResponse"]["data"];
+
+export type TemplateInsightTotals = components["schemas"]["TemplateInsightTotals"];
+
+export type TemplateInsightHint = TemplateInsights["hints"][number];
+
+export type TemplateInsightPeriod = 7 | 30 | 90;
+
+export type TemplateViewKind = components["schemas"]["CreateTemplateViewRequest"]["data"]["kind"];

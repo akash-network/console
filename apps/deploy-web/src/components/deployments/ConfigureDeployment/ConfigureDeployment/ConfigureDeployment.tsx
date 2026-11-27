@@ -14,6 +14,7 @@ import type { RemovedTemplate } from "@src/components/templates/removed/readRemo
 import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
 import { RemovedTemplateNotice } from "@src/components/templates/removed/RemovedTemplateNotice/RemovedTemplateNotice";
 import { describeAwesomeAkashTemplate, describeConsoleTemplate } from "@src/components/templates/templateEvents/templateEvents";
+import { useRecordTemplateView } from "@src/components/templates/templateEvents/useRecordTemplateView";
 import { useTrackTemplateEvent } from "@src/components/templates/templateEvents/useTrackTemplateEvent";
 import { useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useFlag } from "@src/hooks/useFlag";
@@ -58,6 +59,7 @@ export const DEPENDENCIES = {
   useParams,
   useSnackbar,
   useTrackTemplateEvent,
+  useRecordTemplateView,
   Snackbar
 };
 
@@ -315,6 +317,7 @@ function useTrackConfigureOpenedFromTemplate({
     : describeAwesomeAkashTemplate(intent.templateId);
 
   d.useTrackTemplateEvent("template_configure_opened", isMarketplaceEnabled && isFreshOpen ? openedTemplate : undefined);
+  d.useRecordTemplateView("configure_open", isMarketplaceEnabled && isFreshOpen ? consoleTemplate?.template.id : undefined);
 }
 
 /** A fresh session pins the current version it starts from, so a reload resolves the version its draft was built on; a draft restored without one keeps resolving the current version. */
