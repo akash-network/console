@@ -136,13 +136,36 @@ describe(FundingWalletMoveRepository.name, () => {
       const { repository, moveInput } = await setup();
       const move = await repository.createUnlessStarted(moveInput());
       const other = await repository.createUnlessStarted(moveInput({ userWalletId: move.userWalletId + 1 }));
-      await repository.claim(move.id, 600);
+      const held = await repository.claim(move.id, 600);
       await repository.claim(other.id, 600);
 
-      await repository.release(move.id);
+      await repository.release(move.id, held!.claimedUntil);
 
       await expect(repository.claim(move.id, 600)).resolves.toMatchObject({ id: move.id });
       await expect(repository.claim(other.id, 600)).resolves.toBeUndefined();
+    });
+
+    it("leaves the claim another run took after this one lapsed", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput());
+      const lapsed = await repository.claim(move.id, -1);
+      const current = await repository.claim(move.id, 600);
+
+      await repository.release(move.id, lapsed!.claimedUntil);
+
+      await expect(repository.findBySource(move)).resolves.toMatchObject({ claimedUntil: current!.claimedUntil });
+      await expect(repository.claim(move.id, 600)).resolves.toBeUndefined();
+    });
+
+    it("leaves a move with the same claim end alone when it is not the one named", async () => {
+      const { repository, moveInput } = await setup();
+      const move = await repository.createUnlessStarted(moveInput());
+      const other = await repository.createUnlessStarted(moveInput({ userWalletId: move.userWalletId + 1 }));
+      const held = await repository.claim(move.id, 600);
+
+      await repository.release(other.id, held!.claimedUntil);
+
+      await expect(repository.claim(move.id, 600)).resolves.toBeUndefined();
     });
   });
 

@@ -10,6 +10,8 @@ export type FundingWalletMoveOutput = FundingWalletMovesTable["$inferSelect"];
 
 export type FundingWalletMoveStatus = FundingWalletMoveOutput["status"];
 
+export type ClaimedFundingWalletMove = FundingWalletMoveOutput & { claimedUntil: Date };
+
 export type FundingWalletMoveInput = Pick<
   FundingWalletMovesTable["$inferInsert"],
   "userWalletId" | "network" | "fromFundingWalletId" | "toFundingWalletId" | "status" | "readLimit" | "readHeight" | "feeLimit" | "feeExpiresAt"
@@ -62,19 +64,23 @@ export class FundingWalletMoveRepository {
     return move;
   }
 
-  /** Gives a move to one run at a time; the claim lapses on its own, so a run that died holding it delays the next one instead of blocking it. */
-  async claim(id: FundingWalletMoveOutput["id"], seconds: number): Promise<FundingWalletMoveOutput | undefined> {
+  /** Gives a move to one run at a time; the claim lapses on its own, so a run that died holding it delays the next one instead of blocking it. Its end is kept to the millisecond, since that value is what a release is matched on. */
+  async claim(id: FundingWalletMoveOutput["id"], seconds: number): Promise<ClaimedFundingWalletMove | undefined> {
     const [move] = await this.#cursor
       .update(this.table)
-      .set({ claimedUntil: sql`now() + make_interval(secs => ${seconds})` })
+      .set({ claimedUntil: sql`date_trunc('milliseconds', now()) + make_interval(secs => ${seconds})` })
       .where(and(eq(this.table.id, id), or(isNull(this.table.claimedUntil), lt(this.table.claimedUntil, sql`now()`))))
       .returning();
 
-    return move;
+    return move?.claimedUntil ? { ...move, claimedUntil: move.claimedUntil } : undefined;
   }
 
-  async release(id: FundingWalletMoveOutput["id"]): Promise<void> {
-    await this.#cursor.update(this.table).set({ claimedUntil: null }).where(eq(this.table.id, id));
+  /** Ends only the claim it is given, so a run that outlived its own claim cannot free the one another run took since. */
+  async release(id: FundingWalletMoveOutput["id"], claimedUntil: Date): Promise<void> {
+    await this.#cursor
+      .update(this.table)
+      .set({ claimedUntil: null })
+      .where(and(eq(this.table.id, id), eq(this.table.claimedUntil, claimedUntil)));
   }
 
   async countByStatus(fromFundingWalletId: string): Promise<Partial<Record<FundingWalletMoveStatus, number>>> {

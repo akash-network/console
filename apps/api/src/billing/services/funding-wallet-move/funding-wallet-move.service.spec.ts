@@ -27,6 +27,8 @@ const LATE_GRANTS_END_MS = SIGNER_TIMEOUT_MS + 60_000;
 const REVOKE_DEPOSIT: EncodeObject = { typeUrl: "/revoke-deposit", value: {} };
 const REVOKE_FEES: EncodeObject = { typeUrl: "/revoke-fees", value: {} };
 const FEE_EXPIRATION = "2026-12-20T00:00:00.000Z";
+const CLAIMED_UNTIL = new Date("2026-11-27T12:12:00.000Z");
+const EARLIER_SEND = new Date("2026-11-27T11:50:00.000Z");
 
 describe(FundingWalletMoveService.name, () => {
   afterEach(() => {
@@ -254,7 +256,19 @@ describe(FundingWalletMoveService.name, () => {
       });
 
       expect(fundingWalletRepository.reassign).not.toHaveBeenCalled();
-      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: null });
+      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: null, revokeSentAt: null });
+    });
+
+    it("keeps the record of an earlier revoke that may have landed when a later one is refused", async () => {
+      const { service, wallet, managedSignerService, currentMove } = setup({
+        chain: { depositLimit: 5_000_000 },
+        move: { status: "revoking", readLimit: 5_000_000, readHeight: 900, revokeTxHash: "UNDECIDED_HASH", revokeSentAt: EARLIER_SEND }
+      });
+      managedSignerService.executeFundingTx.mockResolvedValue({ code: 5, hash: "REFUSED_HASH", rawLog: "" });
+
+      await expect(service.moveToActive(wallet.id)).rejects.toMatchObject({ status: 502 });
+
+      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: "UNDECIDED_HASH", revokeSentAt: EARLIER_SEND });
     });
 
     it("keeps the hash of a revoke the signer could not decide, and stays at revoking", async () => {
@@ -264,20 +278,20 @@ describe(FundingWalletMoveService.name, () => {
       await expect(service.moveToActive(wallet.id)).rejects.toBeInstanceOf(TxOutcomeUnknownError);
 
       expect(fundingWalletRepository.reassign).not.toHaveBeenCalled();
-      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: "UNDECIDED_HASH" });
+      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: "UNDECIDED_HASH", revokeSentAt: NOW });
     });
 
     it.each([
-      ["the signer could not decide and gave no hash", new TxOutcomeUnknownError()],
-      ["the signer proved it did not land", new TxNotIncludedError("EXPIRED_HASH")],
-      ["the signer could not be reached", new Error("connect ECONNREFUSED")]
-    ])("records no hash when %s", async (_case, error) => {
+      ["keeps the time of a revoke the signer could not decide and gave no hash for", new TxOutcomeUnknownError(), NOW],
+      ["forgets a revoke the signer proved did not land", new TxNotIncludedError("EXPIRED_HASH"), null],
+      ["forgets a revoke that never reached the signer", new Error("connect ECONNREFUSED"), null]
+    ])("records no hash and %s", async (_case, error, revokeSentAt) => {
       const { service, wallet, managedSignerService, currentMove } = setup({ chain: { depositLimit: 5_000_000 } });
       managedSignerService.executeFundingTx.mockRejectedValue(error);
 
       await expect(service.moveToActive(wallet.id)).rejects.toBe(error);
 
-      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: null });
+      expect(currentMove()).toMatchObject({ status: "revoking", revokeTxHash: null, revokeSentAt });
     });
   });
 
@@ -430,7 +444,7 @@ describe(FundingWalletMoveService.name, () => {
       await service.moveToActive(wallet.id);
 
       expect(fundingWalletMoveRepository.claim).toHaveBeenCalledWith(currentMove()!.id, (4 * SIGNER_TIMEOUT_MS) / 1000);
-      expect(fundingWalletMoveRepository.release).toHaveBeenCalledWith(currentMove()!.id);
+      expect(fundingWalletMoveRepository.release).toHaveBeenCalledWith(currentMove()!.id, CLAIMED_UNTIL);
     });
 
     it("holds the move for whole seconds", async () => {
@@ -447,7 +461,7 @@ describe(FundingWalletMoveService.name, () => {
 
       await expect(service.moveToActive(wallet.id)).rejects.toThrow("connect ECONNREFUSED");
 
-      expect(fundingWalletMoveRepository.release).toHaveBeenCalledWith(currentMove()!.id);
+      expect(fundingWalletMoveRepository.release).toHaveBeenCalledWith(currentMove()!.id, CLAIMED_UNTIL);
     });
 
     it("sends no credit when the move left the state this run saw before it could mark the credit", async () => {
@@ -614,7 +628,7 @@ describe(FundingWalletMoveService.name, () => {
       move = { ...blankMove, ...created, feeExpiresAt: created.feeExpiresAt ?? null };
       return move;
     });
-    fundingWalletMoveRepository.claim.mockImplementation(async () => (input.isClaimedByAnotherRun ? undefined : move));
+    fundingWalletMoveRepository.claim.mockImplementation(async () => (input.isClaimedByAnotherRun ? undefined : { ...move!, claimedUntil: CLAIMED_UNTIL }));
     fundingWalletMoveRepository.updateFrom.mockImplementation(async (_id, status, patch) => {
       const isChangedByAnotherRun = !!input.changedByAnotherRunAt && patch.status === input.changedByAnotherRunAt;
 

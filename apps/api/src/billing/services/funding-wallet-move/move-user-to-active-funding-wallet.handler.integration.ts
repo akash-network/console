@@ -132,7 +132,7 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
       feeLimit: 0,
       feeExpiresAt: null
     });
-    await moves.claim(move.id, 600);
+    const held = await moves.claim(move.id, 600);
 
     await expect(handle()).rejects.toMatchObject({ status: 409 });
 
@@ -141,7 +141,7 @@ describe(MoveUserToActiveFundingWalletHandler.name, () => {
     expect(chain.revokeHashes).toEqual([]);
     await expect(findMove()).resolves.toMatchObject({ status: "revoking", claimedUntil: expect.any(Date) });
 
-    await moves.release(move.id);
+    await moves.release(move.id, held!.claimedUntil);
     await moves.claim(move.id, -1);
     await handle();
 

@@ -1,4 +1,5 @@
 import { AuthzHttpService, type FeeAllowance } from "@akashnetwork/http-sdk";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { addMilliseconds, addMinutes } from "date-fns";
 import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
@@ -73,7 +74,7 @@ export class FundingWalletMoveService {
     try {
       return await this.#resume(move, movedWallet, rotation);
     } finally {
-      await this.fundingWalletMoveRepository.release(move.id);
+      await this.fundingWalletMoveRepository.release(move.id, move.claimedUntil);
     }
   }
 
@@ -145,15 +146,23 @@ export class FundingWalletMoveService {
     if (messages.length === 0) return await this.#endRevokeWithNothingLeft(move);
 
     const sending = await this.#advance(move, { revokeSentAt: new Date() });
+    const revokeTxHash = await this.#sendRevoke(sending, messages, move.revokeSentAt);
 
+    return await this.#advance(sending, { status: "revoked", revokeTxHash });
+  }
+
+  /** A send that provably revoked nothing puts the record of an earlier send back, so only a revoke that may have landed is ever counted as one. */
+  async #sendRevoke(sending: FundingWalletMoveOutput, messages: EncodeObject[], previousRevokeSentAt: Date | null): Promise<string> {
     try {
       const tx = await this.managedSignerService.executeFundingTx(messages);
 
       if (tx.code !== COSMOS_TX_CODE_OK) throw createError(502, "The chain refused to revoke the grants of the draining funding wallet", { txHash: tx.hash });
 
-      return await this.#advance(sending, { status: "revoked", revokeTxHash: tx.hash });
+      return tx.hash;
     } catch (error) {
-      if (isUnknownTxOutcome(error) && error.txHash) await this.#advance(sending, { revokeTxHash: error.txHash });
+      if (!isUnknownTxOutcome(error)) await this.#advance(sending, { revokeSentAt: previousRevokeSentAt });
+      else if (error.txHash) await this.#advance(sending, { revokeTxHash: error.txHash });
+
       throw error;
     }
   }
