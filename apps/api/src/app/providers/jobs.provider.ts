@@ -66,6 +66,7 @@ import { CheckTemplateDeploymentStillRunningHandler } from "@src/template-market
 import { NotifyTemplatePublishersHandler } from "@src/template-marketplace/services/notify-template-publishers/notify-template-publishers.handler";
 import { RecomputeTemplateScoresHandler } from "@src/template-marketplace/services/recompute-template-scores/recompute-template-scores.handler";
 import { ResolveTemplateVersionImageDigestsHandler } from "@src/template-marketplace/services/resolve-template-version-image-digests/resolve-template-version-image-digests.handler";
+import { SendTemplatePublisherDigestHandler } from "@src/template-marketplace/services/send-template-publisher-digest/send-template-publisher-digest.handler";
 import { TemplateModerationRecordedHandler } from "@src/template-marketplace/services/template-moderation-recorded/template-moderation-recorded.handler";
 import { WatchPopularTemplateImagesHandler } from "@src/template-marketplace/services/watch-popular-template-images/watch-popular-template-images.handler";
 import { AccountStatusChangedHandler } from "@src/user/services/account-status-changed/account-status-changed.handler";
@@ -150,6 +151,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ResolveTemplateVersionImageDigestsHandler),
     container.resolve(WatchPopularTemplateImagesHandler),
     container.resolve(RecomputeTemplateScoresHandler),
+    container.resolve(SendTemplatePublisherDigestHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),

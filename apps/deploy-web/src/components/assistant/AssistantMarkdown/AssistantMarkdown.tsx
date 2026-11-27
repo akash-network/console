@@ -75,22 +75,44 @@ function createAssistantLink(InAppLink: typeof DEPENDENCIES.Link): FC<LinkProps>
   };
 }
 
+interface HastNode {
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+}
+
+function rehypeKeepCodeLeftToRight() {
+  return function setCodeLeftToRight(tree: HastNode) {
+    setCodeLeftToRightIn(tree);
+  };
+}
+
+function setCodeLeftToRightIn(node: HastNode): void {
+  if (node.tagName === "pre" || node.tagName === "code") {
+    node.properties = { ...node.properties, dir: "ltr" };
+  }
+
+  node.children?.forEach(setCodeLeftToRightIn);
+}
+
 /** Answers are model output, so raw HTML is never rendered and every link outside Console opens without a handle back to it. */
 export const AssistantMarkdown: FC<{ children: string; dependencies?: typeof DEPENDENCIES }> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const components = useMemo(() => ({ a: createAssistantLink(d.Link) }), [d.Link]);
 
   return (
-    <ReactMarkdown
-      className="prose prose-sm max-w-full break-words dark:prose-invert prose-p:my-1.5 prose-code:before:hidden prose-code:after:hidden prose-pre:my-2 prose-pre:bg-muted prose-pre:text-foreground prose-ol:my-1.5 prose-ul:my-1.5"
-      skipHtml
-      linkTarget="_blank"
-      disallowedElements={DISALLOWED_ELEMENTS}
-      unwrapDisallowed
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeOpenLinksWithoutOpener]}
-      components={components}
-    >
-      {children}
-    </ReactMarkdown>
+    <div dir="auto">
+      <ReactMarkdown
+        className="prose prose-sm max-w-full break-words dark:prose-invert prose-p:my-1.5 prose-code:before:hidden prose-code:after:hidden prose-pre:my-2 prose-pre:bg-muted prose-pre:text-foreground prose-ol:my-1.5 prose-ul:my-1.5"
+        skipHtml
+        linkTarget="_blank"
+        disallowedElements={DISALLOWED_ELEMENTS}
+        unwrapDisallowed
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeOpenLinksWithoutOpener, rehypeKeepCodeLeftToRight]}
+        components={components}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
   );
 };

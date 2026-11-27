@@ -8273,6 +8273,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/user-templates/{id}/views": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Count a signed-in user's view of a template's page, or their open of Configure from it, once a day
+     * @description Members of the organization that publishes a public template are not counted.
+     */
+    post: operations["createUserTemplateView"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user-templates/{id}/insights": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Tell how a template the caller may change is used: views, deployments and how they fared, by day and by version, with hints */
+    get: operations["getUserTemplateInsights"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/community-templates": {
     parameters: {
       query?: never;
@@ -10022,6 +10059,100 @@ export interface components {
         reason: "malware_or_miner" | "leaks_secrets" | "impersonation" | "spam" | "broken" | "other";
         /** @description What the reporter saw, as plain text; staff read it and the publisher never does */
         details?: string;
+      };
+    };
+    CreateTemplateViewRequest: {
+      data: {
+        /**
+         * @description Whether the template's page was viewed or Configure was opened from it
+         * @enum {string}
+         */
+        kind: "page_view" | "configure_open";
+      };
+    };
+    TemplateInsightTotals: {
+      /** @description People who viewed the template's page, each counted once a day */
+      views: number;
+      /** @description People who opened Configure from it, each counted once a day */
+      configureOpens: number;
+      /** @description Deployments made from it */
+      deploys: number;
+      /** @description Of those deployments, the ones that got a provider */
+      leases: number;
+      /** @description Of those deployments, the ones still running a day after they got a provider */
+      stillRunning: number;
+      /** @description Deployments that got a provider at least a day ago, so whether they kept running is known */
+      decidedLeases: number;
+      forks: number;
+      /** @description Share of deployments that got a provider, null while too few are behind it */
+      leaseRate: number | null;
+      /** @description Share of the decided deployments still running a day later, null while too few are behind it */
+      stillRunningRate: number | null;
+      /** @description Deployments per view, null while too few are behind it */
+      viewToDeployRate: number | null;
+    };
+    GetTemplateInsightsResponse: {
+      data: {
+        days: number;
+        /**
+         * Format: date
+         * @description First UTC day covered
+         */
+        from: string;
+        /**
+         * Format: date
+         * @description Last UTC day covered, today
+         */
+        to: string;
+        current: components["schemas"]["TemplateInsightTotals"];
+        previous: components["schemas"]["TemplateInsightTotals"] & unknown;
+        /** @description One entry per day, deployments counted on the day they were made */
+        daily: {
+          /** Format: date */
+          day: string;
+          /** @description People who viewed the template's page, each counted once a day */
+          views: number;
+          /** @description People who opened Configure from it, each counted once a day */
+          configureOpens: number;
+          /** @description Deployments made from it */
+          deploys: number;
+          /** @description Of those deployments, the ones that got a provider */
+          leases: number;
+          /** @description Of those deployments, the ones still running a day after they got a provider */
+          stillRunning: number;
+        }[];
+        /** @description Every version ever deployed, over all time */
+        versions: {
+          version: number;
+          deploys: number;
+          leases: number;
+          decidedLeases: number;
+          stillRunning: number;
+          /** @description Share of the version's deployments that got a provider, null while too few are behind it */
+          leaseRate: number | null;
+          /** @description Share of the version's decided deployments still running a day later, null while too few are behind it */
+          stillRunningRate: number | null;
+        }[];
+        /** @description What the numbers suggest, warnings first */
+        hints: {
+          /** @enum {string} */
+          kind:
+            | "few_get_a_provider"
+            | "few_still_running"
+            | "latest_version_gets_fewer_providers"
+            | "latest_version_stops_more"
+            | "few_viewers_deploy"
+            | "deploys_growing"
+            | "running_well";
+          /** @enum {string} */
+          tone: "warning" | "info" | "positive";
+          /** @description The rate or count the hint is about */
+          value: number;
+          /** @description What the value is compared to, for a hint that compares */
+          previousValue: number | null;
+          /** @description The version the hint is about, for a hint about one */
+          version: number | null;
+        }[];
       };
     };
     CommunityTemplateUsage: {
@@ -21387,6 +21518,127 @@ export interface operations {
       };
       /** @description The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createUserTemplateView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTemplateViewRequest"];
+      };
+    };
+    responses: {
+      /** @description The view counted, already counted today, or not counted for this viewer */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The id is not a uuid, or the kind is unknown */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getUserTemplateInsights: {
+    parameters: {
+      query?: {
+        days?: "7" | "30" | "90";
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The insights, counted on mainnet and without a public template's own organization */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetTemplateInsightsResponse"];
+        };
+      };
+      /** @description The id is not a uuid, or the number of days is not 7, 30 or 90 */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
         headers: {
           [name: string]: unknown;
         };
