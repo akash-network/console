@@ -12,10 +12,15 @@ import type {
   EmailDomainSignal,
   SignupBurst
 } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
+import type { RefusedSignupService } from "@src/workload-abuse/services/refused-signup/refused-signup.service";
 import {
   ReviewNewEmailDomainSignups,
   reviewNewEmailDomainSignupsKeyFor
 } from "@src/workload-abuse/services/review-new-email-domain-signups/review-new-email-domain-signups.handler";
+import {
+  ReviewTrialAfterRefusedSignup,
+  reviewTrialAfterRefusedSignupKeyFor
+} from "@src/workload-abuse/services/review-trial-after-refused-signup/review-trial-after-refused-signup.handler";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { TrialSignupHoldService } from "./trial-signup-hold.service";
@@ -328,6 +333,84 @@ describe(TrialSignupHoldService.name, () => {
     });
   });
 
+  describe("refused sign-up", () => {
+    const otherRulesOff = { mode: "off", tagMode: "off", domainMode: "off" } as const;
+
+    it("holds a trial asked for from a browser refused at sign-up and queues one review per account and window, outside the transaction", async () => {
+      const { service, user, refusedSignupService, jobQueueService, txService, logger } = setup({
+        ...otherRulesOff,
+        refusedSignupMode: "enforce",
+        wasRecentlyRefused: true,
+        refusedSignupWindowMinutes: 30
+      });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(refusedSignupService.wasRecentlyRefused).toHaveBeenCalledWith({ ip: user.lastIp, userAgent: user.lastUserAgent });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HELD_FOR_REFUSED_SIGNUP", userId: user.id });
+      expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReviewTrialAfterRefusedSignup({ userId: user.id, windowMinutes: 30 }), {
+        singletonKey: reviewTrialAfterRefusedSignupKeyFor(user.id),
+        singletonSeconds: 30 * 60
+      });
+    });
+
+    it("only logs the hold it would have placed in report mode", async () => {
+      const { service, user, jobQueueService, logger } = setup({ ...otherRulesOff, refusedSignupMode: "report", wasRecentlyRefused: true });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.info).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_REFUSED_SIGNUP_HOLD_DRY_RUN", userId: user.id });
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("does not hold a trial asked for from a browser that was not refused", async () => {
+      const { service, user, jobQueueService, logger } = setup({ ...otherRulesOff, refusedSignupMode: "enforce", wasRecentlyRefused: false });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("looks nothing up when off", async () => {
+      const { service, user, refusedSignupService } = setup({ ...otherRulesOff, refusedSignupMode: "off", wasRecentlyRefused: true });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(refusedSignupService.wasRecentlyRefused).not.toHaveBeenCalled();
+    });
+
+    it("grants the trial and logs the failure when the lookup fails", async () => {
+      const { service, user, refusedSignupService, logger } = setup({ ...otherRulesOff, refusedSignupMode: "enforce" });
+      const error = new Error("database unavailable");
+      refusedSignupService.wasRecentlyRefused.mockRejectedValue(error);
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_REFUSED_SIGNUP_CHECK_FAILED", userId: user.id, error });
+    });
+
+    it("still holds the trial and logs the failure when the review cannot be queued", async () => {
+      const { service, user, jobQueueService, logger } = setup({ ...otherRulesOff, refusedSignupMode: "enforce", wasRecentlyRefused: true });
+      const error = new Error("queue unavailable");
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId: user.id, error });
+    });
+
+    it("skips the email domain signals once the refused sign-up holds the trial", async () => {
+      const { service, user, emailDomainReputationService } = setup({
+        mode: "off",
+        tagMode: "off",
+        domainMode: "enforce",
+        refusedSignupMode: "enforce",
+        wasRecentlyRefused: true
+      });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(emailDomainReputationService.findSignals).not.toHaveBeenCalled();
+    });
+  });
+
   describe("new email domain", () => {
     const burst: SignupBurst = { burstDomain: "duskvale.xyz", signups: 2 };
     const otherRulesOff = { mode: "off", tagMode: "off", domainMode: "off" } as const;
@@ -416,6 +499,9 @@ describe(TrialSignupHoldService.name, () => {
       domainMode?: "off" | "report" | "enforce";
       blockMode?: "off" | "report" | "enforce";
       newDomainMode?: "off" | "report" | "enforce";
+      refusedSignupMode?: "off" | "report" | "enforce";
+      wasRecentlyRefused?: boolean;
+      refusedSignupWindowMinutes?: number;
       newDomainBurst?: SignupBurst | null;
       newDomainMinSignups?: number;
       newDomainWindowHours?: number;
@@ -441,6 +527,8 @@ describe(TrialSignupHoldService.name, () => {
       WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: input.domainMode ?? "report",
       WORKLOAD_ABUSE_HELD_SIGNUP_DOMAIN_BLOCK_MODE: input.blockMode ?? "report",
       WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_HOLD_MODE: input.newDomainMode ?? "off",
+      WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_MODE: input.refusedSignupMode ?? "off",
+      WORKLOAD_ABUSE_REFUSED_SIGNUP_HOLD_WINDOW_MINUTES: input.refusedSignupWindowMinutes ?? 60,
       WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_MIN_SIGNUPS: input.newDomainMinSignups ?? 2,
       WORKLOAD_ABUSE_NEW_EMAIL_DOMAIN_WINDOW_HOURS: input.newDomainWindowHours ?? 24,
       WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "windowMinutes" in input ? input.windowMinutes : 45
@@ -451,8 +539,29 @@ describe(TrialSignupHoldService.name, () => {
       findSignals: vi.fn().mockResolvedValue({ domain: "assessedDomain" in input ? input.assessedDomain : DOMAIN, signals: input.domainSignals ?? [] }),
       findSignupBurst: vi.fn().mockResolvedValue(input.newDomainBurst ?? null)
     });
-    const service = new TrialSignupHoldService(userRepository, jobQueueService, txService, config, emailDomainReputationService, createLogger);
+    const refusedSignupService = mock<RefusedSignupService>({ wasRecentlyRefused: vi.fn().mockResolvedValue(input.wasRecentlyRefused ?? false) });
+    const service = new TrialSignupHoldService(
+      userRepository,
+      jobQueueService,
+      txService,
+      config,
+      emailDomainReputationService,
+      refusedSignupService,
+      createLogger
+    );
 
-    return { service, user, fingerprint, linkedAccounts, userRepository, jobQueueService, txService, logger, createLogger, emailDomainReputationService };
+    return {
+      service,
+      user,
+      fingerprint,
+      linkedAccounts,
+      userRepository,
+      jobQueueService,
+      txService,
+      logger,
+      createLogger,
+      emailDomainReputationService,
+      refusedSignupService
+    };
   }
 });

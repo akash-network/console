@@ -46,6 +46,10 @@ export const signupRouter = new OpenApiHonoHandler();
 signupRouter.openapi(route, async function signup(c) {
   await container
     .resolve(AuthController)
-    .signup(c.req.valid("json"), { remoteIp: c.var.clientInfo?.ip, testingClientToken: c.req.header("x-testing-client-token") });
+    .signup(
+      c.req.valid("json"),
+      { remoteIp: c.var.clientInfo?.ip, testingClientToken: c.req.header("x-testing-client-token") },
+      { ip: c.var.clientInfo?.ip, userAgent: c.var.clientInfo?.userAgent }
+    );
   return c.body(null, 204);
 });
