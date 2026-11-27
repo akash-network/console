@@ -286,6 +286,18 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
       expect(await response.json()).toMatchObject({ code: "stored_secrets_unavailable" });
       expect((await settingOf(user))?.sealedSecrets).toBe(before!.sealedSecrets);
     });
+
+    it("names a supplied value the replacement no longer references rather than refusing the token, keeping it", async () => {
+      const { apiKey, user } = await setup({ sealedForAnotherMember: true });
+      const before = await settingOf(user);
+      const sdl = sdlWith(["API_TOKEN=ac-secret://s0_e0"], { image: "nginx:1.27" });
+
+      const response = await replace(apiKey, { sdl, sealedSecrets: await sealFor(user, { s0_e0: randomUUID(), s0_e1: randomUUID() }, sdl) });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("no service's SDL references it");
+      expect((await settingOf(user))?.sealedSecrets).toBe(before!.sealedSecrets);
+    });
   });
 
   describe("a refusal", () => {

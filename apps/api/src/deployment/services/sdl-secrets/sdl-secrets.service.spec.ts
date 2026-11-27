@@ -13,7 +13,7 @@ import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/s
 import type { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { SECRET_UNREADABLE_ERROR_CODE } from "@src/secret/config/secret-at-rest.config";
 import type { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
-import { isSealedForOrganization, SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "./sdl-secrets.service";
+import { isSealedForOrganization, SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE, unreferencedNameError } from "./sdl-secrets.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -740,31 +740,32 @@ describe(SdlSecretsService.name, () => {
     });
   });
 
-  describe("openStoredForReplacement", () => {
+  describe("receiveReplacement", () => {
     const DEPARTED_MEMBERS_ROW = { userId: null, organizationId: "team-1", dseq: "1420000" };
 
-    it("opens a token sealed for the member the row is filed under, as openStored does", async () => {
-      const { service, unsealerService } = setup({ stored: { TOKEN: "held" } });
+    it("receives a replacement over a readable token, inheriting what it holds", async () => {
+      const { service, unsealerService } = setup({ stored: { TOKEN: "held" }, supplied: { OTHER: "fresh" } });
 
       await expect(
-        service.openStoredForReplacement(
+        service.receiveReplacement(
           { userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() },
-          { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL }
+          { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN", "OTHER=ac-secret://OTHER"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
         )
-      ).resolves.toEqual({ TOKEN: "held" });
-      expect(unsealerService.open).not.toHaveBeenCalled();
+      ).resolves.toEqual({ held: { TOKEN: "held" }, received: { ok: true, value: { OTHER: "fresh" } } });
+      expect(unsealerService.open).toHaveBeenCalledTimes(1);
     });
 
     describe("a token sealed for a member who deleted their account", () => {
-      it("sets it aside for a replacement that supplies every value it references", async () => {
-        const { service, logger } = setup({ supplied: { TOKEN: "fresh" } });
+      it("sets it aside for a replacement that supplies every value it references, opening the client's seal once", async () => {
+        const { service, unsealerService, logger } = setup({ supplied: { TOKEN: "fresh" } });
 
         await expect(
-          service.openStoredForReplacement(
+          service.receiveReplacement(
             { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
             { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
           )
-        ).resolves.toEqual({});
+        ).resolves.toEqual({ held: {}, received: { ok: true, value: { TOKEN: "fresh" } } });
+        expect(unsealerService.open).toHaveBeenCalledTimes(1);
         expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_UNAVAILABLE_TOKEN_SET_ASIDE", userId: null, dseq: "1420000" });
       });
 
@@ -772,18 +773,29 @@ describe(SdlSecretsService.name, () => {
         const { service } = setup();
 
         await expect(
-          service.openStoredForReplacement(
+          service.receiveReplacement(
             { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
             { sdl: sdlWith({ web: ["MODE=production"] }), rawSdl: RAW_SDL }
           )
-        ).resolves.toEqual({});
+        ).resolves.toEqual({ held: {}, received: { ok: true, value: {} } });
+      });
+
+      it("sets it aside and reports a supplied name the replacement no longer references, as it would over a readable token", async () => {
+        const { service } = setup({ supplied: { TOKEN: "fresh", RETIRED: "fresh" } });
+
+        await expect(
+          service.receiveReplacement(
+            { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
+            { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
+          )
+        ).resolves.toEqual({ held: {}, received: { ok: false, value: [unreferencedNameError("RETIRED")] } });
       });
 
       it("still refuses a replacement that leaves a reference to the stored value", async () => {
         const { service } = setup({ supplied: { OTHER: "fresh" } });
 
         await expect(
-          service.openStoredForReplacement(
+          service.receiveReplacement(
             { ...DEPARTED_MEMBERS_ROW, sealedSecrets: tokenWithHeader() },
             { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN", "OTHER=ac-secret://OTHER"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
           )
@@ -797,7 +809,7 @@ describe(SdlSecretsService.name, () => {
       secretCipherService.decrypt.mockRejectedValue(refusal);
 
       await expect(
-        service.openStoredForReplacement(
+        service.receiveReplacement(
           { userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() },
           { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
         )
@@ -811,7 +823,7 @@ describe(SdlSecretsService.name, () => {
       secretCipherService.decrypt.mockRejectedValue(outage);
 
       await expect(
-        service.openStoredForReplacement(
+        service.receiveReplacement(
           { userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() },
           { sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL }
         )

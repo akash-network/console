@@ -52,7 +52,7 @@ import {
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import type { ReceiveSdlSecretsResult, SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
@@ -4772,13 +4772,11 @@ describe(DeploymentWriterService.name, () => {
 
         await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, sealedSecrets: CLIENT_SEAL }, ability);
 
-        expect(sdlSecretsService.openStoredForReplacement).toHaveBeenCalledWith(
+        expect(sdlSecretsService.receiveReplacement).toHaveBeenCalledWith(
           { userId: "user-1", organizationId: "organization-of-the-row", dseq: "1234", sealedSecrets: STORED_TOKEN },
           { sdl: yaml.raw<SDLInput>(STORED_SDL), rawSdl: STORED_SDL, sealedSecrets: CLIENT_SEAL }
         );
-        expect(sdlSecretsService.receive).toHaveBeenCalledWith(
-          expect.objectContaining({ rawSdl: STORED_SDL, sealedSecrets: CLIENT_SEAL, inherited: { s0_e0: "token" } })
-        );
+        expect(sdlSecretsService.receive).not.toHaveBeenCalled();
       });
 
       it("opens nothing for a deployment that stores no token", async () => {
@@ -4791,7 +4789,7 @@ describe(DeploymentWriterService.name, () => {
           ability
         );
 
-        expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
+        expect(sdlSecretsService.receiveReplacement).not.toHaveBeenCalled();
         expect(sdlSecretsService.receive).toHaveBeenCalledWith(expect.objectContaining({ inherited: {} }));
       });
 
@@ -4844,7 +4842,7 @@ describe(DeploymentWriterService.name, () => {
         const { service, ability, sdlSecretsService } = setup();
 
         await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: "services: [" }, ability)).rejects.toMatchObject({ status: 400 });
-        expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
+        expect(sdlSecretsService.receiveReplacement).not.toHaveBeenCalled();
       });
 
       it("refuses a resource change before recording anything", async () => {
@@ -5172,12 +5170,11 @@ describe(DeploymentWriterService.name, () => {
       const sdlSecretsService = mock<SdlSecretsService>();
       if (input?.openStoredError) sdlSecretsService.openStored.mockRejectedValue(input.openStoredError);
       else sdlSecretsService.openStored.mockResolvedValue(input?.held ?? {});
-      if (input?.openStoredError) sdlSecretsService.openStoredForReplacement.mockRejectedValue(input.openStoredError);
-      else sdlSecretsService.openStoredForReplacement.mockResolvedValue(input?.held ?? {});
+      const received: ReceiveSdlSecretsResult = input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} };
+      if (input?.openStoredError) sdlSecretsService.receiveReplacement.mockRejectedValue(input.openStoredError);
+      else sdlSecretsService.receiveReplacement.mockResolvedValue({ held: input?.held ?? {}, received });
       sdlSecretsService.receiveForMerge.mockResolvedValue(input?.supplied ?? {});
-      sdlSecretsService.receive.mockResolvedValue(
-        input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} }
-      );
+      sdlSecretsService.receive.mockResolvedValue(received);
       sdlSecretsService.sealForStorage.mockResolvedValue("resealed.token.aaa.bbb.ccc");
       const maxCount = input?.maxCount;
       sdlSecretsService.assertStorable.mockImplementation(secrets => {

@@ -11,7 +11,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ownValue, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { SdlSecretsService, type StoredSecretsOfDeployment } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { type ReceiveSdlSecretsResult, SdlSecretsService, type StoredSecretsOfDeployment } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService, sealedEnvOf } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
@@ -27,7 +27,8 @@ export type DefinitionCheck = { valid: boolean; errors: DefinitionError[]; keptS
 
 export type DefinitionCheckInput = { sdl: string; sealedSecrets?: string; secretEnv?: string[]; inheritSecretsFrom?: string };
 
-type CheckContext = { wallet: WalletInitialized; held: SdlSecrets; storedDocument?: SDLInput; dseq?: string };
+/** `received` is the replacement intake's own opening of the client's seal, which the check reuses rather than paying a second key-service call. */
+type CheckContext = { wallet: WalletInitialized; held: SdlSecrets; received?: ReceiveSdlSecretsResult; storedDocument?: SDLInput; dseq?: string };
 
 function valuesNamed(secrets: SdlSecrets, names: string[]): SdlSecrets {
   return Object.fromEntries(names.flatMap(name => (Object.hasOwn(secrets, name) ? [[name, secrets[name]]] : [])));
@@ -74,19 +75,25 @@ export class DeploymentDefinitionCheckService {
       throw createError(500, "The SDL recorded for this deployment cannot be read", { errorCode: "stored_sdl_unreadable" });
     }
 
-    const held = setting.sealedSecrets
-      ? await this.#heldFor({ userId: filedUserId, organizationId: setting.organizationId ?? null, dseq, sealedSecrets: setting.sealedSecrets }, input)
-      : {};
+    const intake = setting.sealedSecrets
+      ? await this.#receiveReplacement(
+          { userId: filedUserId, organizationId: setting.organizationId ?? null, dseq, sealedSecrets: setting.sealedSecrets },
+          input
+        )
+      : { held: {} };
 
-    return await this.#check(input, { wallet, held, storedDocument, dseq });
+    return await this.#check(input, { wallet, ...intake, storedDocument, dseq });
   }
 
-  async #heldFor(stored: StoredSecretsOfDeployment, input: Pick<DefinitionCheckInput, "sdl" | "sealedSecrets">): Promise<SdlSecrets> {
+  async #receiveReplacement(
+    stored: StoredSecretsOfDeployment,
+    input: Pick<DefinitionCheckInput, "sdl" | "sealedSecrets">
+  ): Promise<Pick<CheckContext, "held" | "received">> {
     const parsed = this.sdlService.parse(input.sdl);
 
-    if (!parsed.ok) return await this.sdlSecretsService.openStored(stored);
+    if (!parsed.ok) return { held: await this.sdlSecretsService.openStored(stored) };
 
-    return await this.sdlSecretsService.openStoredForReplacement(stored, { sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets });
+    return await this.sdlSecretsService.receiveReplacement(stored, { sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets });
   }
 
   async #check(input: DefinitionCheckInput, context: CheckContext): Promise<DefinitionCheck> {
@@ -100,7 +107,9 @@ export class DeploymentDefinitionCheckService {
       ...(await this.#manifestErrorsOf(document, context)),
       ...this.#unsetSecretEnvErrorsOf(document, input, context)
     ];
-    const received = await this.sdlSecretsService.receive({ sdl: document, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets, inherited: context.held });
+    const received =
+      context.received ??
+      (await this.sdlSecretsService.receive({ sdl: document, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets, inherited: context.held }));
     const supplied = received.ok ? received.value : {};
 
     if (!received.ok) errors.push(...received.value.map(errorOf));

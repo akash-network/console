@@ -12,7 +12,7 @@ import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import type { ReceiveSdlSecretsResult, SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
@@ -178,11 +178,24 @@ describe(DeploymentDefinitionCheckService.name, () => {
 
       const result = await service.checkReplacement("user-1", DSEQ, { sdl, sealedSecrets: "client-seal", secretEnv: [] }, ability);
 
-      expect(sdlSecretsService.openStoredForReplacement).toHaveBeenCalledWith(
+      expect(sdlSecretsService.receiveReplacement).toHaveBeenCalledWith(
         { userId: "user-1", organizationId: "organization-1", dseq: DSEQ, sealedSecrets: STORED_TOKEN },
         { sdl: yaml.raw<SDLInput>(sdl), rawSdl: sdl, sealedSecrets: "client-seal" }
       );
+      expect(sdlSecretsService.receive).not.toHaveBeenCalled();
       expect(result).toEqual({ valid: true, errors: [], keptSecrets: ["KEY"] });
+    });
+
+    it("reports what the replacement intake refuses without opening the client's seal again", async () => {
+      const { service, sdlSecretsService, ability } = setup({
+        stored: { sdl: sdlWith(["KEY=ac-secret://KEY"]), held: {} },
+        receiveErrors: [{ schemaPath: "", instancePath: "", keyword: "sdl-reference", params: { name: "RETIRED" }, message: "unreferenced RETIRED" }]
+      });
+
+      const result = await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["KEY=ac-secret://KEY"]), sealedSecrets: "client-seal" }, ability);
+
+      expect(result).toEqual({ valid: false, errors: [{ path: "", keyword: "sdl-reference", message: "unreferenced RETIRED" }], keptSecrets: [] });
+      expect(sdlSecretsService.receive).not.toHaveBeenCalled();
     });
 
     it("keeps no reference for a stored token the opening set aside", async () => {
@@ -196,7 +209,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
     it("answers what the opening refuses", async () => {
       const refusal = createError(409, "sealed for another member", { errorCode: "stored_secrets_unavailable" });
       const { service, sdlSecretsService, ability } = setup({ stored: { sdl: sdlWith(["KEY=ac-secret://KEY"]) } });
-      sdlSecretsService.openStoredForReplacement.mockRejectedValue(refusal);
+      sdlSecretsService.receiveReplacement.mockRejectedValue(refusal);
 
       await expect(service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["KEY=ac-secret://KEY"]) }, ability)).rejects.toBe(refusal);
     });
@@ -212,7 +225,7 @@ describe(DeploymentDefinitionCheckService.name, () => {
         dseq: DSEQ,
         sealedSecrets: STORED_TOKEN
       });
-      expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
+      expect(sdlSecretsService.receiveReplacement).not.toHaveBeenCalled();
       expect(result.valid).toBe(false);
     });
 
@@ -222,7 +235,8 @@ describe(DeploymentDefinitionCheckService.name, () => {
       await service.checkReplacement("user-1", DSEQ, { sdl: sdlWith(["MODE=production"]) }, ability);
 
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
-      expect(sdlSecretsService.openStoredForReplacement).not.toHaveBeenCalled();
+      expect(sdlSecretsService.receiveReplacement).not.toHaveBeenCalled();
+      expect(sdlSecretsService.receive).toHaveBeenCalledWith(expect.objectContaining({ inherited: {} }));
     });
 
     it("counts a plain value left as stored as readable, as the replacement would", async () => {
@@ -370,9 +384,10 @@ describe(DeploymentDefinitionCheckService.name, () => {
     );
 
     const sdlSecretsService = mock<SdlSecretsService>();
-    sdlSecretsService.receive.mockResolvedValue(input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} });
+    const received: ReceiveSdlSecretsResult = input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} };
+    sdlSecretsService.receive.mockResolvedValue(received);
     sdlSecretsService.openStored.mockResolvedValue(stored?.held ?? {});
-    sdlSecretsService.openStoredForReplacement.mockResolvedValue(stored?.held ?? {});
+    sdlSecretsService.receiveReplacement.mockResolvedValue({ held: stored?.held ?? {}, received });
     const maxCount = input?.maxCount;
     sdlSecretsService.assertStorable.mockImplementation((secrets, origin) => {
       if (maxCount !== undefined && Object.keys(secrets).length > maxCount) throw createError(400, `At most ${maxCount} secrets may be ${origin}`);

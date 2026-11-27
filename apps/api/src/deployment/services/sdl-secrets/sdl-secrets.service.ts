@@ -54,6 +54,13 @@ function countExceededMessage(origin: SdlSecretsOrigin, maxCount: number): strin
 /** The two ways a reference can already be answered when a create is received: by this request, or by the deployment it inherits from. */
 type ReceivedSdlSecretSets = { supplied: SdlSecrets; inherited: SdlSecrets };
 
+type SdlSecretsMismatches = { missing: ValidationError[]; unreferenced: ValidationError[] };
+
+type SdlSecretsIntake = ReceivedSdlSecretSets & { declarations: SdlReferenceDeclaration[]; mismatches: SdlSecretsMismatches };
+
+/** `held` is empty when a token sealed for a departed member was set aside, and `received` is the one opening of the client's seal both callers act on. */
+export type ReceivedReplacement = { held: SdlSecrets; received: ReceiveSdlSecretsResult };
+
 /** Each set is asked separately, so a non-string sitting under a name in one of them cannot shadow a usable value in the other. */
 function isCovered(sets: ReceivedSdlSecretSets, name: string): boolean {
   return typeof ownValue(sets.supplied, name) === "string" || typeof ownValue(sets.inherited, name) === "string";
@@ -132,12 +139,20 @@ export class SdlSecretsService {
   }
 
   /** Takes the parsed document, because an SDL that does not parse has already been refused by the manifest generator and this must not report it twice. */
-  async receive(input: { sdl: SDLInput; rawSdl: string; sealedSecrets?: string; inherited?: SdlSecrets }): Promise<ReceiveSdlSecretsResult> {
+  async receive(input: SdlSecretsRequest & { inherited?: SdlSecrets }): Promise<ReceiveSdlSecretsResult> {
+    return this.#resultOf(await this.#intake(input));
+  }
+
+  async #intake(input: SdlSecretsRequest & { inherited?: SdlSecrets }): Promise<SdlSecretsIntake> {
     const declarations = this.sdlReferenceService.declarationsOf(input.sdl, SECRET_REFERENCE_KIND);
     const inherited = input.inherited ?? NOTHING_SUPPLIED;
     const supplied = input.sealedSecrets ? await this.#openSupplied(input.sealedSecrets, input.rawSdl) : NOTHING_SUPPLIED;
 
-    const errors = this.#mismatchesBetween(declarations, { supplied, inherited });
+    return { declarations, supplied, inherited, mismatches: this.#mismatchesBetween(declarations, { supplied, inherited }) };
+  }
+
+  #resultOf({ declarations, supplied, inherited, mismatches }: SdlSecretsIntake): ReceiveSdlSecretsResult {
+    const errors = [...mismatches.missing, ...mismatches.unreferenced];
 
     if (errors.length > 0) return { ok: false, value: errors };
 
@@ -231,16 +246,33 @@ export class SdlSecretsService {
   }
 
   /** Sets aside only a token sealed for a departed member, never one that failed to decrypt, and only for a replacement whose own values cover every reference. */
-  async openStoredForReplacement(stored: StoredSecretsOfDeployment, replacement: SdlSecretsRequest): Promise<SdlSecrets> {
+  async receiveReplacement(stored: StoredSecretsOfDeployment, replacement: SdlSecretsRequest): Promise<ReceivedReplacement> {
+    const opened = await this.#openStoredUnlessSealedForAnotherMember(stored);
+
+    if (opened.ok) return { held: opened.value, received: await this.receive({ ...replacement, inherited: opened.value }) };
+
+    return await this.#receiveOverUnavailableToken(stored, replacement, opened.error);
+  }
+
+  async #openStoredUnlessSealedForAnotherMember(stored: StoredSecretsOfDeployment): Promise<{ ok: true; value: SdlSecrets } | { ok: false; error: unknown }> {
     try {
-      return await this.openStored(stored);
+      return { ok: true, value: await this.openStored(stored) };
     } catch (error) {
-      if (!isSealedForAnotherMember(error) || !(await this.receive(replacement)).ok) throw error;
+      if (!isSealedForAnotherMember(error)) throw error;
 
-      this.#loggerService.info({ event: "SDL_SECRETS_UNAVAILABLE_TOKEN_SET_ASIDE", userId: stored.userId, dseq: stored.dseq });
-
-      return {};
+      return { ok: false, error };
     }
+  }
+
+  /** Only an uncovered reference keeps the refusal, so a supplied name the replacement no longer references still answers the 400 it would over a readable token. */
+  async #receiveOverUnavailableToken(stored: StoredSecretsOfDeployment, replacement: SdlSecretsRequest, refusal: unknown): Promise<ReceivedReplacement> {
+    const intake = await this.#intake(replacement);
+
+    if (intake.mismatches.missing.length > 0) throw refusal;
+
+    this.#loggerService.info({ event: "SDL_SECRETS_UNAVAILABLE_TOKEN_SET_ASIDE", userId: stored.userId, dseq: stored.dseq });
+
+    return { held: {}, received: this.#resultOf(intake) };
   }
 
   /** The key and binding come from the row rather than the token, whose header only says which kind of owner sealed it and is authenticated by the decrypt that follows. */
@@ -292,8 +324,9 @@ export class SdlSecretsService {
   }
 
   /** Both directions are reported from one pass, so a request that gets each side wrong hears about both at once. */
-  #mismatchesBetween(declarations: SdlReferenceDeclaration[], sets: ReceivedSdlSecretSets): ValidationError[] {
-    const errors: ValidationError[] = [];
+  #mismatchesBetween(declarations: SdlReferenceDeclaration[], sets: ReceivedSdlSecretSets): SdlSecretsMismatches {
+    const missing: ValidationError[] = [];
+    const unreferenced: ValidationError[] = [];
     const referenced = new Set<string>();
 
     for (const declaration of declarations) {
@@ -302,14 +335,14 @@ export class SdlSecretsService {
         continue;
       }
 
-      errors.push(missingSdlReferenceValueError(declaration));
+      missing.push(missingSdlReferenceValueError(declaration));
     }
 
     for (const name of Object.keys(sets.supplied)) {
-      if (!referenced.has(name)) errors.push(unreferencedNameError(name));
+      if (!referenced.has(name)) unreferenced.push(unreferencedNameError(name));
     }
 
-    return errors;
+    return { missing, unreferenced };
   }
 
   /** Every bound is measured as `jsonEncodedBytes`, matching the seal budget, because a raw-length check would let a payload pass here and die on the body limit. */
