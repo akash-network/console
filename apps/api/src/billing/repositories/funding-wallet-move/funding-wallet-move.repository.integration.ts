@@ -231,10 +231,11 @@ describe(FundingWalletMoveRepository.name, () => {
   });
 
   describe("findCompletedReads", () => {
-    it("pairs the chain address of each user moved off that funding wallet with the height its balance was read at", async () => {
+    it("pairs the chain address of each user moved off that funding wallet with the height its balance was read at and its revoke", async () => {
       const { repository, moveInput, from, otherSource } = await setup();
       const [first, second, unfinished, movedOffAnother] = await Promise.all([1, 2, 3, 4].map(async () => (await seedUserWithWallet()).wallet));
-      await repository.createUnlessStarted(moveInput({ userWalletId: first.id, status: "completed", readHeight: 5_000 }));
+      const revoked = await repository.createUnlessStarted(moveInput({ userWalletId: first.id, status: "revoking", readHeight: 5_000 }));
+      await repository.updateFrom(revoked.id, "revoking", { status: "completed", revokeTxHash: "REVOKE-HASH" });
       await repository.createUnlessStarted(moveInput({ userWalletId: second.id, status: "completed", readHeight: 7_000 }));
       await repository.createUnlessStarted(moveInput({ userWalletId: unfinished.id, status: "crediting", readHeight: 8_000 }));
       await repository.createUnlessStarted(
@@ -246,8 +247,8 @@ describe(FundingWalletMoveRepository.name, () => {
       expect(reads).toHaveLength(2);
       expect(reads).toEqual(
         expect.arrayContaining([
-          { owner: first.address, readHeight: 5_000 },
-          { owner: second.address, readHeight: 7_000 }
+          { owner: first.address, readHeight: 5_000, revokeTxHash: "REVOKE-HASH" },
+          { owner: second.address, readHeight: 7_000, revokeTxHash: null }
         ])
       );
     });

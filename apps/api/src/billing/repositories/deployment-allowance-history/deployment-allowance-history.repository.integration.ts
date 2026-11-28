@@ -88,6 +88,30 @@ describe(DeploymentAllowanceHistoryRepository.name, () => {
     });
   });
 
+  describe("findTxHeights", () => {
+    it("gives the height of each transaction the index holds and leaves out the ones it lacks", async () => {
+      const { repository, granter, owner, readHeight } = await setup();
+      const first = await indexRefundLeftWithGranter({ granter, owner, denom: DENOM, amount: 1, height: readHeight + 3 });
+      const second = await indexRefundLeftWithGranter({ granter, owner, denom: DENOM, amount: 1, height: readHeight + 9 });
+      const unknown = faker.string.hexadecimal({ length: 64, prefix: "" }).toUpperCase();
+
+      const heights = await repository.findTxHeights([first.txHash, second.txHash, unknown]);
+
+      expect(heights).toEqual(
+        new Map([
+          [first.txHash, readHeight + 3],
+          [second.txHash, readHeight + 9]
+        ])
+      );
+    });
+
+    it("gives none for an empty batch without querying", async () => {
+      const { repository } = await setup();
+
+      await expect(repository.findTxHeights([])).resolves.toEqual(new Map());
+    });
+  });
+
   describe("isTxProcessed", () => {
     it("holds for a transaction the indexer processed", async () => {
       const { repository, granter, owner, readHeight } = await setup();

@@ -224,8 +224,8 @@ describe(DeploymentRepository.name, () => {
       await createDeployment({ owner: createAkashAddress(), createdHeight: base, closedHeight: undefined });
 
       const count = await repository.countOpenCreatedAtOrBefore([
-        { owner: early, readHeight: base + 10 },
-        { owner: late, readHeight: base + 20 }
+        { owner: early, height: base + 10 },
+        { owner: late, height: base + 20 }
       ]);
 
       expect(count).toBe(3);
@@ -236,7 +236,7 @@ describe(DeploymentRepository.name, () => {
       const owner = createAkashAddress();
       await createDeployment({ owner, createdHeight: base + 1, closedHeight: undefined });
 
-      await expect(repository.countOpenCreatedAtOrBefore([{ owner, readHeight: base }])).resolves.toBe(0);
+      await expect(repository.countOpenCreatedAtOrBefore([{ owner, height: base }])).resolves.toBe(0);
     });
 
     it("counts none for an empty batch without querying", async () => {
