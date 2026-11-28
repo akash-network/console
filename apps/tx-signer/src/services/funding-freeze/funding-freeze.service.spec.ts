@@ -137,6 +137,25 @@ describe(FundingFreezeService.name, () => {
       await expect(service.assertFundingIsNotFrozen()).rejects.toThrow(UNREADABLE_MESSAGE);
     });
 
+    it("goes by the freeze a later read saw when an earlier read, begun before the freeze, answers after it", async () => {
+      const { service, repository } = setup({});
+      let answerEarlierRead!: (freeze: FundingFreeze | undefined) => void;
+      repository.findActive.mockReturnValueOnce(
+        new Promise(resolve => {
+          answerEarlierRead = resolve;
+        })
+      );
+      const earlierRequest = service.assertFundingIsNotFrozen();
+      repository.findActive.mockResolvedValueOnce(createFreeze());
+      await expect(service.assertFundingIsNotFrozen()).rejects.toThrow(FROZEN_MESSAGE);
+
+      answerEarlierRead(undefined);
+      await earlierRequest;
+      repository.findActive.mockRejectedValue(new Error("connection reset"));
+
+      await expect(service.assertFundingIsNotFrozen()).rejects.toThrow(FROZEN_MESSAGE);
+    });
+
     it("counts the minute from the latest read that worked", async () => {
       const { service, repository } = setup({ now: "2026-11-28T10:00:00.000Z" });
       await service.load();

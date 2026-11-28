@@ -80,7 +80,7 @@ export class FundingOutflowService {
   }
 
   async #readLimits(): Promise<FundingOutflowLimit[]> {
-    return this.#recentLimits.remember(await this.repository.findLimits());
+    return await this.#recentLimits.refresh(() => this.repository.findLimits());
   }
 
   #findExceededLimits(limits: readonly FundingOutflowLimit[], usageByDenom: ReadonlyMap<string, OutflowUsage>, walletAddress: string): LimitCheck[] {

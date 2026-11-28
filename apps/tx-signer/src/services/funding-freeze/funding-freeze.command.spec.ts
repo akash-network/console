@@ -99,6 +99,19 @@ describe(runFundingFreezeCommand.name, () => {
     expect(repository.liftActive).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["a word after lift", ["lift", "yes", "--by", "on-call"], "yes"],
+    ["a reason left unquoted", ["freeze", "--reason", "key", "compromised", "--by", "on-call"], "compromised"],
+    ["two words after status", ["status", "right", "now"], "right now"]
+  ])("refuses %s instead of dropping it, changing nothing", async (_case, args, unexpected) => {
+    const { repository } = setup({});
+
+    await expect(runFundingFreezeCommand(args, repository)).rejects.toThrow(`Unexpected "${unexpected}". Put a value with spaces in quotes.\nUsage:`);
+    expect(repository.findActive).not.toHaveBeenCalled();
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.liftActive).not.toHaveBeenCalled();
+  });
+
   it("refuses an option it does not know", async () => {
     const { repository } = setup({});
 

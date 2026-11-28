@@ -60,6 +60,6 @@ export class FundingFreezeService {
   }
 
   async #read(): Promise<FundingFreeze | undefined> {
-    return this.#recentFreeze.remember(await this.repository.findActive());
+    return await this.#recentFreeze.refresh(() => this.repository.findActive());
   }
 }

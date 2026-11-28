@@ -1,16 +1,24 @@
-/** Keeps the last value read from a store for a bounded time, so a failed read can fall back on it without trusting an old answer for long. */
+type Stored<T> = { value: T; sequence: number; readAtMs: number };
+
+/** Keeps the last answer read from a store for a bounded time, so a failed read can fall back on it without trusting an old answer for long. */
 export class RecentRead<T> {
-  #last: { value: T; readAtMs: number } | undefined;
+  #issuedReads = 0;
+  #last: Stored<T> | undefined;
 
   constructor(private readonly maxAgeMs: number) {}
 
-  remember(value: T): T {
-    this.#last = { value, readAtMs: Date.now() };
+  /** Overlapping reads can finish out of order, so an answer is kept only if no read issued after it has stored one, and it ages from when it was asked for. */
+  async refresh(read: () => Promise<T>): Promise<T> {
+    const sequence = ++this.#issuedReads;
+    const readAtMs = Date.now();
+    const value = await read();
+
+    if (!this.#last || sequence > this.#last.sequence) this.#last = { value, sequence, readAtMs };
 
     return value;
   }
 
-  /** Wrapped, because a remembered `undefined` is an answer and must stay distinct from having none. */
+  /** Wrapped, because a stored `undefined` is an answer and must stay distinct from having none. */
   recall(): { value: T } | undefined {
     const last = this.#last;
 

@@ -29,8 +29,9 @@ export async function runFundingOutflowCommand(args: readonly string[], reposito
       by: { type: "string" }
     }
   });
-  const [command] = positionals;
+  const [command, ...unexpected] = positionals;
 
+  if (unexpected.length > 0) throw new Error(`Unexpected "${unexpected.join(" ")}". Put a value with spaces in quotes.\n${USAGE}`);
   if (command === "status") return await describeOutflow(repository);
   if (command === "set-limit") return await setLimit(repository, values);
   if (command === "remove-limit") return await removeLimit(repository, values);

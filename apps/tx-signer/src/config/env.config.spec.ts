@@ -248,12 +248,27 @@ describe("envSchema", () => {
       expect(env.FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(5);
     });
 
+    it.each(["", "   "])("leaves the funding controls off for a database given as %j, as a chart writes a setting it leaves off", url => {
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_URL: url })).FUNDING_CONTROLS_POSTGRES_URL).toBeUndefined();
+    });
+
+    it("reads a database spread over several hosts", () => {
+      const url = "postgres://signer@db-1.internal:5432,db-2.internal:5432/signer_controls";
+
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_URL: url })).FUNDING_CONTROLS_POSTGRES_URL).toBe(url);
+    });
+
+    it.each(["", "  "])("allows five connections for a limit given as %j", limit => {
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: limit })).FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(5);
+    });
+
     it("reads a connection limit given as text", () => {
       expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "2" })).FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(2);
     });
 
     it.each([
-      ["a database that is not a URL", { FUNDING_CONTROLS_POSTGRES_URL: "signer_controls" }, "FUNDING_CONTROLS_POSTGRES_URL"],
+      ["a database that is not text", { FUNDING_CONTROLS_POSTGRES_URL: 5432 }, "FUNDING_CONTROLS_POSTGRES_URL"],
+      ["a connection limit that is no number", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "many" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"],
       ["no connection at all", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "0" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"],
       ["a fraction of a connection", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "1.5" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"]
     ])("rejects %s", (_case, overrides, path) => {

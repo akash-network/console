@@ -179,6 +179,19 @@ describe(runFundingOutflowCommand.name, () => {
     expect(repository.removeLimit).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["a word after remove-limit", ["remove-limit", "now", "--denom", "uact", "--scope", "total"], "now"],
+    ["an operator left unquoted", [...SET_TOTAL_LIMIT, "duty"], "duty"],
+    ["two words after status", ["status", "right", "now"], "right now"]
+  ])("refuses %s instead of dropping it, changing nothing", async (_case, args, unexpected) => {
+    const { repository } = setup();
+
+    await expect(runFundingOutflowCommand(args, repository)).rejects.toThrow(`Unexpected "${unexpected}". Put a value with spaces in quotes.\nUsage:`);
+    expect(repository.findLimits).not.toHaveBeenCalled();
+    expect(repository.setLimit).not.toHaveBeenCalled();
+    expect(repository.removeLimit).not.toHaveBeenCalled();
+  });
+
   function without(option: string) {
     const at = SET_TOTAL_LIMIT.indexOf(option);
 
