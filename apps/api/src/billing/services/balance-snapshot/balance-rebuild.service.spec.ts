@@ -144,8 +144,8 @@ describe(BalanceRebuildService.name, () => {
     balanceSnapshotRepository.findLatestComplete.mockResolvedValue(input.hasSnapshot === false ? undefined : snapshot);
     balanceSnapshotRepository.findByDay.mockResolvedValue(input.hasSnapshot === false ? undefined : snapshot);
     balanceSnapshotRepository.findGrantsOf.mockResolvedValue([
-      ...(input.otherDenomInSnapshot === undefined ? [] : [{ granter, grantee: user, denom: "uother", amount: input.otherDenomInSnapshot }]),
-      ...(input.inSnapshot === undefined ? [] : [{ granter, grantee: user, denom: DENOM, amount: input.inSnapshot }])
+      ...(input.inSnapshot === undefined ? [] : [{ granter, grantee: user, denom: DENOM, amount: input.inSnapshot }]),
+      ...(input.otherDenomInSnapshot === undefined ? [] : [{ granter, grantee: user, denom: "uother", amount: input.otherDenomInSnapshot }])
     ]);
     fundingWalletRegistry.getGranterAddressByWalletAddress.mockResolvedValue(input.currentGranter ?? granter);
     blockHttpService.getFreshCurrentHeight.mockResolvedValue(CURRENT_HEIGHT);
