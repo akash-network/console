@@ -1,9 +1,11 @@
+import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgGrantAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { Registry } from "@cosmjs/proto-signing";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { FundingFreezeService } from "@src/services/funding-freeze/funding-freeze.service";
 import type { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 import type { TxPolicyService } from "@src/services/tx-policy/tx-policy.service";
 import { TxController } from "./tx.controller";
@@ -146,6 +148,64 @@ describe(TxController.name, () => {
     expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
   });
 
+  describe("when funding may be frozen", () => {
+    it("asks whether funding is frozen before signing with a funding wallet, once the policy let the request through", async () => {
+      const { controller, txManagerService, txPolicyService, fundingFreezeService } = setup();
+
+      await controller.signWithFundingWallet({ data: { messages: [encodedMessage()] } });
+
+      const askedAt = fundingFreezeService.assertFundingIsNotFrozen.mock.invocationCallOrder[0];
+      expect(txPolicyService.assertSentToAnotherFundingWallet.mock.invocationCallOrder[0]).toBeLessThan(askedAt);
+      expect(askedAt).toBeLessThan(txManagerService.signAndBroadcastWithFundingWallet.mock.invocationCallOrder[0]);
+    });
+
+    it("signs nothing with a funding wallet while funding is frozen", async () => {
+      const { controller, txManagerService, fundingFreezeService } = setup();
+      fundingFreezeService.assertFundingIsNotFrozen.mockRejectedValue(new Error("Funding is frozen"));
+
+      await expect(controller.signWithFundingWallet({ data: { messages: [encodedMessage()] } })).rejects.toThrow("Funding is frozen");
+      expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
+    });
+
+    it("signs no deposit a user wallet draws from a grant while funding is frozen", async () => {
+      const { controller, txManagerService, fundingFreezeService, registry } = setup();
+      registry.decode.mockReturnValue(deploymentDepositing([Source.grant]));
+      fundingFreezeService.assertFundingIsNotFrozen.mockRejectedValue(new Error("Funding is frozen"));
+
+      await expect(controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } })).rejects.toThrow(
+        "Funding is frozen"
+      );
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("signs a deposit a user wallet draws from a grant while funding is open, having asked first", async () => {
+      const { controller, txManagerService, fundingFreezeService, registry } = setup();
+      registry.decode.mockReturnValue(deploymentDepositing([Source.grant]));
+
+      await controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } });
+
+      expect(fundingFreezeService.assertFundingIsNotFrozen.mock.invocationCallOrder[0]).toBeLessThan(
+        txManagerService.signAndBroadcastWithDerivedWallet.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("signs what a user wallet does without a funding wallet's coins without asking, so a freeze leaves it working", async () => {
+      const { controller, txManagerService, fundingFreezeService, registry } = setup();
+      fundingFreezeService.assertFundingIsNotFrozen.mockRejectedValue(new Error("Funding is frozen"));
+
+      await controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } });
+      registry.decode.mockReturnValue(deploymentDepositing([Source.balance]));
+      await controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } });
+
+      expect(fundingFreezeService.assertFundingIsNotFrozen).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  function deploymentDepositing(sources: Source[]) {
+    return MsgCreateDeployment.fromPartial({ deposit: { amount: { denom: "uact", amount: "5000000" }, sources } });
+  }
+
   function encodedMessage() {
     return { typeUrl: `/${MsgGrantAllowance.$type}`, value: Buffer.from([1, 2, 3]).toString("base64") } as const;
   }
@@ -171,12 +231,14 @@ describe(TxController.name, () => {
     });
     const txPolicyService = mock<TxPolicyService>();
     txPolicyService.resolveFundingSigner.mockReturnValue(fundingWalletAddress);
+    const fundingFreezeService = mock<FundingFreezeService>();
 
     return {
-      controller: new TxController(registry, txManagerService, txPolicyService),
+      controller: new TxController(registry, txManagerService, txPolicyService, fundingFreezeService),
       registry,
       txManagerService,
       txPolicyService,
+      fundingFreezeService,
       decodedMessage,
       fundingWalletAddress,
       secondFundingWalletAddress,

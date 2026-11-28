@@ -2,7 +2,9 @@ import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { inject, singleton } from "tsyringe";
 
 import type { SignAndBroadcastDerivedRequestInput, SignAndBroadcastFundingRequestInput, SignAndBroadcastResponseOutput } from "@src/http-schemas/tx.schema";
+import { readGrantFundedDeposits } from "@src/lib/grant-funded-deposit/grant-funded-deposit";
 import { InjectTypeRegistry } from "@src/providers/type-registry.provider";
+import { FundingFreezeService } from "@src/services/funding-freeze/funding-freeze.service";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 import { TxPolicyService } from "@src/services/tx-policy/tx-policy.service";
 
@@ -13,7 +15,8 @@ export class TxController {
   constructor(
     @InjectTypeRegistry() private readonly registry: Registry,
     @inject(TxManagerService) private readonly txManagerService: TxManagerService,
-    @inject(TxPolicyService) private readonly txPolicyService: TxPolicyService
+    @inject(TxPolicyService) private readonly txPolicyService: TxPolicyService,
+    @inject(FundingFreezeService) private readonly fundingFreezeService: FundingFreezeService
   ) {}
 
   async signWithFundingWallet({
@@ -29,6 +32,7 @@ export class TxController {
     this.txPolicyService.assertWithinGrantLimits(decoded);
     this.txPolicyService.assertGrantedToManagedWallet(decoded, granteeAddress);
     this.txPolicyService.assertSentToAnotherFundingWallet(decoded, fundingWalletAddresses);
+    await this.fundingFreezeService.assertFundingIsNotFrozen();
     const tx = await this.txManagerService.signAndBroadcastWithFundingWallet(fundingWalletAddress, decoded);
     return {
       data: {
@@ -49,6 +53,7 @@ export class TxController {
     ]);
     this.txPolicyService.assertActingOnBehalfOf(decoded, derivedWalletAddress);
     this.txPolicyService.assertFeeGranter(options?.fee.granter, fundingWalletAddresses);
+    if (readGrantFundedDeposits(decoded).length > 0) await this.fundingFreezeService.assertFundingIsNotFrozen();
     const tx = await this.txManagerService.signAndBroadcastWithDerivedWallet(derivationIndex, decoded, options, seedVersion);
     return {
       data: {

@@ -236,6 +236,49 @@ describe("envSchema", () => {
     }
   });
 
+  describe("funding controls database", () => {
+    it("leaves the funding controls off for a signer given no database", () => {
+      expect(envSchema.parse(setup()).FUNDING_CONTROLS_POSTGRES_URL).toBeUndefined();
+    });
+
+    it("reads the database the funding controls live in, with five connections unless told otherwise", () => {
+      const env = envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_URL: "postgres://signer@db.internal:5432/signer_controls" }));
+
+      expect(env.FUNDING_CONTROLS_POSTGRES_URL).toBe("postgres://signer@db.internal:5432/signer_controls");
+      expect(env.FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(5);
+    });
+
+    it.each(["", "   "])("leaves the funding controls off for a database given as %j, as a chart writes a setting it leaves off", url => {
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_URL: url })).FUNDING_CONTROLS_POSTGRES_URL).toBeUndefined();
+    });
+
+    it("reads a database spread over several hosts", () => {
+      const url = "postgres://signer@db-1.internal:5432,db-2.internal:5432/signer_controls";
+
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_URL: url })).FUNDING_CONTROLS_POSTGRES_URL).toBe(url);
+    });
+
+    it.each(["", "  "])("allows five connections for a limit given as %j", limit => {
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: limit })).FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(5);
+    });
+
+    it("reads a connection limit given as text", () => {
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "2" })).FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(2);
+    });
+
+    it.each([
+      ["a database that is not text", { FUNDING_CONTROLS_POSTGRES_URL: 5432 }, "FUNDING_CONTROLS_POSTGRES_URL"],
+      ["a connection limit that is no number", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "many" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"],
+      ["no connection at all", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "0" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"],
+      ["a fraction of a connection", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "1.5" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"]
+    ])("rejects %s", (_case, overrides, path) => {
+      const result = envSchema.safeParse(setup(overrides));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(expect.objectContaining({ path: [path] }));
+    });
+  });
+
   it("reads the workload's token from the directory the prod script allows by default", () => {
     expect(envSchema.parse(setup()).GCP_WORKLOAD_IDENTITY_TOKEN_FILE).toBe("/var/run/secrets/gcp-workload-identity/token");
   });

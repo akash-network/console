@@ -1,4 +1,4 @@
-import { applyDefaults } from "@akashnetwork/dev-config/tsup-plugins.ts";
+import { applyDefaults, copyDrizzlePlugin } from "@akashnetwork/dev-config/tsup-plugins.ts";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "tsup";
 
@@ -13,11 +13,14 @@ export default defineConfig(async overrideOptions =>
     prependEffectsToEntries: ["reflect-metadata", "@akashnetwork/env-loader"],
     entry: {
       server: "./src/server.ts",
+      "db-migrate": "./script/db-migrate.ts",
+      "funding-freeze": "./script/funding-freeze.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
     target: tsconfig.compilerOptions.target,
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],
+    plugins: [...(isProduction ? [copyDrizzlePlugin] : [])],
     onSuccess: overrideOptions.watch && !isProduction ? "npm run prod" : undefined,
     ...overrideOptions
   })
