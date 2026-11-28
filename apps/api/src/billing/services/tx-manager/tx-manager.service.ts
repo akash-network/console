@@ -10,14 +10,28 @@ import {
 } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 
-export type WalletFactory = (walletIndex?: number) => Wallet;
-type WalletVersionConfig = {
-  masterWallet: Wallet;
-  derivedWalletFactory: WalletFactory;
+export type WalletFactory = (walletIndex: number) => Wallet;
+type WalletVersion = "v1" | "v2";
+
+/** A wallet or factory missing here is a seed phrase this process does not hold, so the signer answers for it. */
+export type WalletResources = {
+  fundingWallet?: Wallet;
+  derivedWalletFactories: Partial<Record<WalletVersion, WalletFactory>>;
 };
 
-type WalletVersion = "v1" | "v2";
-type WalletResources = Record<WalletVersion, WalletVersionConfig>;
+type WalletSeedPhrases = { funding?: string; derivation: Partial<Record<WalletVersion, string>> };
+
+/** `new Wallet(undefined)` generates a random wallet, so a seed phrase that is not configured must never reach it. */
+export function createWalletResources({ funding, derivation }: WalletSeedPhrases): WalletResources {
+  const derivedWalletFactoryOf = (seedPhrase?: string): WalletFactory | undefined => {
+    return seedPhrase ? walletIndex => new Wallet(seedPhrase, walletIndex) : undefined;
+  };
+
+  return {
+    fundingWallet: funding ? new Wallet(funding) : undefined,
+    derivedWalletFactories: { v1: derivedWalletFactoryOf(derivation.v1), v2: derivedWalletFactoryOf(derivation.v2) }
+  };
+}
 
 const WALLET_RESOURCES: InjectionToken<WalletResources> = Symbol("WALLET_RESOURCES");
 
@@ -25,27 +39,13 @@ container.register(WALLET_RESOURCES, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(BillingConfigService);
 
-    const v1MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V1") ?? config.get("OLD_MASTER_WALLET_MNEMONIC"));
-    const v2MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V2") ?? config.get("FUNDING_WALLET_MNEMONIC"));
-
-    const v1DerivedWalletFactory: WalletFactory = (walletIndex?: number) => {
-      return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V1") ?? config.get("OLD_MASTER_WALLET_MNEMONIC"), walletIndex ?? 0);
-    };
-
-    const v2DerivedWalletFactory: WalletFactory = (walletIndex?: number) => {
-      return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V2") ?? config.get("DERIVATION_WALLET_MNEMONIC"), walletIndex ?? 0);
-    };
-
-    return {
-      v1: {
-        masterWallet: v1MasterWallet,
-        derivedWalletFactory: v1DerivedWalletFactory
-      },
-      v2: {
-        masterWallet: v2MasterWallet,
-        derivedWalletFactory: v2DerivedWalletFactory
+    return createWalletResources({
+      funding: config.get("FUNDING_WALLET_MNEMONIC_V2") ?? config.get("FUNDING_WALLET_MNEMONIC"),
+      derivation: {
+        v1: config.get("DERIVATION_WALLET_MNEMONIC_V1") ?? config.get("OLD_MASTER_WALLET_MNEMONIC"),
+        v2: config.get("DERIVATION_WALLET_MNEMONIC_V2") ?? config.get("DERIVATION_WALLET_MNEMONIC")
       }
-    };
+    });
   })
 });
 
@@ -57,6 +57,8 @@ type WalletOptions = {
 export class TxManagerService {
   readonly #DEFAULT_WALLET_VERSION: WalletVersion = "v2";
 
+  #fundingWalletAddressFromSigner?: Promise<string>;
+
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
@@ -67,31 +69,58 @@ export class TxManagerService {
     this.logger = createLogger({ context: TxManagerService.name });
   }
 
-  #getWalletResources(options?: WalletOptions): WalletVersionConfig {
-    const version = options?.walletVersion ?? this.#DEFAULT_WALLET_VERSION;
-    const { [version]: resources } = this.walletResources;
-    return resources;
+  /** Without the derivation seed nothing here can sign in a user wallet's name, and only the signer can. */
+  get holdsDerivationSeed(): boolean {
+    return !!this.walletResources.derivedWalletFactories[this.#DEFAULT_WALLET_VERSION];
   }
 
   async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[], options?: SignAndBroadcastFundingOptions) {
     return await this.externalSignerHttpSdkService.signAndBroadcastWithFundingWallet(messages, options);
   }
 
-  async getFundingWalletAddress() {
-    const { masterWallet } = this.#getWalletResources();
-    return await masterWallet.getFirstAddress();
+  async getFundingWalletAddress(): Promise<string> {
+    const { fundingWallet } = this.walletResources;
+
+    return fundingWallet ? await fundingWallet.getFirstAddress() : await this.#getFundingWalletAddressFromSigner();
+  }
+
+  async #getFundingWalletAddressFromSigner(): Promise<string> {
+    this.#fundingWalletAddressFromSigner ??= this.#askSignerForFundingWalletAddress();
+
+    try {
+      return await this.#fundingWalletAddressFromSigner;
+    } catch (error) {
+      this.#fundingWalletAddressFromSigner = undefined;
+      throw error;
+    }
+  }
+
+  async #askSignerForFundingWalletAddress(): Promise<string> {
+    const [seedPhraseWalletAddress] = await this.externalSignerHttpSdkService.getFundingWalletAddresses();
+
+    if (!seedPhraseWalletAddress) throw new Error("The signer named no funding wallet");
+
+    return seedPhraseWalletAddress;
   }
 
   async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
     return await this.externalSignerHttpSdkService.signAndBroadcastWithDerivedWallet(derivationIndex, messages, options);
   }
 
-  async getDerivedWalletAddress(index: number, options?: WalletOptions) {
-    return await this.getDerivedWallet(index, options).getFirstAddress();
+  async getDerivedWalletAddress(index: number, options?: WalletOptions): Promise<string> {
+    const version = options?.walletVersion ?? this.#DEFAULT_WALLET_VERSION;
+    const derivedWalletFactory = this.walletResources.derivedWalletFactories[version];
+
+    return derivedWalletFactory
+      ? await derivedWalletFactory(index).getFirstAddress()
+      : await this.externalSignerHttpSdkService.getDerivedWalletAddress(index, version);
   }
 
-  getDerivedWallet(index: number, options?: WalletOptions) {
-    const { derivedWalletFactory } = this.#getWalletResources(options);
+  getDerivedWallet(index: number): Wallet {
+    const derivedWalletFactory = this.walletResources.derivedWalletFactories[this.#DEFAULT_WALLET_VERSION];
+
+    if (!derivedWalletFactory) throw new Error("This process holds no derivation seed, so only the signer can sign for a user wallet");
+
     return derivedWalletFactory(index);
   }
 }

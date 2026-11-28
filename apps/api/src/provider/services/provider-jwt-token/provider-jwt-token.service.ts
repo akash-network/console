@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 
+import { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
 import type { JWTModule } from "@src/provider/providers/jwt.provider";
@@ -28,10 +29,15 @@ type AccessScope = Extract<Extract<JwtTokenPayload["leases"], { access: "granula
 export class ProviderJwtTokenService {
   constructor(
     @inject(JWT_MODULE) private readonly jwtModule: JWTModule,
-    private readonly txManagerService: TxManagerService
+    private readonly txManagerService: TxManagerService,
+    private readonly externalSignerHttpSdkService: ExternalSignerHttpSdkService
   ) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
+    if (!this.txManagerService.holdsDerivationSeed) {
+      return await this.externalSignerHttpSdkService.issueProviderToken({ derivationIndex: walletId, leases, ttl });
+    }
+
     const { jwtTokenManager, address } = await this.getJwtToken(walletId);
     const now = Math.floor(Date.now() / 1000);
     const payload: JwtTokenPayload = {
