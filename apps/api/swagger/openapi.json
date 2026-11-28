@@ -33736,7 +33736,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d{1,20}$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Only the activities of the deployment with this sequence number."
             },
             "required": false,

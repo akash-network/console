@@ -86,7 +86,7 @@ describe("Organization activities", () => {
 
     it("keeps to the deployment and type it is asked about", async () => {
       const { listActivities, team, owner } = await setupCaller({ role: "admin" });
-      const dseq = faker.string.numeric(8);
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const created = await seedOrganizationActivity({
         organizationId: team.id,
         actorUserId: owner.id,
@@ -96,15 +96,20 @@ describe("Organization activities", () => {
       const updated = await seedOrganizationActivity({ organizationId: team.id, type: "deployment_updated", payload: { dseq, name: "web" } });
       await seedOrganizationActivity({ organizationId: team.id, type: "deployment_created", payload: { dseq: `${dseq}0`, name: "api" } });
 
-      const [ofDeployment, creation] = await Promise.all([listActivities({ dseq }), listActivities({ dseq, type: "deployment_created" })]);
+      const [ofDeployment, ofPaddedDseq, creation] = await Promise.all([
+        listActivities({ dseq }),
+        listActivities({ dseq: `00${dseq}` }),
+        listActivities({ dseq, type: "deployment_created" })
+      ]);
 
       expect(idsOf(await ofDeployment.json()).sort()).toEqual([created.id, updated.id].sort());
+      expect(idsOf(await ofPaddedDseq.json()).sort()).toEqual([created.id, updated.id].sort());
       expect(((await creation.json()) as ActivityPage).data).toEqual([
         expect.objectContaining({ id: created.id, actor: { id: owner.id, username: owner.username } })
       ]);
     });
 
-    it.each<Record<string, string>>([{ dseq: "web" }, { type: "lease_created" }])(
+    it.each<Record<string, string>>([{ dseq: "web" }, { dseq: "0" }, { type: "lease_created" }])(
       "refuses a filter that names no deployment or activity type: %o",
       async query => {
         const { listActivities } = await setupCaller({ role: "owner" });

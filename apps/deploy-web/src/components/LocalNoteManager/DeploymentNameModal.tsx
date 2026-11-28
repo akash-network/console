@@ -84,6 +84,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
           queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: renamedDseq }) });
           queryClient.invalidateQueries({ queryKey: api.v1.listDeploymentNames.getKey() });
           queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
+          queryClient.invalidateQueries({ queryKey: api.v1.listOrganizationActivities.getKey() });
           enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
           onSaved(renamedDseq);
         },
