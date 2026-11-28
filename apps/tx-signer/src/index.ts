@@ -7,7 +7,7 @@ import { otel } from "@hono/otel";
 import { Hono } from "hono";
 import { container } from "tsyringe";
 
-import { healthzRouter, txRouter } from "@src/routes";
+import { healthzRouter, txRouter, walletRouter } from "@src/routes";
 import { ApiKeyAuthInterceptor } from "@src/services/api-key-auth/api-key-auth.interceptor";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-error-handler.service";
@@ -18,8 +18,10 @@ export const app = new Hono<AppEnv>();
 app.use("*", otel());
 app.use(container.resolve(HttpLoggerInterceptor).intercept());
 app.use("/v1/tx/*", container.resolve(ApiKeyAuthInterceptor).intercept());
+app.use("/v1/wallets/*", container.resolve(ApiKeyAuthInterceptor).intercept());
 app.route("/", healthzRouter);
 app.route("/", txRouter);
+app.route("/", walletRouter);
 app.onError(container.resolve(HonoErrorHandlerService).handle);
 
 export async function bootstrap(): Promise<void> {

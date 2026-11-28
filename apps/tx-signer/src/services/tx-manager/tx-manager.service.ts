@@ -1,5 +1,6 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { IndexedTx } from "@cosmjs/stargate";
+import createError from "http-errors";
 import { container, inject, type InjectionToken, instancePerContainerCachingFactory, singleton } from "tsyringe";
 
 import { KmsSigningKey } from "@src/lib/kms-wallet/kms-signing-key";
@@ -42,7 +43,9 @@ type WalletVersionConfig = {
 };
 
 type WalletVersion = "v2";
-type WalletResources = Record<WalletVersion, WalletVersionConfig>;
+type WalletResources = Record<WalletVersion, WalletVersionConfig> & { v1DerivedWalletFactory?: WalletFactory };
+
+export type DerivedWalletVersion = "v1" | "v2";
 
 const WALLET_RESOURCES: InjectionToken<WalletResources> = Symbol("WALLET_RESOURCES");
 
@@ -57,6 +60,7 @@ container.register(WALLET_RESOURCES, {
     const v2DerivedWalletFactory: WalletFactory = (walletIndex?: number) => {
       return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V2"), walletIndex ?? 0);
     };
+    const v1DerivationMnemonic = config.get("DERIVATION_WALLET_MNEMONIC_V1");
 
     return {
       v2: {
@@ -65,7 +69,8 @@ container.register(WALLET_RESOURCES, {
           ...kmsWallets.map(wallet => ({ wallet, signingClient: signingClientFactory(wallet, "KMS_FUNDING_SIGNING_CLIENT") }))
         ],
         derivedWalletFactory: v2DerivedWalletFactory
-      }
+      },
+      v1DerivedWalletFactory: v1DerivationMnemonic ? (walletIndex?: number) => new Wallet(v1DerivationMnemonic, walletIndex ?? 0) : undefined
     };
   })
 });
@@ -111,8 +116,16 @@ export class TxManagerService {
     return await client.signAndBroadcast(messages, options);
   }
 
-  async getDerivedWalletAddress(index: number): Promise<string> {
-    return await this.getDerivedWallet(index).getFirstAddress();
+  async getDerivedWalletAddress(index: number, version: DerivedWalletVersion = "v2"): Promise<string> {
+    return await (version === "v1" ? this.#getV1DerivedWallet(index) : this.getDerivedWallet(index)).getFirstAddress();
+  }
+
+  #getV1DerivedWallet(index: number): Wallet {
+    const { v1DerivedWalletFactory } = this.walletResources;
+
+    if (!v1DerivedWalletFactory) throw createError(501, "This signer holds no seed for the first generation of user wallets");
+
+    return v1DerivedWalletFactory(index);
   }
 
   #getClient(derivationIndex: number): SigningClientService {
