@@ -126,12 +126,25 @@ describe(TxManagerService.name, () => {
       await expect(service.getSeedVersion(12)).resolves.toBe("v3");
     });
 
-    it("fails for a wallet that does not exist, and looks again the next time", async () => {
-      const { service, userWalletRepository } = setup();
+    it("refuses a wallet that has no row instead of assuming a seed for it, and reads again the next time", async () => {
+      const { service, userWalletRepository } = setup({ seedVersion: "v3" });
       userWalletRepository.findSeedVersionById.mockResolvedValueOnce(undefined);
 
       await expect(service.getSeedVersion(11)).rejects.toThrow("Wallet 11 does not exist, so the seed it was derived from is unknown");
-      await expect(service.getSeedVersion(11)).resolves.toBe("v2");
+      await expect(service.getSeedVersion(11)).resolves.toBe("v3");
+    });
+
+    it("signs nothing and asks the signer for nothing in the name of a wallet that has no row", async () => {
+      const { service, userWalletRepository, externalSignerHttpSdkService } = setup();
+      userWalletRepository.findSeedVersionById.mockResolvedValue(undefined);
+
+      await expect(service.signAndBroadcastWithDerivedWallet(11, [])).rejects.toThrow("Wallet 11 does not exist");
+      await expect(service.signAndBroadcastWithFundingWallet([], { granteeDerivationIndex: 11 })).rejects.toThrow("Wallet 11 does not exist");
+      await expect(service.getDerivedWalletAddress(11)).rejects.toThrow("Wallet 11 does not exist");
+
+      expect(externalSignerHttpSdkService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+      expect(externalSignerHttpSdkService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
+      expect(externalSignerHttpSdkService.getDerivedWalletAddress).not.toHaveBeenCalled();
     });
   });
 

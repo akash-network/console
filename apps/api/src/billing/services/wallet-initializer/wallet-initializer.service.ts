@@ -86,7 +86,11 @@ export class WalletInitializerService {
     if (lockReason) return { wallet: await wallets.activateLockedForAbuse(userWallet.id, lockReason), isNew: false };
 
     const deploymentLimit = await this.referralService.getTrialDeploymentLimit(user.id);
-    const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id, deploymentLimit });
+    const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, {
+      addressIndex: userWallet.id,
+      seedVersion: lockedWallet.seedVersion,
+      deploymentLimit
+    });
 
     if (deploymentLimit !== undefined) {
       await this.referralService.recordTrialGranted(user.id, deploymentLimit);

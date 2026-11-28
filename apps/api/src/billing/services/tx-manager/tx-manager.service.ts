@@ -79,7 +79,7 @@ export class TxManagerService {
     return !!this.walletResources.derivedWalletFactories[seedVersion];
   }
 
-  /** The seed version the wallet row records, which is the wallet's derivation index together with its id. */
+  /** Refuses a wallet with no row rather than assume a seed for it, since a guessed seed would name another wallet to the signer. */
   async getSeedVersion(walletId: number): Promise<string> {
     const cacheKey = String(walletId);
     const remembered = this.#seedVersionsByWalletId.getFromCache<string>(cacheKey);

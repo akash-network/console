@@ -28,9 +28,9 @@ describe(ManagedUserWalletService.name, () => {
       rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue(feeGrantMsg);
       rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(depositGrantMsg);
 
-      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex });
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex, seedVersion: "v3" });
 
-      expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(addressIndex);
+      expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledExactlyOnceWith(addressIndex, { walletVersion: "v3" });
       expect(result.address).toBe(address);
       expect(signer.executeFundingTx).toHaveBeenCalledWith([feeGrantMsg], { granteeDerivationIndex: addressIndex });
       expect(signer.executeFundingTx).toHaveBeenCalledWith([depositGrantMsg], { granteeDerivationIndex: addressIndex });
@@ -150,7 +150,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes the configured trial deployment limit when no explicit limit is given", async () => {
       const { service, signer, config, rpcMessageService } = setup();
 
-      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1 });
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1, seedVersion: "v2" });
 
       expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT }));
       expect(result.limits.deployment).toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
@@ -159,7 +159,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes the explicit deployment limit instead of the configured trial amount", async () => {
       const { service, signer, config, rpcMessageService } = setup();
 
-      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1, deploymentLimit: 5_000_000 });
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1, seedVersion: "v2", deploymentLimit: 5_000_000 });
 
       expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: 5_000_000 }));
       expect(result.limits.deployment).toBe(5_000_000);

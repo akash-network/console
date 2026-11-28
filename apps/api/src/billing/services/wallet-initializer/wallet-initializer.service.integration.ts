@@ -153,7 +153,7 @@ describe(WalletInitializerService.name, () => {
       });
 
       expect(grantTrial).toHaveBeenCalledTimes(1);
-      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id, seedVersion: "v2" });
       expect(await findWallets(eq(resolveTable("UserWallets").id, wallet.id))).toEqual([
         expect.objectContaining({
           organizationId: personalOrganization.id,
