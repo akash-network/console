@@ -87,3 +87,31 @@ export const FundingWalletMoves = pgTable(
     sourceStatusIdx: index("funding_wallet_moves_source_status_idx").on(table.fromFundingWalletId, table.status)
   })
 );
+
+export const fundingWalletRefundStatusEnum = pgEnum("funding_wallet_refund_status", ["pending", "crediting", "credited", "failed"]);
+
+export type FundingWalletRefundStatus = (typeof fundingWalletRefundStatusEnum.enumValues)[number];
+
+/** Escrow a closing deployment returned to a funding wallet after its user moved off it; one row per close message, so each is credited once. */
+export const FundingWalletRefunds = pgTable(
+  "funding_wallet_refunds",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .notNull()
+      .default(sql`uuid_generate_v4()`),
+    moveId: uuid("move_id")
+      .references(() => FundingWalletMoves.id)
+      .notNull(),
+    txHash: varchar("tx_hash", { length: 64 }).notNull(),
+    msgIndex: integer("msg_index").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    status: fundingWalletRefundStatusEnum("status").notNull(),
+    failure: text("failure"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  table => ({
+    oneRowPerCloseMessage: uniqueIndex("funding_wallet_refunds_move_message_unique").on(table.moveId, table.txHash, table.msgIndex)
+  })
+);

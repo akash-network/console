@@ -8,11 +8,12 @@ import { faker } from "@faker-js/faker";
 import { createAkashAddress } from "./akash-address.seeder";
 import { createAkashBlock } from "./akash-block.seeder";
 import { createAkashMessage } from "./akash-message.seeder";
+import { createDeployment } from "./deployment.seeder";
 import { createTransaction } from "./transaction.seeder";
 
 const DEPOSIT_GRANT_MSG_TYPE_URL = `/${MsgAccountDeposit.$type}`;
 
-type IndexedAt = { height: number; txIndex?: number; at?: Date; hash?: string; hasProcessingError?: boolean };
+type IndexedAt = { height: number; txIndex?: number; at?: Date; hash?: string; hasProcessingError?: boolean; isProcessed?: boolean };
 
 type IndexedEvent = { type: string; attributes: [string, string][] };
 
@@ -105,6 +106,62 @@ export async function indexGrantRefund({
   ]);
 }
 
+/** A closing deployment of the owner whose escrow returned `amount` of the granter's deposit when no grant was left to take it back, unless `isGrantSavedAgain`. */
+export async function indexRefundLeftWithGranter({
+  granter,
+  owner,
+  denom,
+  amount,
+  isGrantSavedAgain = false,
+  isTiedToDeployment = true,
+  msgIndex = 0,
+  returnedAtMsgIndex = msgIndex,
+  ...at
+}: IndexedAt & {
+  granter: string;
+  owner: string;
+  denom: string;
+  amount: number;
+  isGrantSavedAgain?: boolean;
+  isTiedToDeployment?: boolean;
+  msgIndex?: number;
+  returnedAtMsgIndex?: number;
+}) {
+  const deployment = await createDeployment({ owner, createdHeight: 1, closedHeight: at.height });
+  const escrowModule = createAkashAddress();
+  const txHash = await indexTx(
+    at,
+    {
+      type: `/${MsgCloseDeployment.$type}`,
+      data: new Uint8Array([1]),
+      index: msgIndex,
+      relatedDeploymentId: isTiedToDeployment ? deployment.id : undefined
+    },
+    [
+      feePaidBy(granter),
+      {
+        type: "coin_spent",
+        attributes: [
+          ["spender", escrowModule],
+          ["amount", `${amount}${denom}`],
+          ["msg_index", String(returnedAtMsgIndex)]
+        ]
+      },
+      {
+        type: "coin_received",
+        attributes: [
+          ["receiver", granter],
+          ["amount", `${amount}${denom}`],
+          ["msg_index", String(returnedAtMsgIndex)]
+        ]
+      },
+      ...(isGrantSavedAgain ? [grantEvent("EventGrant", { granter, grantee: owner }, msgIndex)] : [])
+    ]
+  );
+
+  return { txHash, dseq: deployment.dseq };
+}
+
 /** A deposit the grantee paid from its own balance, which leaves the granter's grant alone. */
 export async function indexBalanceFundedDeposit({ grantee, denom, amount, ...at }: IndexedAt & { grantee: string; denom: string; amount: number }) {
   return await indexTx(at, { type: DEPOSIT_GRANT_MSG_TYPE_URL, data: new Uint8Array([1]) }, [
@@ -147,26 +204,40 @@ function feePaidBy(payer: string): IndexedEvent {
   };
 }
 
-function grantEvent(name: "EventGrant" | "EventRevoke", { granter, grantee }: { granter: string; grantee: string }): IndexedEvent {
+function grantEvent(name: "EventGrant" | "EventRevoke", { granter, grantee }: { granter: string; grantee: string }, msgIndex = 0): IndexedEvent {
   return {
     type: `cosmos.authz.v1beta1.${name}`,
     attributes: [
       ["grantee", JSON.stringify(grantee)],
       ["granter", JSON.stringify(granter)],
       ["msg_type_url", JSON.stringify(DEPOSIT_GRANT_MSG_TYPE_URL)],
-      ["msg_index", "0"]
+      ["msg_index", String(msgIndex)]
     ]
   };
 }
 
 async function indexTx(
-  { height, txIndex = 0, at, hash = faker.string.hexadecimal({ length: 64, prefix: "" }).toUpperCase(), hasProcessingError = false }: IndexedAt,
-  message: { type: string; data: Uint8Array },
+  {
+    height,
+    txIndex = 0,
+    at,
+    hash = faker.string.hexadecimal({ length: 64, prefix: "" }).toUpperCase(),
+    hasProcessingError = false,
+    isProcessed = true
+  }: IndexedAt,
+  message: { type: string; data: Uint8Array; index?: number; relatedDeploymentId?: string },
   events: IndexedEvent[]
 ) {
   await indexBlock(height, at);
-  const transaction = await createTransaction({ height, index: txIndex, hash, hasProcessingError });
-  await createAkashMessage({ txId: transaction.id, height, index: 0, type: message.type, data: Buffer.from(message.data) });
+  const transaction = await createTransaction({ height, index: txIndex, hash, hasProcessingError, isProcessed });
+  await createAkashMessage({
+    txId: transaction.id,
+    height,
+    index: message.index ?? 0,
+    type: message.type,
+    data: Buffer.from(message.data),
+    relatedDeploymentId: message.relatedDeploymentId
+  });
 
   for (const [index, event] of events.entries()) {
     const { id } = await TransactionEvent.create({ id: faker.string.uuid(), height, txId: transaction.id, index, type: event.type });

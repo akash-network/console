@@ -11,6 +11,7 @@ import { MoveUserToActiveFundingWalletHandler } from "@src/billing/services/fund
 import { GpuWinBackCheckHandler } from "@src/billing/services/gpu-win-back/gpu-win-back-check.handler";
 import { ReconcileDeploymentAllowanceHandler } from "@src/billing/services/reconcile-deployment-allowance/reconcile-deployment-allowance.handler";
 import { ReconcileDeploymentDepositHandler } from "@src/billing/services/reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
+import { CreditReturnedEscrowHandler } from "@src/billing/services/returned-escrow/credit-returned-escrow.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import { WalletCreditsExhaustedCheckHandler } from "@src/billing/services/wallet-credits-exhausted-check/wallet-credits-exhausted-check.handler";
 import { WalletCreditsLowCheckHandler } from "@src/billing/services/wallet-credits-low-check/wallet-credits-low-check.handler";
@@ -141,6 +142,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReconcileDeploymentDepositHandler),
     container.resolve(ReconcileDeploymentAllowanceHandler),
     container.resolve(MoveUserToActiveFundingWalletHandler),
+    container.resolve(CreditReturnedEscrowHandler),
     container.resolve(ProjectBudgetAlertHandler),
     container.resolve(ProbeTrialDeploymentHandler),
     container.resolve(DetectLeaseGpusHandler),

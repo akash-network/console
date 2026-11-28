@@ -27,6 +27,7 @@ import { type UserWalletOutput, UserWalletRepository } from "@src/billing/reposi
 import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { ReturnedEscrowQueueService } from "@src/billing/services/returned-escrow/returned-escrow-queue.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type WalletReloadImmediateInput, WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -111,6 +112,7 @@ export class ManagedSignerService {
     private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
     private readonly depositLedger: DeploymentDepositLedgerService,
     private readonly accountStatusGuard: AccountStatusGuard,
+    private readonly returnedEscrowQueue: ReturnedEscrowQueueService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -132,6 +134,7 @@ export class ManagedSignerService {
     }
 
     await this.depositLedger.recordLanded(deposits, tx);
+    await this.#queueReturnedEscrowCreditOnClose(walletIndex, messages, tx);
 
     return tx;
   }
@@ -381,6 +384,15 @@ export class ManagedSignerService {
     } catch (error) {
       this.logger.error({ event: "CREDITS_LOW_CHECK_ON_CLOSE_SCHEDULE_FAILED", walletId: userWallet.id, error });
     }
+  }
+
+  /** The escrow a close returns goes to the funding wallet that paid it, which credits nobody once its user has moved to another one. */
+  async #queueReturnedEscrowCreditOnClose(userWalletId: number, messages: readonly EncodeObject[], tx: { code: number; hash: string }) {
+    if (tx.code !== COSMOS_TX_CODE_OK || !messages.some(message => message.typeUrl.endsWith(".MsgCloseDeployment"))) {
+      return;
+    }
+
+    await this.returnedEscrowQueue.queueAfterClose(userWalletId, tx.hash);
   }
 
   #hasSpendingTx(messages: EncodeObject[]): boolean {
