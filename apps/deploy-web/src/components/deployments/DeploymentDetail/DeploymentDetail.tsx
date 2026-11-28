@@ -37,6 +37,7 @@ import { DeploymentLeaseShell } from "../DeploymentLeaseShell";
 import { DeploymentLogs } from "../DeploymentLogs";
 import { ManifestUpdate } from "../ManifestUpdate/ManifestUpdate";
 import { ReclamationBanner } from "../ReclamationBanner/ReclamationBanner";
+import { DeploymentActivityFeed } from "./DeploymentActivityFeed/DeploymentActivityFeed";
 import { DeploymentGettingStarted } from "./DeploymentGettingStarted/DeploymentGettingStarted";
 import { DeploymentLaunchState } from "./DeploymentLaunchState/DeploymentLaunchState";
 import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
@@ -73,6 +74,7 @@ export const DEPENDENCIES = {
   DeploymentGettingStarted,
   DeploymentLaunchState,
   DeploymentPlacements,
+  DeploymentActivityFeed,
   DeploymentLogs,
   DeploymentLeaseShell,
   ManifestUpdate,
@@ -338,6 +340,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                       />
                     </>
                   ))}
+
+                {activeTab === "DETAILS" && isProjectsUiEnabled && <d.DeploymentActivityFeed dseq={dseq} className="mt-7" />}
 
                 {activeTab === "TEMPLATE" && template && <d.DeploymentTemplateGuide template={template} />}
 

@@ -121,6 +121,15 @@ describe(OrganizationActivityService.name, () => {
       });
     });
 
+    it("narrows the page to the deployment and type it is asked about", async () => {
+      const { service, organizationActivityRepository } = setup();
+      const dseq = faker.string.numeric(8);
+
+      await service.list({ limit: 1, dseq, type: "deployment_created" });
+
+      expect(organizationActivityRepository.findPage).toHaveBeenCalledWith({ limit: 2, after: undefined, dseq, type: "deployment_created" });
+    });
+
     it("has no next page once every activity fits", async () => {
       const activities = [createOrganizationActivity(), createOrganizationActivity()];
       const { service } = setup({ activities });

@@ -21451,6 +21451,41 @@ services:
           },
           {
             "in": "query",
+            "name": "dseq",
+            "required": false,
+            "schema": {
+              "description": "Only the activities of the deployment with this sequence number.",
+              "pattern": "^\\d{1,20}$",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "description": "Only the activities of this type.",
+              "enum": [
+                "organization_created",
+                "project_created",
+                "member_invited",
+                "member_joined",
+                "deployment_created",
+                "deployment_closed",
+                "deployment_moved",
+                "member_granted",
+                "member_revoked",
+                "member_updated",
+                "organization_renamed",
+                "deployment_updated",
+                "deployment_renamed",
+                "invitation_declined",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {

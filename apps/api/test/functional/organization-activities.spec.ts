@@ -84,6 +84,37 @@ describe("Organization activities", () => {
       expect(idsOf(await response.json())).toEqual([inProject.id]);
     });
 
+    it("keeps to the deployment and type it is asked about", async () => {
+      const { listActivities, team, owner } = await setupCaller({ role: "admin" });
+      const dseq = faker.string.numeric(8);
+      const created = await seedOrganizationActivity({
+        organizationId: team.id,
+        actorUserId: owner.id,
+        type: "deployment_created",
+        payload: { dseq, name: "web" }
+      });
+      const updated = await seedOrganizationActivity({ organizationId: team.id, type: "deployment_updated", payload: { dseq, name: "web" } });
+      await seedOrganizationActivity({ organizationId: team.id, type: "deployment_created", payload: { dseq: `${dseq}0`, name: "api" } });
+
+      const [ofDeployment, creation] = await Promise.all([listActivities({ dseq }), listActivities({ dseq, type: "deployment_created" })]);
+
+      expect(idsOf(await ofDeployment.json()).sort()).toEqual([created.id, updated.id].sort());
+      expect(((await creation.json()) as ActivityPage).data).toEqual([
+        expect.objectContaining({ id: created.id, actor: { id: owner.id, username: owner.username } })
+      ]);
+    });
+
+    it.each<Record<string, string>>([{ dseq: "web" }, { type: "lease_created" }])(
+      "refuses a filter that names no deployment or activity type: %o",
+      async query => {
+        const { listActivities } = await setupCaller({ role: "owner" });
+
+        const response = await listActivities(query);
+
+        expect(response.status).toBe(400);
+      }
+    );
+
     it.each(["member", "viewer"] as const)("shows a %s the activities of its granted projects and of the whole organization only", async role => {
       const { listActivities, team, user } = await setupCaller({ role });
       const granted = await seedProject({ organizationId: team.id });

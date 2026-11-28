@@ -284,6 +284,25 @@ describe("DeploymentDetail", () => {
     expect(useDeploymentLocationQuery).toHaveBeenCalledWith("1786440078202", { enabled: false });
   });
 
+  it("shows the deployment's activity on the Details tab", () => {
+    const { DeploymentActivityFeed } = setup();
+
+    expect(DeploymentActivityFeed.mock.lastCall?.[0]).toEqual(expect.objectContaining({ dseq: "1786440078202" }));
+  });
+
+  it("shows the deployment's activity only while projects are shown", () => {
+    const { DeploymentActivityFeed } = setup({ isProjectsUiEnabled: false });
+
+    expect(DeploymentActivityFeed).not.toHaveBeenCalled();
+  });
+
+  it("shows the deployment's activity on the Details tab only", () => {
+    setup({ tab: "SETTINGS" });
+
+    expect(screen.getByText("settings")).toBeInTheDocument();
+    expect(screen.queryByText("activity")).not.toBeInTheDocument();
+  });
+
   it("withholds redeploy from the Update tab when neither source holds a definition", () => {
     const { DeploymentUpdate } = setup({ tab: "UPDATE", definition: { sdl: undefined, source: "absent" } });
 
@@ -902,6 +921,7 @@ describe("DeploymentDetail", () => {
     const ReclamationBanner = vi.fn(() => <div>reclamation-banner</div>);
     const DeploymentPlacements = vi.fn<(props: DeploymentPlacementsProps) => ReactElement>(() => <div>placements</div>);
     const DeploymentGettingStarted = vi.fn<(props: DeploymentGettingStartedProps) => ReactElement>(() => <div>getting-started</div>);
+    const DeploymentActivityFeed = vi.fn<typeof DEPENDENCIES.DeploymentActivityFeed>(() => <div>activity</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
     const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void; onRedeploy?: () => void }) => (
@@ -969,6 +989,7 @@ describe("DeploymentDetail", () => {
       ReclamationBanner,
       DeploymentPlacements,
       DeploymentGettingStarted,
+      DeploymentActivityFeed,
       DeploymentLogs,
       DeploymentLeaseShell,
       ManifestUpdate,
@@ -1002,6 +1023,7 @@ describe("DeploymentDetail", () => {
       DeploymentDetailHeader,
       DeploymentPlacements,
       DeploymentGettingStarted,
+      DeploymentActivityFeed,
       DeploymentLaunchState,
       DeploymentTemplateGuide,
       DeploymentOutcomePrompt,

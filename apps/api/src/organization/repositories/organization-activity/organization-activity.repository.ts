@@ -15,6 +15,8 @@ export type OrganizationActivityOutput = Table["$inferSelect"];
 
 export type OrganizationActivityWithActor = OrganizationActivityOutput & { actor: { id: string; username: string | null } | null };
 
+export type OrganizationActivityFilter = { projectId?: string; dseq?: string; type?: OrganizationActivityOutput["type"] };
+
 @singleton()
 export class OrganizationActivityRepository extends OrgScopedRepository<Table, OrganizationActivityInput, OrganizationActivityOutput> {
   constructor(
@@ -30,12 +32,16 @@ export class OrganizationActivityRepository extends OrgScopedRepository<Table, O
     return new OrganizationActivityRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
-  async findPage({ limit, after, projectId }: { limit: number; after?: ActivityPosition; projectId?: string }): Promise<OrganizationActivityWithActor[]> {
+  async findPage({
+    limit,
+    after,
+    ...filter
+  }: { limit: number; after?: ActivityPosition } & OrganizationActivityFilter): Promise<OrganizationActivityWithActor[]> {
     const rows = await this.cursor
       .select({ activity: this.table, actor: { id: Users.id, username: Users.username } })
       .from(this.table)
       .leftJoin(Users, eq(Users.id, this.table.actorUserId))
-      .where(this.whereAccessibleBy(and(projectId ? eq(this.table.projectId, projectId) : undefined, after ? this.#isOlderThan(after) : undefined)))
+      .where(this.whereAccessibleBy(and(this.#matches(filter), after ? this.#isOlderThan(after) : undefined)))
       .orderBy(desc(this.table.createdAt), desc(this.table.id))
       .limit(limit);
 
@@ -80,6 +86,14 @@ export class OrganizationActivityRepository extends OrgScopedRepository<Table, O
           and(inArray(this.table.type, ["member_granted", "member_revoked", "member_updated"]), sql`${this.table.payload} ->> 'userId' = ${userId}`)
         )
       );
+  }
+
+  #matches({ projectId, dseq, type }: OrganizationActivityFilter) {
+    return and(
+      projectId ? eq(this.table.projectId, projectId) : undefined,
+      dseq ? sql`${this.table.payload} ->> 'dseq' = ${dseq}` : undefined,
+      type ? eq(this.table.type, type) : undefined
+    );
   }
 
   #isOlderThan({ createdAt, id }: ActivityPosition) {

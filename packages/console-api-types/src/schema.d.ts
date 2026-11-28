@@ -19200,6 +19200,22 @@ export interface operations {
     parameters: {
       query?: {
         projectId?: string;
+        dseq?: string;
+        type?:
+          | "organization_created"
+          | "project_created"
+          | "member_invited"
+          | "member_joined"
+          | "deployment_created"
+          | "deployment_closed"
+          | "deployment_moved"
+          | "member_granted"
+          | "member_revoked"
+          | "member_updated"
+          | "organization_renamed"
+          | "deployment_updated"
+          | "deployment_renamed"
+          | "invitation_declined";
         limit?: number;
         cursor?: string;
       };

@@ -19,6 +19,12 @@ export const OrganizationActivitySchema = z.object({
 
 export const ListOrganizationActivitiesQuerySchema = z.object({
   projectId: z.string().uuid().optional().openapi({ description: "Only the activities of this project." }),
+  dseq: z
+    .string()
+    .regex(/^\d{1,20}$/)
+    .optional()
+    .openapi({ description: "Only the activities of the deployment with this sequence number." }),
+  type: z.enum(organizationActivityTypeEnum.enumValues).optional().openapi({ description: "Only the activities of this type." }),
   limit: z.coerce
     .number()
     .int()
