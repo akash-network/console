@@ -1,14 +1,33 @@
 import { Secp256k1 } from "@cosmjs/crypto";
-import { createPublicKey, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createPublicKey, randomBytes } from "node:crypto";
 
-import type { KmsAsymmetricKeyClient } from "@src/lib/kms-wallet/kms-signing-key";
+import type { KmsClient } from "@src/providers/kms-client.provider";
 
 const COORDINATE_BYTES = 32;
+const NONCE_BYTES = 12;
+const AUTH_TAG_BYTES = 16;
 
-export function createLocalKmsClient(): KmsAsymmetricKeyClient {
+export type LocalKmsClient = KmsClient & { encrypt(plaintext: string): Uint8Array };
+
+export function createLocalKmsClient(): LocalKmsClient {
   const privateKey = Uint8Array.from(randomBytes(32));
+  const encryptionKey = randomBytes(32);
 
   return {
+    encrypt(plaintext) {
+      const nonce = randomBytes(NONCE_BYTES);
+      const cipher = createCipheriv("aes-256-gcm", encryptionKey, nonce);
+      const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+
+      return Uint8Array.from(Buffer.concat([nonce, cipher.getAuthTag(), encrypted]));
+    },
+    async decrypt({ ciphertext }) {
+      const sealed = Buffer.from(ciphertext);
+      const decipher = createDecipheriv("aes-256-gcm", encryptionKey, sealed.subarray(0, NONCE_BYTES));
+      decipher.setAuthTag(sealed.subarray(NONCE_BYTES, NONCE_BYTES + AUTH_TAG_BYTES));
+
+      return [{ plaintext: Buffer.concat([decipher.update(sealed.subarray(NONCE_BYTES + AUTH_TAG_BYTES)), decipher.final()]) }];
+    },
     async getPublicKey() {
       const { pubkey } = await Secp256k1.makeKeypair(privateKey);
       const jwk = {

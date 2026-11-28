@@ -27,13 +27,13 @@ describe("walletRouter", () => {
     expect(controller.getDerivedWalletAddress).toHaveBeenCalledWith(12, "v2");
   });
 
-  it("asks for the first generation of a derived wallet when it is named", async () => {
+  it.each(["v1", "v3", "v12"])("asks for seed version %s of a derived wallet when it is named", async version => {
     const { controller } = setup();
     controller.getDerivedWalletAddress.mockResolvedValue({ data: { address: "akash1derived" } });
 
-    await walletRouter.request("/v1/wallets/derived/0?version=v1");
+    await walletRouter.request(`/v1/wallets/derived/0?version=${version}`);
 
-    expect(controller.getDerivedWalletAddress).toHaveBeenCalledWith(0, "v1");
+    expect(controller.getDerivedWalletAddress).toHaveBeenCalledWith(0, version);
   });
 
   it("serves the highest index that still derives an ordinary wallet", async () => {
@@ -51,7 +51,10 @@ describe("walletRouter", () => {
     ["an index that would derive a hardened key", "/v1/wallets/derived/2147483648"],
     ["a fractional index", "/v1/wallets/derived/1.5"],
     ["an index that is not a number", "/v1/wallets/derived/first"],
-    ["a generation that does not exist", "/v1/wallets/derived/1?version=v3"]
+    ["a seed version numbered zero", "/v1/wallets/derived/1?version=v0"],
+    ["a seed version without its prefix", "/v1/wallets/derived/1?version=3"],
+    ["a seed version with text after it", "/v1/wallets/derived/1?version=v3x"],
+    ["a seed version with text before it", "/v1/wallets/derived/1?version=xv3"]
   ])("rejects %s", async (_case, path) => {
     const { controller } = setup();
 
@@ -88,6 +91,16 @@ describe("walletRouter", () => {
     expect(controller.issueProviderToken).toHaveBeenCalledWith({ data });
   });
 
+  it("passes on the seed version a provider token request names", async () => {
+    const { controller } = setup();
+    const data = { derivationIndex: 3, seedVersion: "v3", leases: { access: "full" }, ttl: 30 };
+    controller.issueProviderToken.mockResolvedValue({ data: { token: "signed-token" } });
+
+    await postProviderToken(data);
+
+    expect(controller.issueProviderToken).toHaveBeenCalledWith({ data });
+  });
+
   it("rejects a provider token request that does not say it is json, rather than failing on it", async () => {
     const { controller } = setup();
 
@@ -102,6 +115,7 @@ describe("walletRouter", () => {
 
   it.each([
     ["no access", { derivationIndex: 3, ttl: 30 }],
+    ["a seed version that is not one", { derivationIndex: 3, seedVersion: "latest", leases: { access: "full" }, ttl: 30 }],
     ["a wallet index that would derive a hardened key", { derivationIndex: 2147483648, leases: { access: "full" }, ttl: 30 }],
     ["access of an unknown kind", { derivationIndex: 3, leases: { access: "everything" }, ttl: 30 }],
     ["no wallet index", { leases: { access: "full" }, ttl: 30 }],

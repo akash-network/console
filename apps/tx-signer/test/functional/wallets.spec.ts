@@ -56,6 +56,20 @@ describe(WalletController.name, () => {
       expect(firstGeneration).not.toBe(await signingAddressOf(DERIVATION_INDEX));
     });
 
+    it("returns the address of an index under a seed that reached the signer encrypted, unlike its address under the current seed", async () => {
+      const added = await readDerivedAddress(`${DERIVATION_INDEX}?version=v3`);
+
+      expect(added).toBe(await signingAddressOf(DERIVATION_INDEX, "v3"));
+      expect(added).not.toBe(await signingAddressOf(DERIVATION_INDEX));
+    });
+
+    it("answers that it holds no such seed for a version it was not given", async () => {
+      const res = await app.request(`/v1/wallets/derived/${DERIVATION_INDEX}?version=v9`, { headers: authorizedHeaders() });
+
+      expect(res.status).toBe(501);
+      expect(await res.json()).toMatchObject({ message: "This signer holds no derivation seed v9" });
+    });
+
     it("answers nothing without the api key", async () => {
       const res = await app.request(`/v1/wallets/derived/${DERIVATION_INDEX}`);
 
@@ -77,6 +91,23 @@ describe(WalletController.name, () => {
       expect(payload.iat).toBeGreaterThanOrEqual(issuedNoEarlierThan);
       await expect(isSignedBy(token, DERIVATION_INDEX)).resolves.toBe(true);
       await expect(isSignedBy(token, DERIVATION_INDEX + 1)).resolves.toBe(false);
+    });
+
+    it("issues a token signed by the wallet of the seed version asked for", async () => {
+      const res = await postProviderToken({ derivationIndex: DERIVATION_INDEX, seedVersion: "v3", leases: { access: "full" }, ttl: 120 });
+
+      expect(res.status).toBe(200);
+      const { token } = ((await res.json()) as { data: { token: string } }).data;
+      expect(decode(token).iss).toBe(await signingAddressOf(DERIVATION_INDEX, "v3"));
+      await expect(isSignedBy(token, DERIVATION_INDEX, "v3")).resolves.toBe(true);
+      await expect(isSignedBy(token, DERIVATION_INDEX)).resolves.toBe(false);
+    });
+
+    it("issues no token in the name of a first-generation wallet, whose seed only answers addresses", async () => {
+      const res = await postProviderToken({ derivationIndex: DERIVATION_INDEX, seedVersion: "v1", leases: { access: "full" }, ttl: 120 });
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ message: "Derivation seed v1 only answers addresses, so nothing is signed with it" });
     });
 
     it("refuses access the provider token format does not allow", async () => {
@@ -110,17 +141,17 @@ describe(WalletController.name, () => {
     return ((await res.json()) as { data: { address: string } }).data.address;
   }
 
-  function signingAddressOf(derivationIndex: number) {
-    return container.resolve(TxManagerService).getDerivedWalletAddress(derivationIndex);
+  function signingAddressOf(derivationIndex: number, seedVersion?: string) {
+    return container.resolve(TxManagerService).getDerivedWalletAddress(derivationIndex, seedVersion);
   }
 
   function decode(token: string): JwtTokenPayload {
     return JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
   }
 
-  async function isSignedBy(token: string, derivationIndex: number) {
+  async function isSignedBy(token: string, derivationIndex: number, seedVersion?: string) {
     const [header, payload, signature] = token.split(".");
-    const [{ address, pubkey }] = await container.resolve(TxManagerService).getDerivedWallet(derivationIndex).getAccounts();
+    const [{ address, pubkey }] = await container.resolve(TxManagerService).getDerivedWallet(derivationIndex, seedVersion).getAccounts();
     const signedData = { type: "sign/MsgSignData", value: { signer: address, data: toBase64(toUtf8(`${header}.${payload}`)) } };
     const signDoc = makeSignDoc([signedData], { gas: "0", amount: [] }, "", "", "0", "0");
 

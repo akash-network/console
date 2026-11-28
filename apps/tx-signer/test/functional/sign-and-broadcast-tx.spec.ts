@@ -67,6 +67,46 @@ describe(TxController.name, () => {
     expect(body.timeoutTimestamp).toBeInstanceOf(Date);
   });
 
+  it("signs a derived tx with the wallet of the seed version it names, a seed that reached the signer encrypted", async () => {
+    const { txHash, getBroadcastedTxs } = mockRpcNode({ chainId: CHAIN_ID, accountNumber: ACCOUNT_NUMBER });
+    const txManagerService = container.resolve(TxManagerService);
+    const addedSeedAddress = await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX, "v3");
+
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, seedVersion: "v3", messages: await buildDerivedMessages(addedSeedAddress) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+    expect(addedSeedAddress).not.toBe(await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX));
+    await expect(readSignerOf(getBroadcastedTxs()[0])).resolves.toEqual({ address: addedSeedAddress, hasValidSignature: true });
+  });
+
+  it("rejects a derived tx on behalf of the current wallet of an index when it names another seed version", async () => {
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, seedVersion: "v3", messages: await buildDerivedMessages() } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("signs nothing in the name of a first-generation wallet, whose seed only answers addresses", async () => {
+    const firstGenerationAddress = await container.resolve(TxManagerService).getDerivedWalletAddress(DERIVATION_INDEX, "v1");
+
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, seedVersion: "v1", messages: await buildDerivedMessages(firstGenerationAddress) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ message: "Derivation seed v1 only answers addresses, so nothing is signed with it" });
+  });
+
   it("signs and broadcasts an unordered transaction through the funding wallet against a mocked RPC node", async () => {
     const { txHash, getBroadcastedTxs } = mockRpcNode({ chainId: CHAIN_ID, accountNumber: ACCOUNT_NUMBER });
     const [seedPhraseFundingWalletAddress] = await container.resolve(TxManagerService).getFundingWalletAddresses();

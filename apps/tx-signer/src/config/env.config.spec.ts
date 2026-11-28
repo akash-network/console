@@ -5,6 +5,9 @@ import { envSchema } from "./env.config";
 
 const KEY_VERSION = "projects/console/locations/global/keyRings/tx-signer/cryptoKeys/funding/cryptoKeyVersions/1";
 const OTHER_KEY_VERSION = "projects/console/locations/us-east1/keyRings/tx-signer/cryptoKeys/standby/cryptoKeyVersions/12";
+const SEED_KEY = "projects/console/locations/global/keyRings/tx-signer/cryptoKeys/derivation-seed";
+const CIPHERTEXT = "CiQAq1Zx+abc/DEF0123456789==";
+const OTHER_CIPHERTEXT = "CiQBzzzz+xyz/UVW9876543210";
 const AUDIENCE = "//iam.googleapis.com/projects/1234/locations/global/workloadIdentityPools/console/providers/cluster";
 
 describe("envSchema", () => {
@@ -84,6 +87,153 @@ describe("envSchema", () => {
         expect.objectContaining({ path: ["GCP_WORKLOAD_IDENTITY_AUDIENCE"], message: expect.stringContaining("must look like") })
       );
     });
+  });
+
+  describe("derivation seeds", () => {
+    it("holds no encrypted seed by default and takes the readable current one", () => {
+      const env = envSchema.parse(setup());
+
+      expect(env.DERIVATION_WALLET_SEEDS_ENCRYPTED).toEqual({});
+      expect(env.DERIVATION_SEED_KMS_KEY).toBeUndefined();
+    });
+
+    it("reads the encrypted seeds by version, dropping the blanks around them", () => {
+      const env = envSchema.parse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: ` v2:${CIPHERTEXT} ,, v3:${OTHER_CIPHERTEXT} ` }));
+
+      expect(env.DERIVATION_WALLET_SEEDS_ENCRYPTED).toEqual({ v2: CIPHERTEXT, v3: OTHER_CIPHERTEXT });
+    });
+
+    it("accepts a signer whose current seed exists only encrypted", () => {
+      const result = envSchema.safeParse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${CIPHERTEXT}` }));
+
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts an added encrypted seed next to the readable current one", () => {
+      const result = envSchema.safeParse(
+        encryptedSetup({ DERIVATION_WALLET_MNEMONIC_V2: faker.lorem.words(12), DERIVATION_WALLET_SEEDS_ENCRYPTED: `v3:${CIPHERTEXT}` })
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it.each([
+      ["ends on a whole group", "CiQAq1Zx"],
+      ["ends on two characters and their padding", "CiQAq1ZxAB=="],
+      ["ends on two characters without padding", "CiQAq1ZxAB"],
+      ["ends on three characters and their padding", "CiQAq1ZxABC="],
+      ["ends on three characters without padding", "CiQAq1ZxABC"]
+    ])("accepts a ciphertext that %s", (_case, ciphertext) => {
+      const env = envSchema.parse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${ciphertext}` }));
+
+      expect(env.DERIVATION_WALLET_SEEDS_ENCRYPTED).toEqual({ v2: ciphertext });
+    });
+
+    it.each([
+      ["a pair without a version", `:${CIPHERTEXT}`],
+      ["a pair without a ciphertext", "v3:"],
+      ["a version alone", "v3"],
+      ["a version numbered zero", `v0:${CIPHERTEXT}`],
+      ["a version with text before it", `xv3:${CIPHERTEXT}`],
+      ["a ciphertext that is not base64", "v3:not base64!"],
+      ["a ciphertext with text after its padding", `v3:${CIPHERTEXT}x`],
+      ["a ciphertext too short to hold a byte", "v3:A"],
+      ["a ciphertext shorter than one group", "v3:AB=="],
+      ["a ciphertext cut one character into a group", "v3:CiQAq1ZxA"],
+      ["a ciphertext padded after a whole group", "v3:CiQAq1Zx=="],
+      ["a ciphertext with one padding sign where two belong", "v3:CiQAq1ZxAB="],
+      ["a ciphertext with two padding signs where one belongs", "v3:CiQAq1ZxABC=="],
+      ["a pair with a third part", `v3:${CIPHERTEXT}:${CIPHERTEXT}`],
+      ["a valid pair next to an invalid one", `v2:${CIPHERTEXT},v3`]
+    ])("rejects %s", (_case, value) => {
+      const result = envSchema.safeParse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: value }));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_WALLET_SEEDS_ENCRYPTED"], message: expect.stringContaining("must list pairs like") })
+      );
+    });
+
+    it("rejects a seed version listed twice", () => {
+      const result = envSchema.safeParse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${CIPHERTEXT},v2:${OTHER_CIPHERTEXT}` }));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_WALLET_SEEDS_ENCRYPTED"], message: expect.stringContaining("each seed version once") })
+      );
+    });
+
+    it("rejects encrypted seeds without the key that decrypts them", () => {
+      const result = envSchema.safeParse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${CIPHERTEXT}`, DERIVATION_SEED_KMS_KEY: undefined }));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_SEED_KMS_KEY"], message: expect.stringContaining("is required when") })
+      );
+    });
+
+    it("rejects encrypted seeds without a workload identity to reach the key with", () => {
+      const result = envSchema.safeParse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${CIPHERTEXT}`, GCP_WORKLOAD_IDENTITY_AUDIENCE: undefined }));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({
+          path: ["GCP_WORKLOAD_IDENTITY_AUDIENCE"],
+          message: expect.stringContaining("DERIVATION_WALLET_SEEDS_ENCRYPTED holds a seed")
+        })
+      );
+    });
+
+    it("asks for neither the key nor a workload identity while no seed is encrypted", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+    });
+
+    it.each([
+      ["current", { DERIVATION_WALLET_MNEMONIC_V2: faker.lorem.words(12), DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${CIPHERTEXT}` }, "v2"],
+      [
+        "first-generation",
+        { DERIVATION_WALLET_MNEMONIC_V1: faker.lorem.words(12), DERIVATION_WALLET_SEEDS_ENCRYPTED: `v1:${CIPHERTEXT},v2:${CIPHERTEXT}` },
+        "v1"
+      ]
+    ])("rejects a %s seed given both readable and encrypted", (_case, overrides, version) => {
+      const result = envSchema.safeParse(encryptedSetup(overrides));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({
+          path: ["DERIVATION_WALLET_SEEDS_ENCRYPTED"],
+          message: `Derivation seed ${version} is given both readable and encrypted, and only one of them can be the seed`
+        })
+      );
+    });
+
+    it("rejects a signer with no current seed, readable or encrypted", () => {
+      const result = envSchema.safeParse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v3:${CIPHERTEXT}` }));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_WALLET_SEEDS_ENCRYPTED"], message: expect.stringContaining("Derivation seed v2 is required") })
+      );
+    });
+
+    it.each([
+      ["a key version instead of a key", `${SEED_KEY}/cryptoKeyVersions/1`],
+      ["a key ring without a key", SEED_KEY.replace("/cryptoKeys/derivation-seed", "")],
+      ["text before the resource name", `x${SEED_KEY}`]
+    ])("rejects %s as the seed key", (_case, value) => {
+      const result = envSchema.safeParse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${CIPHERTEXT}`, DERIVATION_SEED_KMS_KEY: value }));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_SEED_KMS_KEY"], message: expect.stringContaining("must look like") })
+      );
+    });
+
+    function encryptedSetup(overrides: Record<string, unknown> = {}) {
+      return setup({ DERIVATION_WALLET_MNEMONIC_V2: undefined, DERIVATION_SEED_KMS_KEY: SEED_KEY, GCP_WORKLOAD_IDENTITY_AUDIENCE: AUDIENCE, ...overrides });
+    }
   });
 
   it("reads the workload's token from the directory the prod script allows by default", () => {

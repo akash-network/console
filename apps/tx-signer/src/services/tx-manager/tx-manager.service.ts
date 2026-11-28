@@ -5,6 +5,7 @@ import { container, inject, type InjectionToken, instancePerContainerCachingFact
 
 import { KmsSigningKey } from "@src/lib/kms-wallet/kms-signing-key";
 import { KmsWallet } from "@src/lib/kms-wallet/kms-wallet";
+import { ADDRESS_ONLY_SEED_VERSIONS, DEFAULT_SEED_VERSION } from "@src/lib/seed-version/seed-version";
 import type { SignAndBroadcastOptions } from "@src/lib/signing-client/signing-client.service";
 import { SigningClientService } from "@src/lib/signing-client/signing-client.service";
 import { createSigningStargateClient } from "@src/lib/signing-stargate-client-factory/signing-stargate-client.factory";
@@ -13,6 +14,7 @@ import { KMS_CLIENT } from "@src/providers/kms-client.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
+import { DerivationSeedService } from "@src/services/derivation-seed/derivation-seed.service";
 
 export type SigningClientServiceFactory = (wallet: SigningWallet, loggerContext?: string) => SigningClientService;
 const SIGNING_CLIENT_FACTORY: InjectionToken<SigningClientServiceFactory> = Symbol("SIGNING_CLIENT_FACTORY");
@@ -35,17 +37,8 @@ container.register(SIGNING_CLIENT_FACTORY, {
   }
 });
 
-export type WalletFactory = (walletIndex?: number) => Wallet;
 export type FundingWalletResources = { wallet: SigningWallet; signingClient: SigningClientService };
-type WalletVersionConfig = {
-  fundingWallets: FundingWalletResources[];
-  derivedWalletFactory: WalletFactory;
-};
-
-type WalletVersion = "v2";
-type WalletResources = Record<WalletVersion, WalletVersionConfig> & { v1DerivedWalletFactory?: WalletFactory };
-
-export type DerivedWalletVersion = "v1" | "v2";
+type WalletResources = { fundingWallets: FundingWalletResources[] };
 
 const WALLET_RESOURCES: InjectionToken<WalletResources> = Symbol("WALLET_RESOURCES");
 
@@ -57,45 +50,30 @@ container.register(WALLET_RESOURCES, {
     const v2MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V2"));
     const kmsWallets = config.get("FUNDING_WALLET_KMS_KEY_VERSIONS").map(keyVersion => new KmsWallet(new KmsSigningKey(c.resolve(KMS_CLIENT), keyVersion)));
 
-    const v2DerivedWalletFactory: WalletFactory = (walletIndex?: number) => {
-      return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V2"), walletIndex ?? 0);
-    };
-    const v1DerivationMnemonic = config.get("DERIVATION_WALLET_MNEMONIC_V1");
-
     return {
-      v2: {
-        fundingWallets: [
-          { wallet: v2MasterWallet, signingClient: signingClientFactory(v2MasterWallet, "V2_MASTER_SIGNING_CLIENT") },
-          ...kmsWallets.map(wallet => ({ wallet, signingClient: signingClientFactory(wallet, "KMS_FUNDING_SIGNING_CLIENT") }))
-        ],
-        derivedWalletFactory: v2DerivedWalletFactory
-      },
-      v1DerivedWalletFactory: v1DerivationMnemonic ? (walletIndex?: number) => new Wallet(v1DerivationMnemonic, walletIndex ?? 0) : undefined
+      fundingWallets: [
+        { wallet: v2MasterWallet, signingClient: signingClientFactory(v2MasterWallet, "V2_MASTER_SIGNING_CLIENT") },
+        ...kmsWallets.map(wallet => ({ wallet, signingClient: signingClientFactory(wallet, "KMS_FUNDING_SIGNING_CLIENT") }))
+      ]
     };
   })
 });
 
 @singleton()
 export class TxManagerService {
-  readonly #clientsByDerivationIndex: Map<number, SigningClientService> = new Map();
-  readonly #DEFAULT_WALLET_VERSION: WalletVersion = "v2";
+  readonly #clientsByDerivedWallet: Map<string, SigningClientService> = new Map();
 
   constructor(
     @inject(WALLET_RESOURCES) private readonly walletResources: WalletResources,
     @inject(SIGNING_CLIENT_FACTORY) private readonly signingClientServiceFactory: SigningClientServiceFactory,
+    @inject(DerivationSeedService) private readonly derivationSeedService: DerivationSeedService,
     @inject(LoggerService) private readonly logger: LoggerService
   ) {
     this.logger.setContext(TxManagerService.name);
   }
 
-  #getWalletResources(): WalletVersionConfig {
-    const version = this.#DEFAULT_WALLET_VERSION;
-    const { [version]: resources } = this.walletResources;
-    return resources;
-  }
-
   async signAndBroadcastWithFundingWallet(fundingWalletAddress: string, messages: readonly EncodeObject[]): Promise<IndexedTx> {
-    const { fundingWallets } = this.#getWalletResources();
+    const { fundingWallets } = this.walletResources;
     const addresses = await this.getFundingWalletAddresses();
     const signingWallet = fundingWallets[addresses.indexOf(fundingWalletAddress)];
 
@@ -107,40 +85,43 @@ export class TxManagerService {
   }
 
   async getFundingWalletAddresses(): Promise<string[]> {
-    const { fundingWallets } = this.#getWalletResources();
+    const { fundingWallets } = this.walletResources;
     return await Promise.all(fundingWallets.map(({ wallet }) => wallet.getFirstAddress()));
   }
 
-  async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions): Promise<IndexedTx> {
-    const client = this.#getClient(derivationIndex);
+  async signAndBroadcastWithDerivedWallet(
+    derivationIndex: number,
+    messages: readonly EncodeObject[],
+    options?: SignAndBroadcastOptions,
+    seedVersion: string = DEFAULT_SEED_VERSION
+  ): Promise<IndexedTx> {
+    const client = this.#getClient(derivationIndex, seedVersion);
     return await client.signAndBroadcast(messages, options);
   }
 
-  async getDerivedWalletAddress(index: number, version: DerivedWalletVersion = "v2"): Promise<string> {
-    return await (version === "v1" ? this.#getV1DerivedWallet(index) : this.getDerivedWallet(index)).getFirstAddress();
+  async getDerivedWalletAddress(index: number, seedVersion: string = DEFAULT_SEED_VERSION): Promise<string> {
+    return await this.derivationSeedService.deriveWallet(index, seedVersion).getFirstAddress();
   }
 
-  #getV1DerivedWallet(index: number): Wallet {
-    const { v1DerivedWalletFactory } = this.walletResources;
+  #getClient(derivationIndex: number, seedVersion: string): SigningClientService {
+    const derivedWalletKey = `${seedVersion}/${derivationIndex}`;
 
-    if (!v1DerivedWalletFactory) throw createError(501, "This signer holds no seed for the first generation of user wallets");
+    if (!this.#clientsByDerivedWallet.has(derivedWalletKey)) {
+      const wallet = this.getDerivedWallet(derivationIndex, seedVersion);
 
-    return v1DerivedWalletFactory(index);
-  }
-
-  #getClient(derivationIndex: number): SigningClientService {
-    if (!this.#clientsByDerivationIndex.has(derivationIndex)) {
-      const wallet = this.getDerivedWallet(derivationIndex);
-
-      this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
-      this.#clientsByDerivationIndex.set(derivationIndex, this.signingClientServiceFactory(wallet));
+      this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex, seedVersion });
+      this.#clientsByDerivedWallet.set(derivedWalletKey, this.signingClientServiceFactory(wallet));
     }
 
-    return this.#clientsByDerivationIndex.get(derivationIndex)!;
+    return this.#clientsByDerivedWallet.get(derivedWalletKey)!;
   }
 
-  getDerivedWallet(index: number): Wallet {
-    const { derivedWalletFactory } = this.#getWalletResources();
-    return derivedWalletFactory(index);
+  /** The wallet to sign with, which is why a seed version kept for addresses only is refused here and not when an address is read. */
+  getDerivedWallet(index: number, seedVersion: string = DEFAULT_SEED_VERSION): Wallet {
+    if (ADDRESS_ONLY_SEED_VERSIONS.has(seedVersion)) {
+      throw createError(403, `Derivation seed ${seedVersion} only answers addresses, so nothing is signed with it`);
+    }
+
+    return this.derivationSeedService.deriveWallet(index, seedVersion);
   }
 }

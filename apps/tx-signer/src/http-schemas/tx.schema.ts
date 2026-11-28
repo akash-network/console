@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { DERIVED_WALLET_MESSAGE_TYPE_URLS, FUNDING_WALLET_MESSAGE_TYPE_URLS } from "@src/config/message-urls.config";
+import { SeedVersionSchema } from "@src/lib/seed-version/seed-version";
 
 export const SignAndBroadcastFundingRequestInputSchema = z.object({
   data: z.object({
@@ -12,13 +13,15 @@ export const SignAndBroadcastFundingRequestInputSchema = z.object({
         })
       )
       .min(1),
-    granteeDerivationIndex: z.number().int().nonnegative().optional()
+    granteeDerivationIndex: z.number().int().nonnegative().optional(),
+    granteeSeedVersion: SeedVersionSchema.optional()
   })
 });
 
 export const SignAndBroadcastDerivedRequestInputSchema = z.object({
   data: z.object({
     derivationIndex: z.number().int().nonnegative(),
+    seedVersion: SeedVersionSchema.optional(),
     messages: z
       .array(
         z.object({
