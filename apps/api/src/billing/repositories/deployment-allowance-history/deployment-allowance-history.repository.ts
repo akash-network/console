@@ -39,6 +39,18 @@ export class DeploymentAllowanceHistoryRepository {
     return row && { height: row.height, txIndex: row.txIndex, isSucceeded: !row.hasProcessingError };
   }
 
+  /** Leaves out the transactions the chain index does not hold. */
+  async findTxHeights(hashes: string[]): Promise<Map<string, number>> {
+    if (hashes.length === 0) return new Map();
+
+    const rows = await this.#chainDb.query<{ hash: string; height: number }>(
+      `/* deployment-allowance:txHeights */ SELECT hash, height FROM transaction WHERE hash = ANY($1::text[])`,
+      { type: QueryTypes.SELECT, bind: [hashes] }
+    );
+
+    return new Map(rows.map(({ hash, height }) => [hash, height]));
+  }
+
   /** The indexer stores a transaction first and ties its messages to their deployments when it processes it, so a stored close is not yet one `findRefundsLeftWithGranter` can find. */
   async isTxProcessed(hash: string): Promise<boolean> {
     const rows = await this.#chainDb.query(`/* deployment-allowance:txProcessed */ SELECT 1 FROM transaction WHERE hash = :hash AND "isProcessed" LIMIT 1`, {
