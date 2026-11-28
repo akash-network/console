@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -36,6 +36,17 @@ export class BalanceSnapshotRepository {
     return snapshot;
   }
 
+  async findLatestComplete(network: string): Promise<BalanceSnapshotOutput | undefined> {
+    const [snapshot] = await this.#cursor
+      .select()
+      .from(this.table)
+      .where(and(eq(this.table.network, network), eq(this.table.status, "complete")))
+      .orderBy(desc(this.table.takenOn))
+      .limit(1);
+
+    return snapshot;
+  }
+
   /** Starts the day's snapshot over at a new height unless it is already complete, in which case nothing is returned and nothing changes. */
   async startUnlessComplete(day: BalanceSnapshotDay & { height: number }): Promise<BalanceSnapshotOutput | undefined> {
     return await this.txManager.transaction(async () => {
@@ -67,6 +78,14 @@ export class BalanceSnapshotRepository {
       .from(this.grants)
       .where(eq(this.grants.snapshotId, snapshotId))
       .orderBy(this.grants.granter, this.grants.grantee, this.grants.denom);
+  }
+
+  async findGrantsOf(snapshotId: BalanceSnapshotOutput["id"], grantee: string): Promise<BalanceSnapshotGrant[]> {
+    return await this.#cursor
+      .select({ granter: this.grants.granter, grantee: this.grants.grantee, denom: this.grants.denom, amount: this.grants.amount })
+      .from(this.grants)
+      .where(and(eq(this.grants.snapshotId, snapshotId), eq(this.grants.grantee, grantee)))
+      .orderBy(this.grants.granter, this.grants.denom);
   }
 
   async complete(id: BalanceSnapshotOutput["id"], grantsCount: number): Promise<void> {

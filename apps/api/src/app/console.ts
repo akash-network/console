@@ -11,6 +11,7 @@ import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-link
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { utcDayOf } from "@src/billing/lib/balance-snapshot-schedule/balance-snapshot-schedule";
+import { BalanceRebuildService } from "@src/billing/services/balance-snapshot/balance-rebuild.service";
 import { BalanceSnapshotService } from "@src/billing/services/balance-snapshot/balance-snapshot.service";
 import { FundingWalletDrainService } from "@src/billing/services/funding-wallet-drain/funding-wallet-drain.service";
 import { FundingWalletRotationService } from "@src/billing/services/funding-wallet-rotation/funding-wallet-rotation.service";
@@ -316,6 +317,17 @@ program
   });
 
 program
+  .command("rebuild-balance")
+  .description("Work a user wallet's balance out from a balance snapshot and the chain since, next to what the chain holds now; changes nothing")
+  .requiredOption("-a, --address <string>", "Address of the user wallet", parseAkashAddress)
+  .option("-d, --date <string>", "UTC day of the snapshot to start from (YYYY-MM-DD), the latest complete one when omitted", parseUtcDay)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(BalanceRebuildService).rebuild(options.address, options.date);
+    });
+  });
+
+program
   .command("link-auth0-accounts")
   .description("Interactively link a secondary Auth0 account into a primary one (Auth0 only, no DB writes)")
   .action(async (options, command) => {
@@ -332,6 +344,12 @@ function parseAkashAddress(value: string) {
   if (!address.success) throw new InvalidArgumentError("must be a valid akash address");
 
   return address.data;
+}
+
+function parseUtcDay(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value))) throw new InvalidArgumentError("must be a UTC day written as YYYY-MM-DD");
+
+  return value;
 }
 
 async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {
