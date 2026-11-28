@@ -58,7 +58,7 @@ describe(BalanceSnapshotService.name, () => {
       ]);
     });
 
-    it("stores one balance per denom of a grant, adding up a denom the grant names twice", async () => {
+    it("stores one balance per denom of a grant, and of a denom the grant names twice the first limit, as the balance read does", async () => {
       const { service, active, grantees, snapshot, balanceSnapshotRepository } = setup({
         grants: {
           active: [
@@ -74,7 +74,7 @@ describe(BalanceSnapshotService.name, () => {
       await expect(service.take(TAKEN_ON)).resolves.toMatchObject({ grants: 2 });
 
       expect(balanceSnapshotRepository.addGrants).toHaveBeenCalledWith(snapshot.id, [
-        { granter: active, grantee: grantees.active[0], denom: "uact", amount: 500 },
+        { granter: active, grantee: grantees.active[0], denom: "uact", amount: 300 },
         { granter: active, grantee: grantees.active[0], denom: "uakt", amount: 50 }
       ]);
     });

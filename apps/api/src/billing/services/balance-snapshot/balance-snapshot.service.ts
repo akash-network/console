@@ -87,12 +87,12 @@ export class BalanceSnapshotService {
     return stored;
   }
 
-  /** A grant can name one denom twice, once in each of the two fields the chain has used for limits, and the user holds their sum. */
+  /** A grant can name one denom twice, once in each of the two fields the chain has used for limits, and the first is the one the balance read shows. */
   #balancesOf(granter: string, grant: DepositDeploymentGrant): BalanceSnapshotGrant[] {
     const amountByDenom = new Map<string, number>();
 
     for (const { denom, amount } of grant.authorization.spend_limits) {
-      amountByDenom.set(denom, (amountByDenom.get(denom) ?? 0) + parseInt(amount, 10));
+      if (!amountByDenom.has(denom)) amountByDenom.set(denom, parseInt(amount, 10));
     }
 
     return [...amountByDenom].map(([denom, amount]) => ({ granter, grantee: grant.grantee, denom, amount }));
