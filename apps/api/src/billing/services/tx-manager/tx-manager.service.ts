@@ -85,12 +85,12 @@ export class TxManagerService {
   }
 
   async #getFundingWalletAddressFromSigner(): Promise<string> {
-    const asked = (this.#fundingWalletAddressFromSigner ??= this.#askSignerForFundingWalletAddress());
+    this.#fundingWalletAddressFromSigner ??= this.#askSignerForFundingWalletAddress();
 
     try {
-      return await asked;
+      return await this.#fundingWalletAddressFromSigner;
     } catch (error) {
-      if (this.#fundingWalletAddressFromSigner === asked) this.#fundingWalletAddressFromSigner = undefined;
+      this.#fundingWalletAddressFromSigner = undefined;
       throw error;
     }
   }
