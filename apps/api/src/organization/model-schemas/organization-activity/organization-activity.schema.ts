@@ -74,6 +74,13 @@ export const OrganizationActivities = pgTable(
       table.createdAt.desc(),
       table.id.desc()
     ),
+    /** Backs one deployment's history and re-filing it on a move, so either reads that deployment's rows and not the organization's. */
+    organizationIdDseqCreatedAtIdIdx: index("organization_activities_organization_id_dseq_created_at_id_idx").on(
+      table.organizationId,
+      sql`(${table.payload} ->> 'dseq')`,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
     projectFk: foreignKey({
       name: "organization_activities_organization_id_project_id_fk",
       columns: [table.organizationId, table.projectId],

@@ -49,6 +49,14 @@ describe("DeploymentNameModal", () => {
     await waitFor(() => expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.listDeployments.getKey() }));
   });
 
+  it("refreshes the organization's activity, so the rename shows up in Recent Activity", async () => {
+    const { queryClient, api } = setup({});
+
+    await rename("my-app");
+
+    await waitFor(() => expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.listOrganizationActivities.getKey() }));
+  });
+
   it("records nothing in this browser, because the api is now where the name lives", async () => {
     const { deploymentLocalStorage, onSaved } = setup({});
 
@@ -262,6 +270,7 @@ describe("DeploymentNameModal", () => {
     api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
     api.v1.listDeploymentNames.getKey.mockReturnValue(["listDeploymentNames"]);
     api.v1.listDeployments.getKey.mockReturnValue(["listDeployments"]);
+    api.v1.listOrganizationActivities.getKey.mockReturnValue(["listOrganizationActivities"]);
     api.v1.patchDeployment.useMutation.mockReturnValue(
       mock<ReturnType<typeof api.v1.patchDeployment.useMutation>>({ mutate: patchMutate as never, isPending: input.isPending ?? false })
     );

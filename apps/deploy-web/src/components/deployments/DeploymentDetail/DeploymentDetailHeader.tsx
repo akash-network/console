@@ -31,6 +31,7 @@ import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { getRuntimeLimitCountdown } from "@src/utils/runtimeLimitUtils";
 import { formatByteSize } from "@src/utils/unitUtils";
+import { DeploymentCreatedBy } from "./DeploymentCreatedBy/DeploymentCreatedBy";
 import { GpuLabel } from "./DeploymentPlacements/GpuLabel";
 import {
   countPlacementServices,
@@ -64,6 +65,7 @@ export const DEPENDENCIES = {
   GpuInterconnectBadge,
   TrialDeploymentBadge,
   DeploymentProjectBreadcrumb,
+  DeploymentCreatedBy,
   AskAssistantButton
 };
 
@@ -156,6 +158,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
             </Button>
           )}
         </div>
+        <d.DeploymentCreatedBy dseq={deployment.dseq} />
         <d.DeploymentVisitControl leases={leases ?? []} providers={providers} />
         {status.tone === "warning" ? (
           <d.AskAssistantButton dseq={deployment.dseq} question={diagnoseQuestionOf(status)} label="Diagnose with Sidekick" variant="default" sendsQuestion />

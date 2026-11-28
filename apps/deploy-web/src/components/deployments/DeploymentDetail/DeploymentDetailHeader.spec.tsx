@@ -31,6 +31,14 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.getByText("breadcrumb")).toBeInTheDocument();
   });
 
+  it("names who deployed it", () => {
+    const DeploymentCreatedBy = vi.fn<typeof DEPENDENCIES.DeploymentCreatedBy>(() => <p>deployed-by</p>);
+    setup({ dependencies: { DeploymentCreatedBy } });
+
+    expect(DeploymentCreatedBy.mock.lastCall?.[0]).toEqual({ dseq: "1786440078202" });
+    expect(screen.getByText("deployed-by")).toBeInTheDocument();
+  });
+
   it("offers to ask the assistant about the deployment", () => {
     const AskAssistantButton = vi.fn<typeof DEPENDENCIES.AskAssistantButton>(() => null);
     setup({ dependencies: { AskAssistantButton } });

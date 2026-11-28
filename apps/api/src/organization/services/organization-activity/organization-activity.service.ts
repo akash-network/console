@@ -9,6 +9,7 @@ import type {
   OrganizationActivityType
 } from "@src/organization/model-schemas/organization-activity/organization-activity.schema";
 import {
+  type OrganizationActivityFilter,
   OrganizationActivityRepository,
   type OrganizationActivityWithActor
 } from "@src/organization/repositories/organization-activity/organization-activity.repository";
@@ -61,9 +62,9 @@ export class OrganizationActivityService {
     await this.organizationActivityRepository.unscoped(reason).create(activity);
   }
 
-  async list({ limit, cursor, projectId }: { limit: number; cursor?: string; projectId?: string }): Promise<OrganizationActivityPage> {
+  async list({ limit, cursor, ...filter }: { limit: number; cursor?: string } & OrganizationActivityFilter): Promise<OrganizationActivityPage> {
     const after = cursor ? decodeActivityCursor(cursor) : undefined;
-    const rows = await this.organizationActivityRepository.accessibleBy(this.authService.ability, "read").findPage({ limit: limit + 1, after, projectId });
+    const rows = await this.organizationActivityRepository.accessibleBy(this.authService.ability, "read").findPage({ limit: limit + 1, after, ...filter });
     const activities = rows.slice(0, limit);
     const hasMore = rows.length > limit;
 

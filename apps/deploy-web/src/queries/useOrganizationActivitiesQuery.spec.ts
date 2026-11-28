@@ -2,7 +2,7 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { describe, expect, it, vi } from "vitest";
 
 import type { OrganizationActivity } from "@src/types/organization-activity";
-import { ACTIVITY_PAGE_SIZE, useOrganizationActivitiesQuery } from "./useOrganizationActivitiesQuery";
+import { ACTIVITY_PAGE_SIZE, useDeploymentCreationQuery, useOrganizationActivitiesQuery } from "./useOrganizationActivitiesQuery";
 
 import { act, waitFor } from "@testing-library/react";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
@@ -27,6 +27,14 @@ describe(useOrganizationActivitiesQuery.name, () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(listOrganizationActivities).toHaveBeenCalledWith({ projectId: "p1", limit: ACTIVITY_PAGE_SIZE });
+  });
+
+  it("narrows the feed to one deployment", async () => {
+    const { result, listOrganizationActivities } = setup({ dseq: "1786440078202", pages: [{ data: [], nextCursor: null }] });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(listOrganizationActivities).toHaveBeenCalledWith({ dseq: "1786440078202", limit: ACTIVITY_PAGE_SIZE });
   });
 
   it("reads the next page from the cursor the last one handed out", async () => {
@@ -75,21 +83,64 @@ describe(useOrganizationActivitiesQuery.name, () => {
     await waitFor(() => expect(listOrganizationActivities).toHaveBeenCalledTimes(2));
   });
 
-  function setup(input: { projectId?: string; pages: { data: OrganizationActivity[]; nextCursor: string | null }[]; fails?: boolean }) {
+  function setup(input: { projectId?: string; dseq?: string; pages: { data: OrganizationActivity[]; nextCursor: string | null }[]; fails?: boolean }) {
     const pages = [...input.pages];
     const listOrganizationActivities = vi.fn(async (_params: unknown) => {
       if (input.fails) throw new Error("boom");
       return pages.shift();
     });
     const api = createProxy({ v1: { listOrganizationActivities } }) as unknown as ApiService;
-    const hook = setupQuery(() => useOrganizationActivitiesQuery(input.projectId ? { projectId: input.projectId } : undefined), {
-      services: { api: () => api }
-    });
+    const hook = setupQuery(
+      () => useOrganizationActivitiesQuery(input.projectId || input.dseq ? { projectId: input.projectId, dseq: input.dseq } : undefined),
+      {
+        services: { api: () => api }
+      }
+    );
 
     return { ...hook, listOrganizationActivities };
   }
 
   function activity(id: string): OrganizationActivity {
     return { id, projectId: null, actor: null, type: "organization_created", payload: {}, createdAt: "2026-01-01T00:00:00.000Z" };
+  }
+});
+
+describe(useDeploymentCreationQuery.name, () => {
+  it("reads who deployed it and when off its creation activity", async () => {
+    const actor = { id: "u1", username: "lena" };
+    const { result, listOrganizationActivities } = setup({
+      data: [{ id: "a1", projectId: null, actor, type: "deployment_created", payload: { dseq: "1786440078202" }, createdAt: "2026-11-20T10:00:00.000Z" }]
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(listOrganizationActivities).toHaveBeenCalledWith({ dseq: "1786440078202", type: "deployment_created", limit: 1 });
+    expect(result.current.data).toEqual({ actor, createdAt: "2026-11-20T10:00:00.000Z" });
+  });
+
+  it("reads no creation for a deployment the console recorded none of", async () => {
+    const { result } = setup({ data: [] });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data).toBeNull();
+  });
+
+  it("reads nothing while disabled", async () => {
+    const { listOrganizationActivities } = setup({ data: [], enabled: false });
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(listOrganizationActivities).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { data: OrganizationActivity[]; enabled?: boolean }) {
+    const listOrganizationActivities = vi.fn(async (_params: unknown) => ({ data: input.data, nextCursor: null }));
+    const api = createProxy({ v1: { listOrganizationActivities } }) as unknown as ApiService;
+    const hook = setupQuery(() => useDeploymentCreationQuery("1786440078202", input.enabled === undefined ? undefined : { enabled: input.enabled }), {
+      services: { api: () => api }
+    });
+
+    return { ...hook, listOrganizationActivities };
   }
 });

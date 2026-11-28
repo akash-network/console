@@ -284,6 +284,34 @@ describe("DeploymentDetail", () => {
     expect(useDeploymentLocationQuery).toHaveBeenCalledWith("1786440078202", { enabled: false });
   });
 
+  it("shows the deployment's activity on its Activity tab", () => {
+    const { DeploymentActivityFeed } = setup({ tab: "ACTIVITY" });
+
+    expect(screen.getByRole("tab", { name: "Activity", selected: true })).toBeInTheDocument();
+    expect(DeploymentActivityFeed.mock.lastCall?.[0]).toEqual(expect.objectContaining({ dseq: "1786440078202" }));
+  });
+
+  it("keeps the deployment's activity off the Details tab", () => {
+    const { DeploymentActivityFeed } = setup();
+
+    expect(screen.getByRole("tab", { name: "Activity" })).toBeInTheDocument();
+    expect(DeploymentActivityFeed).not.toHaveBeenCalled();
+  });
+
+  it("offers the Activity tab to a caller who only reads this deployment", () => {
+    setup({ canManage: false });
+
+    expect(screen.getByRole("tab", { name: "Activity" })).toBeInTheDocument();
+  });
+
+  it("offers no Activity tab while projects are hidden", () => {
+    const { DeploymentActivityFeed } = setup({ isProjectsUiEnabled: false, tab: "ACTIVITY" });
+
+    expect(screen.queryByRole("tab", { name: "Activity" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Details", selected: true })).toBeInTheDocument();
+    expect(DeploymentActivityFeed).not.toHaveBeenCalled();
+  });
+
   it("withholds redeploy from the Update tab when neither source holds a definition", () => {
     const { DeploymentUpdate } = setup({ tab: "UPDATE", definition: { sdl: undefined, source: "absent" } });
 
@@ -480,13 +508,22 @@ describe("DeploymentDetail", () => {
   it("orders the tabs with Update right after Details", () => {
     setup();
 
-    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Settings"]);
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Activity", "Settings"]);
   });
 
   it("offers a Template tab right after Details once the template the deployment was created from loads", () => {
     const { useDeploymentTemplate } = setup({ template: buildTemplate() });
 
-    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Template", "Update", "Logs", "Events", "Shell", "Settings"]);
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual([
+      "Details",
+      "Template",
+      "Update",
+      "Logs",
+      "Events",
+      "Shell",
+      "Activity",
+      "Settings"
+    ]);
     expect(useDeploymentTemplate).toHaveBeenCalledWith("1786440078202");
   });
 
@@ -515,14 +552,14 @@ describe("DeploymentDetail", () => {
     it("leaves out the tabs that update the deployment or open a shell in it", () => {
       const { useCanManageDeployment } = setup({ canManage: false });
 
-      expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Logs", "Events", "Settings"]);
+      expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Logs", "Events", "Activity", "Settings"]);
       expect(useCanManageDeployment).toHaveBeenCalledWith("1786440078202");
     });
 
     it("still offers the guide of the template the deployment was created from", () => {
       setup({ canManage: false, template: buildTemplate() });
 
-      expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Template", "Logs", "Events", "Settings"]);
+      expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Template", "Logs", "Events", "Activity", "Settings"]);
     });
 
     it("offers to check the caller's access again when it could not be read", async () => {
@@ -902,6 +939,7 @@ describe("DeploymentDetail", () => {
     const ReclamationBanner = vi.fn(() => <div>reclamation-banner</div>);
     const DeploymentPlacements = vi.fn<(props: DeploymentPlacementsProps) => ReactElement>(() => <div>placements</div>);
     const DeploymentGettingStarted = vi.fn<(props: DeploymentGettingStartedProps) => ReactElement>(() => <div>getting-started</div>);
+    const DeploymentActivityFeed = vi.fn<typeof DEPENDENCIES.DeploymentActivityFeed>(() => <div>activity</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
     const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void; onRedeploy?: () => void }) => (
@@ -969,6 +1007,7 @@ describe("DeploymentDetail", () => {
       ReclamationBanner,
       DeploymentPlacements,
       DeploymentGettingStarted,
+      DeploymentActivityFeed,
       DeploymentLogs,
       DeploymentLeaseShell,
       ManifestUpdate,
@@ -1002,6 +1041,7 @@ describe("DeploymentDetail", () => {
       DeploymentDetailHeader,
       DeploymentPlacements,
       DeploymentGettingStarted,
+      DeploymentActivityFeed,
       DeploymentLaunchState,
       DeploymentTemplateGuide,
       DeploymentOutcomePrompt,

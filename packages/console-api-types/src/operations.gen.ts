@@ -539,7 +539,7 @@ export const operations = {
       method: "get",
       operationId: "listOrganizationActivities",
       pathParams: [],
-      queryParams: ["projectId", "limit", "cursor"],
+      queryParams: ["projectId", "dseq", "type", "limit", "cursor"],
       hasBody: false
     },
     listOrganizationMembers: {

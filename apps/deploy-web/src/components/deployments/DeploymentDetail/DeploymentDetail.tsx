@@ -37,6 +37,7 @@ import { DeploymentLeaseShell } from "../DeploymentLeaseShell";
 import { DeploymentLogs } from "../DeploymentLogs";
 import { ManifestUpdate } from "../ManifestUpdate/ManifestUpdate";
 import { ReclamationBanner } from "../ReclamationBanner/ReclamationBanner";
+import { DeploymentActivityFeed } from "./DeploymentActivityFeed/DeploymentActivityFeed";
 import { DeploymentGettingStarted } from "./DeploymentGettingStarted/DeploymentGettingStarted";
 import { DeploymentLaunchState } from "./DeploymentLaunchState/DeploymentLaunchState";
 import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
@@ -73,6 +74,7 @@ export const DEPENDENCIES = {
   DeploymentGettingStarted,
   DeploymentLaunchState,
   DeploymentPlacements,
+  DeploymentActivityFeed,
   DeploymentLogs,
   DeploymentLeaseShell,
   ManifestUpdate,
@@ -89,7 +91,7 @@ const TAB_STRIP_FRAME = "border-t shadow-[inset_0_-1px_0_hsl(var(--border))]";
 
 const TAB_STRIP = cn(PAGE_BAND, "flex h-auto justify-start gap-6 overflow-x-auto rounded-none border-0 bg-transparent py-0 scrollbar-none sm:gap-8");
 
-const TABS = ["DETAILS", "TEMPLATE", "UPDATE", "LOGS", "EVENTS", "SHELL", "SETTINGS"] as const;
+const TABS = ["DETAILS", "TEMPLATE", "UPDATE", "LOGS", "EVENTS", "SHELL", "ACTIVITY", "SETTINGS"] as const;
 type Tab = (typeof TABS)[number];
 
 /** Updating a deployment and opening a shell in it change it, so a caller who only reads this deployment does not get those tabs. */
@@ -102,6 +104,7 @@ const TAB_LABELS: Record<Tab, string> = {
   EVENTS: "Events",
   SHELL: "Shell",
   UPDATE: "Update",
+  ACTIVITY: "Activity",
   SETTINGS: "Settings"
 };
 
@@ -122,14 +125,14 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const [selectedTab, setSelectedTab] = useState<Tab>("DETAILS");
   const { canManage, isLoading: isLoadingManagement, isError: isManagementUnreadable, retry: retryManagement } = d.useCanManageDeployment(dseq);
   const { templateId, template } = d.useDeploymentTemplate(dseq);
-  const tabs = (canManage ? TABS : READ_ONLY_TABS).filter(tab => tab !== "TEMPLATE" || !!template);
+  const { isEnabled: isProjectsUiEnabled, canChangeDeployments } = d.useProjectsUi();
+  const tabs = (canManage ? TABS : READ_ONLY_TABS).filter(tab => (tab !== "TEMPLATE" || !!template) && (tab !== "ACTIVITY" || isProjectsUiEnabled));
   const activeTab = tabs.includes(selectedTab) ? selectedTab : "DETAILS";
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const tabStripRef = useRef<HTMLDivElement>(null);
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
   d.useOpenDeploymentInItsOrganization({ dseq, isMissingHere: !!deploymentError, query: searchParams?.toString() ?? "" });
-  const { isEnabled: isProjectsUiEnabled, canChangeDeployments } = d.useProjectsUi();
   const { data: location } = d.useDeploymentLocationQuery(dseq, { enabled: isProjectsUiEnabled });
   const {
     data: chainLeases,
@@ -338,6 +341,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                       />
                     </>
                   ))}
+
+                {activeTab === "ACTIVITY" && <d.DeploymentActivityFeed dseq={dseq} />}
 
                 {activeTab === "TEMPLATE" && template && <d.DeploymentTemplateGuide template={template} />}
 

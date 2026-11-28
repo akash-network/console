@@ -55,6 +55,49 @@ describe(OrganizationActivityRepository.name, () => {
       expect(page.map(({ id }) => id)).toEqual([inProject.id]);
     });
 
+    it("keeps to the deployment it is given, within its own organization", async () => {
+      const { repository, organization, owner, runIn } = await setup();
+      const dseq = faker.string.numeric(8);
+      const { organization: foreign } = await seedOrganizationWithOwner();
+      const created = await seedOrganizationActivity({
+        organizationId: organization.id,
+        type: "deployment_created",
+        payload: { dseq, name: null },
+        createdAt: new Date("2026-05-01T09:00:00.000Z")
+      });
+      const closed = await seedOrganizationActivity({
+        organizationId: organization.id,
+        type: "deployment_closed",
+        payload: { dseq, name: null, reason: null },
+        createdAt: new Date("2026-05-01T10:00:00.000Z")
+      });
+      await Promise.all([
+        seedOrganizationActivity({ organizationId: organization.id, type: "deployment_created", payload: { dseq: `${dseq}0`, name: null } }),
+        seedOrganizationActivity({ organizationId: foreign.id, type: "deployment_created", payload: { dseq, name: null } })
+      ]);
+
+      const page = await runIn({ user: owner, organizationId: organization.id }, ability =>
+        repository.accessibleBy(ability, "read").findPage({ limit: 10, dseq })
+      );
+
+      expect(page.map(({ id }) => id)).toEqual([closed.id, created.id]);
+    });
+
+    it("keeps to the type it is given", async () => {
+      const { repository, organization, owner, runIn } = await setup();
+      const dseq = faker.string.numeric(8);
+      const [created] = await Promise.all([
+        seedOrganizationActivity({ organizationId: organization.id, type: "deployment_created", payload: { dseq, name: null } }),
+        seedOrganizationActivity({ organizationId: organization.id, type: "deployment_updated", payload: { dseq, name: null } })
+      ]);
+
+      const page = await runIn({ user: owner, organizationId: organization.id }, ability =>
+        repository.accessibleBy(ability, "read").findPage({ limit: 10, dseq, type: "deployment_created" })
+      );
+
+      expect(page.map(({ id }) => id)).toEqual([created.id]);
+    });
+
     it("shows a member the activities of its granted projects and of the whole organization only", async () => {
       const { repository, organization, owner, runIn } = await setup();
       const granted = await seedProject({ organizationId: organization.id });
