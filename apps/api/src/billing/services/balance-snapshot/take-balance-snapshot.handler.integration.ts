@@ -16,7 +16,8 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { deleteCompletedJobs, deleteQueuedJobs, expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const TAKE = TakeBalanceSnapshot[JOB_NAME];
-const TAKEN_ON = "2026-11-28";
+const TAKEN_ON = "2099-06-01";
+const DAY_AFTER = "2099-06-02";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(TakeBalanceSnapshotHandler)]);
 
@@ -97,21 +98,34 @@ describe(TakeBalanceSnapshotHandler.name, () => {
   });
 
   it("queues the next day's run a quarter past midnight UTC when it runs, once however often it is seeded", async () => {
-    const { network, handler, runTake } = await setup();
-    vi.useFakeTimers({ now: new Date("2026-11-28T00:15:03.000Z"), toFake: ["Date"] });
+    const { network, handler, runTake, findQueuedRuns } = await setup();
 
-    try {
-      await runTake(TAKEN_ON);
-      await handler.seedNextRun(new Date());
-      await handler.seedNextRun(new Date());
-    } finally {
-      vi.useRealTimers();
-    }
+    await runTake(TAKEN_ON);
+    await handler.seedNextRun(new Date(`${TAKEN_ON}T00:15:03.000Z`));
+    await handler.seedNextRun(new Date(`${TAKEN_ON}T17:40:00.000Z`));
 
-    const queued = await findJobRows<{ takenOn: string }>(TAKE, { state: "created" });
-    expect(queued.map(job => ({ takenOn: job.data.takenOn, singletonKey: job.singleton_key, startsAt: new Date(job.start_after).toISOString() }))).toEqual([
-      { takenOn: "2026-11-29", singletonKey: `takeBalanceSnapshot.${network}.2026-11-29`, startsAt: "2026-11-29T00:15:00.000Z" }
+    await expect(findQueuedRuns()).resolves.toEqual([
+      { takenOn: DAY_AFTER, singletonKey: `takeBalanceSnapshot.${network}.${DAY_AFTER}`, startsAt: `${DAY_AFTER}T00:15:00.000Z`, expiresAfterSeconds: 3600 }
     ]);
+  });
+
+  it("queues the day after the one it ran for when it runs days late, due at once, so no day is left without a run", async () => {
+    const { network, handle, findQueuedRuns, findSnapshot } = await setup();
+
+    await handle("2026-11-20");
+
+    await expect(findQueuedRuns()).resolves.toEqual([
+      { takenOn: "2026-11-21", singletonKey: `takeBalanceSnapshot.${network}.2026-11-21`, startsAt: "2026-11-21T00:15:00.000Z", expiresAfterSeconds: 3600 }
+    ]);
+    await expect(findSnapshot("2026-11-20")).resolves.toMatchObject({ snapshot: { status: "complete" } });
+  });
+
+  it("seeds a run that may stay active for an hour before it is retried", async () => {
+    const { handler, findQueuedRuns } = await setup();
+
+    await handler.seedNextRun(new Date(`${TAKEN_ON}T17:40:00.000Z`));
+
+    await expect(findQueuedRuns()).resolves.toEqual([expect.objectContaining({ takenOn: DAY_AFTER, expiresAfterSeconds: 3600 })]);
   });
 
   async function setup() {
@@ -164,6 +178,17 @@ describe(TakeBalanceSnapshotHandler.name, () => {
       await expectJobCompleted(TAKE, { data: { takenOn } });
     };
 
+    const findQueuedRuns = async () => {
+      const queued = await findJobRows<{ takenOn: string }>(TAKE, { state: "created" });
+
+      return queued.map(job => ({
+        takenOn: job.data.takenOn,
+        singletonKey: job.singleton_key,
+        startsAt: new Date(job.start_after).toISOString(),
+        expiresAfterSeconds: job.expire_seconds
+      }));
+    };
+
     const findSnapshot = async (takenOn: string) => {
       const repository = container.resolve(BalanceSnapshotRepository);
       const snapshot = await repository.findByDay({ network, takenOn });
@@ -171,6 +196,16 @@ describe(TakeBalanceSnapshotHandler.name, () => {
       return { snapshot, grants: snapshot ? await repository.findGrants(snapshot.id) : [] };
     };
 
-    return { network, chain, active, draining, handler, handle: (takenOn: string) => handler.handle({ takenOn, version: 1 }), runTake, findSnapshot };
+    return {
+      network,
+      chain,
+      active,
+      draining,
+      handler,
+      handle: (takenOn: string) => handler.handle({ takenOn, version: 1 }),
+      runTake,
+      findQueuedRuns,
+      findSnapshot
+    };
   }
 });
