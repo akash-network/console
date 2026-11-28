@@ -6,6 +6,7 @@ import { FundingWalletRepository } from "@src/billing/repositories/funding-walle
 import { type FundingWalletMoveInput, FundingWalletMoveRepository } from "./funding-wallet-move.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(FundingWalletMoveRepository.name, () => {
   describe("createUnlessStarted", () => {
@@ -226,6 +227,35 @@ describe(FundingWalletMoveRepository.name, () => {
       const { repository } = await setup();
 
       await expect(repository.findUserWalletIdsByStatus(faker.string.uuid(), ["revoking"])).resolves.toEqual([]);
+    });
+  });
+
+  describe("findCompletedReads", () => {
+    it("pairs the chain address of each user moved off that funding wallet with the height its balance was read at", async () => {
+      const { repository, moveInput, from, otherSource } = await setup();
+      const [first, second, unfinished, movedOffAnother] = await Promise.all([1, 2, 3, 4].map(async () => (await seedUserWithWallet()).wallet));
+      await repository.createUnlessStarted(moveInput({ userWalletId: first.id, status: "completed", readHeight: 5_000 }));
+      await repository.createUnlessStarted(moveInput({ userWalletId: second.id, status: "completed", readHeight: 7_000 }));
+      await repository.createUnlessStarted(moveInput({ userWalletId: unfinished.id, status: "crediting", readHeight: 8_000 }));
+      await repository.createUnlessStarted(
+        moveInput({ userWalletId: movedOffAnother.id, status: "completed", readHeight: 9_000, fromFundingWalletId: otherSource.id })
+      );
+
+      const reads = await repository.findCompletedReads(from.id);
+
+      expect(reads).toHaveLength(2);
+      expect(reads).toEqual(
+        expect.arrayContaining([
+          { owner: first.address, readHeight: 5_000 },
+          { owner: second.address, readHeight: 7_000 }
+        ])
+      );
+    });
+
+    it("finds nothing for a wallet no user was moved off", async () => {
+      const { repository } = await setup();
+
+      await expect(repository.findCompletedReads(faker.string.uuid())).resolves.toEqual([]);
     });
   });
 

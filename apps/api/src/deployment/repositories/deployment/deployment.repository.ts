@@ -142,6 +142,22 @@ export class DeploymentRepository {
     return rows.map(({ owner }) => owner);
   }
 
+  /** Counts the open deployments each owner created at or before the height given with that owner. */
+  async countOpenCreatedAtOrBefore(owners: { owner: string; readHeight: number }[]): Promise<number> {
+    if (owners.length === 0) return 0;
+
+    const [{ count }] = await this.#chainDb.query<{ count: number }>(
+      `/* deployment:countOpenCreatedAtOrBefore */
+      SELECT count(*)::int AS count
+      FROM deployment d
+      INNER JOIN unnest($1::text[], $2::bigint[]) AS asked("owner", height) ON d."owner" = asked."owner" AND d."createdHeight" <= asked.height
+      WHERE d."closedHeight" IS NULL`,
+      { bind: [owners.map(({ owner }) => owner), owners.map(({ readHeight }) => readHeight)], type: QueryTypes.SELECT }
+    );
+
+    return count;
+  }
+
   /** Whether each indexed deployment ever had a lease and still has one open; like {@link findClosureStates}, a deployment the indexer holds no row for is left out. */
   async findLeaseStates(deployments: DeploymentKey[]): Promise<DeploymentLeaseState[]> {
     if (deployments.length === 0) return [];
