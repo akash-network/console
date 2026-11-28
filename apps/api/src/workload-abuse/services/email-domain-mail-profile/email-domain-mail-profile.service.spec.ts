@@ -18,7 +18,12 @@ describe(EmailDomainMailProfileService.name, () => {
 
   it("resolves the mail hosts, the addresses of the ones named under the domain and whether it serves a website", async () => {
     const { service } = setup({
-      mx: { "step-sis.help": [{ exchange: "Mail.Step-Sis.Help.", priority: 10 }, { exchange: "mx.backup-provider.net", priority: 20 }] },
+      mx: {
+        "step-sis.help": [
+          { exchange: "Mail.Step-Sis.Help.", priority: 10 },
+          { exchange: "mx.backup-provider.net", priority: 20 }
+        ]
+      },
       a: { "step-sis.help": ["23.88.114.19"], "mail.step-sis.help": ["23.88.114.19", "23.88.114.20"], "mx.backup-provider.net": ["1.1.1.1"] }
     });
 
@@ -45,7 +50,12 @@ describe(EmailDomainMailProfileService.name, () => {
 
   it("reports no website for a domain that only forwards mail", async () => {
     const { service } = setup({
-      mx: { "bayudummy.web.id": [{ exchange: "route2.mx.cloudflare.net", priority: 22 }, { exchange: "route1.mx.cloudflare.net", priority: 79 }] }
+      mx: {
+        "bayudummy.web.id": [
+          { exchange: "route2.mx.cloudflare.net", priority: 22 },
+          { exchange: "route1.mx.cloudflare.net", priority: 79 }
+        ]
+      }
     });
 
     const profile = await service.findProfile("bayudummy.web.id");
@@ -198,7 +208,10 @@ describe(EmailDomainMailProfileService.name, () => {
 
   describe("recordProfile", () => {
     it("looks up and stores the domain's mail servers", async () => {
-      const { service, repository } = setup({ mx: { "step-sis.help": [{ exchange: "mail.step-sis.help", priority: 10 }] }, a: { "mail.step-sis.help": ["23.88.114.19"] } });
+      const { service, repository } = setup({
+        mx: { "step-sis.help": [{ exchange: "mail.step-sis.help", priority: 10 }] },
+        a: { "mail.step-sis.help": ["23.88.114.19"] }
+      });
 
       const recorded = await service.recordProfile("step-sis.help");
 
@@ -266,7 +279,10 @@ describe(EmailDomainMailProfileService.name, () => {
     });
 
     it("counts a domain whose DNS fails as not recorded, so the next run retries it", async () => {
-      const { service, resolver, repository, logger } = setup({ blockedWithoutProfile: ["slow-dns.dev", "example-corp.com"], a: { "example-corp.com": ["45.10.0.3"] } });
+      const { service, resolver, repository, logger } = setup({
+        blockedWithoutProfile: ["slow-dns.dev", "example-corp.com"],
+        a: { "example-corp.com": ["45.10.0.3"] }
+      });
       resolver.resolveMx.mockImplementation(async host => {
         if (host === "slow-dns.dev") throw Object.assign(new Error("queryMx ETIMEOUT"), { code: "ETIMEOUT" });
         throw Object.assign(new Error("queryMx ENODATA"), { code: "ENODATA" });

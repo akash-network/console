@@ -28,12 +28,33 @@ describe(ManagedUserWalletService.name, () => {
       rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue(feeGrantMsg);
       rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(depositGrantMsg);
 
-      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex });
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex, seedVersion: "v3" });
 
-      expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(addressIndex);
+      expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledExactlyOnceWith(addressIndex, { walletVersion: "v3" });
       expect(result.address).toBe(address);
       expect(signer.executeFundingTx).toHaveBeenCalledWith([feeGrantMsg], { granteeDerivationIndex: addressIndex });
       expect(signer.executeFundingTx).toHaveBeenCalledWith([depositGrantMsg], { granteeDerivationIndex: addressIndex });
+    });
+  });
+
+  describe("createWallet", () => {
+    it("derives the address at the wallet's index from the seed version the wallet records", async () => {
+      const { service, txManagerService, logger } = setup();
+      const address = createAkashAddress();
+      txManagerService.getDerivedWalletAddress.mockResolvedValue(address);
+
+      await expect(service.createWallet({ addressIndex: 31, seedVersion: "v3" })).resolves.toEqual({ address });
+
+      expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledExactlyOnceWith(31, { walletVersion: "v3" });
+      expect(logger.debug).toHaveBeenCalledWith({ event: "WALLET_CREATED", address });
+    });
+  });
+
+  describe("seedVersionOfNewWallets", () => {
+    it("is the derivation seed version this api is configured with", () => {
+      const { service } = setup();
+
+      expect(service.seedVersionOfNewWallets).toBe("v3");
     });
   });
 
@@ -129,7 +150,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes the configured trial deployment limit when no explicit limit is given", async () => {
       const { service, signer, config, rpcMessageService } = setup();
 
-      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1 });
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1, seedVersion: "v2" });
 
       expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT }));
       expect(result.limits.deployment).toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
@@ -138,7 +159,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes the explicit deployment limit instead of the configured trial amount", async () => {
       const { service, signer, config, rpcMessageService } = setup();
 
-      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1, deploymentLimit: 5_000_000 });
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1, seedVersion: "v2", deploymentLimit: 5_000_000 });
 
       expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: 5_000_000 }));
       expect(result.limits.deployment).toBe(5_000_000);
@@ -328,7 +349,8 @@ describe(ManagedUserWalletService.name, () => {
       TRIAL_FEES_ALLOWANCE_AMOUNT: 100000,
       TRIAL_ALLOWANCE_EXPIRATION_DAYS: 14,
       FEE_ALLOWANCE_REFILL_AMOUNT: 200000,
-      DEPLOYMENT_GRANT_DENOM: "uakt"
+      DEPLOYMENT_GRANT_DENOM: "uakt",
+      DERIVATION_SEED_VERSION: "v3"
     } as BillingConfig;
 
     const txManagerService = mock<TxManagerService>();

@@ -420,14 +420,20 @@ describe(AssistantConsoleApiService.name, () => {
     const executionContextService = mock<ExecutionContextService>({ get: getFromContext as ExecutionContextService["get"] });
 
     const addressNamesService = mock<AssistantAddressNamesService>();
-    addressNamesService.withAddressesNamed.mockImplementation(async value => JSON.parse(JSON.stringify(value).replaceAll(PROVIDER, "provider provider.europlots.com")));
+    addressNamesService.withAddressesNamed.mockImplementation(async value =>
+      JSON.parse(JSON.stringify(value).replaceAll(PROVIDER, "provider provider.europlots.com"))
+    );
 
     const denomExchangeService = mock<DenomExchangeService>();
     denomExchangeService.getExchangeRateToUSD.mockResolvedValue(
       mock<Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>>>({ price: input.aktPrice ?? 1 })
     );
 
-    const service = new AssistantConsoleApiService(consoleApi, executionContextService, addressNamesService, new AssistantUsdService(denomExchangeService),
+    const service = new AssistantConsoleApiService(
+      consoleApi,
+      executionContextService,
+      addressNamesService,
+      new AssistantUsdService(denomExchangeService),
       mock<AuthService>({ currentUser: mock<UserOutput>({ id: "u-reader" }) })
     );
 

@@ -12,6 +12,7 @@ import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
 const BASE_URL = "http://tx-signer.test";
 const CLOSED_PORT_URL = "http://127.0.0.1:1";
 const API_KEY = "a".repeat(32);
+const WALLET = { derivationIndex: 1, seedVersion: "v2" };
 
 describe(ExternalSignerHttpSdkService.name, () => {
   it("returns the landed transaction the signer reports", async () => {
@@ -20,12 +21,34 @@ describe(ExternalSignerHttpSdkService.name, () => {
       .post("/v1/tx/derived")
       .reply(200, { data: { code: 0, hash: "ABC123", rawLog: "" } });
 
-    const result = await service.signAndBroadcastWithDerivedWallet(1, messages());
+    const result = await service.signAndBroadcastWithDerivedWallet(WALLET, messages());
 
     expect(result).toEqual({ code: 0, hash: "ABC123", rawLog: "" });
   });
 
-  it("names the grantee's derivation index on a funding transaction", async () => {
+  it("names the derivation index and the seed version of the wallet a derived transaction is signed with", async () => {
+    const { service } = setup();
+    let requestBody: unknown;
+    nock(BASE_URL)
+      .post("/v1/tx/derived", body => {
+        requestBody = body;
+        return true;
+      })
+      .reply(200, { data: { code: 0, hash: "ABC123", rawLog: "" } });
+
+    await service.signAndBroadcastWithDerivedWallet({ derivationIndex: 12, seedVersion: "v3" }, messages(), { fee: { granter: "akash1granter" } });
+
+    expect(requestBody).toEqual({
+      data: {
+        derivationIndex: 12,
+        seedVersion: "v3",
+        messages: [{ typeUrl: messages()[0].typeUrl, value: "AQ==" }],
+        options: { fee: { granter: "akash1granter" } }
+      }
+    });
+  });
+
+  it("names the grantee's derivation index and seed version on a funding transaction", async () => {
     const { service } = setup();
     let requestBody: unknown;
     nock(BASE_URL)
@@ -35,10 +58,12 @@ describe(ExternalSignerHttpSdkService.name, () => {
       })
       .reply(200, { data: { code: 0, hash: "ABC123", rawLog: "" } });
 
-    const result = await service.signAndBroadcastWithFundingWallet(messages(), { granteeDerivationIndex: 7 });
+    const result = await service.signAndBroadcastWithFundingWallet(messages(), { derivationIndex: 7, seedVersion: "v3" });
 
     expect(result).toEqual({ code: 0, hash: "ABC123", rawLog: "" });
-    expect(requestBody).toEqual({ data: { messages: [{ typeUrl: messages()[0].typeUrl, value: "AQ==" }], granteeDerivationIndex: 7 } });
+    expect(requestBody).toEqual({
+      data: { messages: [{ typeUrl: messages()[0].typeUrl, value: "AQ==" }], granteeDerivationIndex: 7, granteeSeedVersion: "v3" }
+    });
   });
 
   it("sends a funding transaction without a grantee when none is named", async () => {
@@ -62,7 +87,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
       .post("/v1/tx/derived")
       .reply(502, { message: "expired", data: { outcome: "not_included", txHash: "ABC123" } });
 
-    const error = await service.signAndBroadcastWithDerivedWallet(1, messages()).catch((error: unknown) => error);
+    const error = await service.signAndBroadcastWithDerivedWallet(WALLET, messages()).catch((error: unknown) => error);
 
     expect(error).toBeInstanceOf(TxNotIncludedError);
     expect((error as TxNotIncludedError).txHash).toBe("ABC123");
@@ -74,7 +99,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
       .post("/v1/tx/derived")
       .reply(504, { message: "undecided", data: { outcome: "unknown", txHash: "ABC123" } });
 
-    const error = await service.signAndBroadcastWithDerivedWallet(1, messages()).catch((error: unknown) => error);
+    const error = await service.signAndBroadcastWithDerivedWallet(WALLET, messages()).catch((error: unknown) => error);
 
     expect(error).toBeInstanceOf(TxOutcomeUnknownError);
     expect((error as TxOutcomeUnknownError).txHash).toBe("ABC123");
@@ -87,7 +112,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
       .delay(200)
       .reply(200, { data: { code: 0, hash: "ABC123", rawLog: "" } });
 
-    const error = await service.signAndBroadcastWithDerivedWallet(1, messages()).catch((error: unknown) => error);
+    const error = await service.signAndBroadcastWithDerivedWallet(WALLET, messages()).catch((error: unknown) => error);
 
     expect(error).toBeInstanceOf(TxOutcomeUnknownError);
     expect((error as TxOutcomeUnknownError).txHash).toBeUndefined();
@@ -97,14 +122,14 @@ describe(ExternalSignerHttpSdkService.name, () => {
     const { service } = setup();
     nock(BASE_URL).post("/v1/tx/derived").reply(504, "upstream request timeout");
 
-    await expect(service.signAndBroadcastWithDerivedWallet(1, messages())).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+    await expect(service.signAndBroadcastWithDerivedWallet(WALLET, messages())).rejects.toBeInstanceOf(TxOutcomeUnknownError);
   });
 
   it("leaves the signer's own unreachable-chain-node failure decided, so funding claims are not held over an RPC blip", async () => {
     const { service } = setup();
     nock(BASE_URL).post("/v1/tx/derived").reply(503, { error: "Error", message: "Bad status on response: 503", code: "service_unavailable" });
 
-    const error = await service.signAndBroadcastWithDerivedWallet(1, messages()).catch((error: unknown) => error);
+    const error = await service.signAndBroadcastWithDerivedWallet(WALLET, messages()).catch((error: unknown) => error);
 
     expect(error).not.toBeInstanceOf(TxOutcomeUnknownError);
     expect((error as Error).message).toBe("Bad status on response: 503");
@@ -113,7 +138,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
   it("leaves a refused connection as a plain failure, since nothing reached the signer", async () => {
     const { service } = setup({ baseUrl: CLOSED_PORT_URL });
 
-    const error = await service.signAndBroadcastWithDerivedWallet(1, messages()).catch((error: unknown) => error);
+    const error = await service.signAndBroadcastWithDerivedWallet(WALLET, messages()).catch((error: unknown) => error);
 
     expect(error).toBeInstanceOf(Error);
     expect(error).not.toBeInstanceOf(TxOutcomeUnknownError);
@@ -124,7 +149,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
     const { service } = setup();
     nock(BASE_URL).post("/v1/tx/derived").reply(400, { message: "Deployment closed" });
 
-    const error = await service.signAndBroadcastWithDerivedWallet(1, messages()).catch((error: unknown) => error);
+    const error = await service.signAndBroadcastWithDerivedWallet(WALLET, messages()).catch((error: unknown) => error);
 
     expect(error).not.toBeInstanceOf(TxOutcomeUnknownError);
     expect((error as Error).message).toBe("Deployment closed");
@@ -174,25 +199,22 @@ describe(ExternalSignerHttpSdkService.name, () => {
   });
 
   describe("getDerivedWalletAddress", () => {
-    it.each(["v1", "v2"] as const)("returns the %s address of the user wallet at an index", async generation => {
+    it.each(["v1", "v2", "v3"])("returns the %s address of the user wallet at an index", async seedVersion => {
       const { service } = setup();
       nock(BASE_URL, { reqheaders: { "x-api-key": API_KEY } })
         .get("/v1/wallets/derived/12")
-        .query({ version: generation })
-        .reply(200, { data: { address: `akash1${generation}` } });
+        .query({ version: seedVersion })
+        .reply(200, { data: { address: `akash1${seedVersion}` } });
 
-      await expect(service.getDerivedWalletAddress(12, generation)).resolves.toBe(`akash1${generation}`);
+      await expect(service.getDerivedWalletAddress({ derivationIndex: 12, seedVersion })).resolves.toBe(`akash1${seedVersion}`);
     });
 
     it("fails when the signer cannot serve the address", async () => {
       const { service } = setup();
-      nock(BASE_URL)
-        .get("/v1/wallets/derived/12")
-        .query({ version: "v1" })
-        .reply(501, { message: "This signer holds no seed for the first generation of user wallets" });
+      nock(BASE_URL).get("/v1/wallets/derived/12").query({ version: "v1" }).reply(501, { message: "This signer holds no derivation seed v1" });
 
-      await expect(service.getDerivedWalletAddress(12, "v1")).rejects.toThrow(
-        "The signer did not answer /v1/wallets/derived/12: This signer holds no seed for the first generation of user wallets"
+      await expect(service.getDerivedWalletAddress({ derivationIndex: 12, seedVersion: "v1" })).rejects.toThrow(
+        "The signer did not answer /v1/wallets/derived/12: This signer holds no derivation seed v1"
       );
     });
   });
@@ -200,7 +222,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
   describe("issueProviderToken", () => {
     it("returns the token the signer issues for the wallet, access and lifetime asked for", async () => {
       const { service } = setup();
-      const request = { derivationIndex: 7, leases: { access: "full" as const }, ttl: 45 };
+      const request = { derivationIndex: 7, seedVersion: "v3", leases: { access: "full" as const }, ttl: 45 };
       let requestBody: unknown;
       nock(BASE_URL, { reqheaders: { "x-api-key": API_KEY } })
         .post("/v1/wallets/provider-tokens", body => {
@@ -219,7 +241,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
       const { service, logger } = setup();
       nock(BASE_URL).post("/v1/wallets/provider-tokens").reply(400, { message: "The provider token asked for is not valid: no permissions" });
 
-      const result = await service.issueProviderToken({ derivationIndex: 7, leases: { access: "full" }, ttl: 45 });
+      const result = await service.issueProviderToken({ derivationIndex: 7, seedVersion: "v2", leases: { access: "full" }, ttl: 45 });
 
       expect(result.err).toBe(true);
       expect(result.val).toEqual(["The provider token asked for is not valid: no permissions"]);
@@ -230,7 +252,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
       const { service } = setup();
       nock(BASE_URL).post("/v1/wallets/provider-tokens").reply(400, "");
 
-      const result = await service.issueProviderToken({ derivationIndex: 7, leases: { access: "full" }, ttl: 45 });
+      const result = await service.issueProviderToken({ derivationIndex: 7, seedVersion: "v2", leases: { access: "full" }, ttl: 45 });
 
       expect(result.val).toEqual(["The signer refused the provider token asked for"]);
     });
@@ -239,7 +261,7 @@ describe(ExternalSignerHttpSdkService.name, () => {
       const { service } = setup();
       nock(BASE_URL).post("/v1/wallets/provider-tokens").reply(status, { message: "signer trouble" });
 
-      await expect(service.issueProviderToken({ derivationIndex: 7, leases: { access: "full" }, ttl: 45 })).rejects.toThrow(
+      await expect(service.issueProviderToken({ derivationIndex: 7, seedVersion: "v2", leases: { access: "full" }, ttl: 45 })).rejects.toThrow(
         "The signer did not answer /v1/wallets/provider-tokens: signer trouble"
       );
     });

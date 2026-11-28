@@ -1,0 +1,1 @@
+ALTER TABLE "user_wallets" ADD COLUMN "seed_version" varchar(16) DEFAULT 'v2' NOT NULL;

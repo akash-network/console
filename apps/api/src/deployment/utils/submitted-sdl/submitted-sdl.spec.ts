@@ -8,6 +8,8 @@ describe(submittedSdlOf.name, () => {
   });
 
   it("answers a definition as compact JSON with its keys in the order sent", () => {
-    expect(submittedSdlOf({ definition: { version: "2.0", services: { web: { image: "nginx" } } } })).toBe('{"version":"2.0","services":{"web":{"image":"nginx"}}}');
+    expect(submittedSdlOf({ definition: { version: "2.0", services: { web: { image: "nginx" } } } })).toBe(
+      '{"version":"2.0","services":{"web":{"image":"nginx"}}}'
+    );
   });
 });

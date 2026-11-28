@@ -35,6 +35,8 @@ import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
+const SEED_VERSION_OF_NEW_WALLETS = "v3";
+
 describe(WalletInitializerService.name, () => {
   describe("initializeAndGrantTrialLimits", () => {
     it("throws 400 when email is not verified", async () => {
@@ -75,7 +77,10 @@ describe(WalletInitializerService.name, () => {
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
 
-      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: wallet.id });
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), {
+        addressIndex: wallet.id,
+        seedVersion: wallet.seedVersion
+      });
     });
 
     it("throws 400 when the email domain is blocked", async () => {
@@ -168,7 +173,7 @@ describe(WalletInitializerService.name, () => {
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: orphanWallet.id });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: orphanWallet.id, seedVersion: "v2" });
       expect(updateWalletById).toHaveBeenCalledWith(orphanWallet.id, { address: derivedAddress });
     });
 
@@ -187,9 +192,9 @@ describe(WalletInitializerService.name, () => {
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
     });
 
-    it("authorizes trial spending and saves the granted allowances with an activation timestamp", async () => {
+    it("authorizes trial spending for the seed the wallet row records and saves the granted allowances with an activation timestamp", async () => {
       const userId = "test-user-id";
-      const wallet = createUserWallet({ userId, activatedAt: null });
+      const wallet = createUserWallet({ userId, activatedAt: null, seedVersion: "v4" });
       const chainWallet = createChainWallet();
       const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
       const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
@@ -200,7 +205,10 @@ describe(WalletInitializerService.name, () => {
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
-      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: wallet.id });
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), {
+        addressIndex: wallet.id,
+        seedVersion: "v4"
+      });
       expect(updateWalletById).toHaveBeenCalledWith(
         wallet.id,
         {
@@ -449,6 +457,7 @@ describe(WalletInitializerService.name, () => {
 
       expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), {
         addressIndex: wallet.id,
+        seedVersion: wallet.seedVersion,
         deploymentLimit: 5_000_000
       });
       expect(di.resolve(ReferralService).recordTrialGranted).toHaveBeenCalledWith(userId, 5_000_000);
@@ -495,6 +504,7 @@ describe(WalletInitializerService.name, () => {
 
       expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), {
         addressIndex: wallet.id,
+        seedVersion: wallet.seedVersion,
         deploymentLimit: undefined
       });
       expect(di.resolve(ReferralService).recordTrialGranted).not.toHaveBeenCalled();
@@ -582,7 +592,7 @@ describe(WalletInitializerService.name, () => {
   describe("ensureWallet", () => {
     it("creates the wallet and saves a derived address when none exists", async () => {
       const userId = "test-user-id";
-      const bareWallet = createUserWallet({ userId, address: null as unknown as string, activatedAt: null });
+      const bareWallet = createUserWallet({ userId, address: null as unknown as string, activatedAt: null, seedVersion: "v3" });
       const derivedAddress = "akash1derived";
       const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: bareWallet, isNew: true });
       const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...bareWallet, ...patch }));
@@ -593,8 +603,8 @@ describe(WalletInitializerService.name, () => {
 
       const result = await di.resolve(WalletInitializerService).ensureWallet(userId);
 
-      expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id });
+      expect(getOrCreateWallet).toHaveBeenCalledWith({ userId, seedVersion: SEED_VERSION_OF_NEW_WALLETS });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id, seedVersion: "v3" });
       expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: derivedAddress });
       expect(result.address).toBe(derivedAddress);
     });
@@ -612,7 +622,7 @@ describe(WalletInitializerService.name, () => {
 
       const result = await di.resolve(WalletInitializerService).ensureWallet(userId);
 
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: emptyAddressWallet.id });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: emptyAddressWallet.id, seedVersion: "v2" });
       expect(updateWalletById).toHaveBeenCalledWith(emptyAddressWallet.id, { address: derivedAddress });
       expect(result.address).toBe(derivedAddress);
     });
@@ -638,7 +648,7 @@ describe(WalletInitializerService.name, () => {
     it("creates the team organization's wallet and saves a derived address", async () => {
       const organizationId = faker.string.uuid();
       const creatorId = faker.string.uuid();
-      const bareWallet = createOrganizationWallet({ organizationId, address: null as unknown as string, activatedAt: null });
+      const bareWallet = createOrganizationWallet({ organizationId, address: null as unknown as string, activatedAt: null, seedVersion: "v3" });
       const getOrCreateOrganizationWallet = vi.fn().mockResolvedValue({ wallet: bareWallet, isNew: true });
       const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...bareWallet, ...patch }));
 
@@ -648,8 +658,8 @@ describe(WalletInitializerService.name, () => {
 
       const result = await di.resolve(WalletInitializerService).ensureTeamWallet({ id: organizationId, type: "team" }, creatorId);
 
-      expect(getOrCreateOrganizationWallet).toHaveBeenCalledWith({ organizationId, createdByUserId: creatorId });
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id });
+      expect(getOrCreateOrganizationWallet).toHaveBeenCalledWith({ organizationId, createdByUserId: creatorId, seedVersion: SEED_VERSION_OF_NEW_WALLETS });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id, seedVersion: "v3" });
       expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: "akash1team" });
       expect(result).toMatchObject({ id: bareWallet.id, address: "akash1team", userId: null, isTrialing: false });
     });
@@ -703,7 +713,7 @@ describe(WalletInitializerService.name, () => {
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
-    di.registerInstance(ManagedUserWalletService, mock<ManagedUserWalletService>());
+    di.registerInstance(ManagedUserWalletService, mock<ManagedUserWalletService>({ seedVersionOfNewWallets: SEED_VERSION_OF_NEW_WALLETS }));
     di.registerInstance(
       UserWalletRepository,
       mock<UserWalletRepository>({

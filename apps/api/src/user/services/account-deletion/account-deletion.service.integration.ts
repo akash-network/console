@@ -562,7 +562,7 @@ describe(AccountDeletionService.name, () => {
       await service.confirm({ token });
       const { wallet, grantTrial } = await registerAgain({ userId: account.user.userId!, email });
 
-      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id, seedVersion: "v2" });
       expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date), abuseLockedAt: null });
     });
 
@@ -670,7 +670,7 @@ describe(AccountDeletionService.name, () => {
       await service.confirm({ token });
       const { wallet, grantTrial } = await signUpAgain({ userId: `auth0|${faker.string.alphanumeric(24)}`, email, lastFingerprint: fingerprint });
 
-      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id, seedVersion: "v2" });
       expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date), abuseLockedAt: null });
     });
 
@@ -689,7 +689,7 @@ describe(AccountDeletionService.name, () => {
       });
 
       expect(refusal).toBeUndefined();
-      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id, seedVersion: "v2" });
       expect(wallet).toMatchObject({ isTrialing: true, abuseLockedAt: null });
     });
 
@@ -708,7 +708,7 @@ describe(AccountDeletionService.name, () => {
       const { user, wallet, grantTrial, refusal } = await signUpAgain({ userId: account.user.userId!, email });
 
       expect(refusal).toBeUndefined();
-      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id, seedVersion: "v2" });
       expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date) });
       expect(await findJobRows(ReviewRefusedTrial[JOB_NAME], { data: { userId: user.id } })).toEqual([]);
     });
@@ -728,7 +728,7 @@ describe(AccountDeletionService.name, () => {
       const { wallet, grantTrial, refusal } = await signUpAgain({ userId: account.user.userId!, email });
 
       expect(refusal).toBeUndefined();
-      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id, seedVersion: "v2" });
       expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date) });
     });
 

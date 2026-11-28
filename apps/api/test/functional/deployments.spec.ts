@@ -138,6 +138,8 @@ describe("Deployments API", () => {
       return Promise.resolve(allWallets.find(wallet => wallet.address === query?.address));
     });
 
+    vi.spyOn(userWalletRepository, "findSeedVersionById").mockImplementation(async id => allWallets.find(wallet => wallet.id === id)?.seedVersion);
+
     const fakeWalletRepository = {
       findByUserId: async (id: string) => {
         return Promise.resolve(knownWallets[id]);

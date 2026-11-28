@@ -159,7 +159,9 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     const recordedAt = input.recordedAt === undefined ? RECORDED_AT : input.recordedAt;
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findById.mockResolvedValue(
-      input.settingExists === false ? undefined : settingRecordedAt({ id: deploymentSettingId, dseq: input.storedDseq ?? DSEQ, recordedAt, lastWrittenAt: input.lastWrittenAt })
+      input.settingExists === false
+        ? undefined
+        : settingRecordedAt({ id: deploymentSettingId, dseq: input.storedDseq ?? DSEQ, recordedAt, lastWrittenAt: input.lastWrittenAt })
     );
 
     const deploymentPresenceService = mock<DeploymentPresenceService>();

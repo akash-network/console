@@ -197,7 +197,6 @@ describe(UserController.name, () => {
     return { controller, authService, executionContextService, userService, userAuthTokenService, accountStatusService };
   }
 
-
   function createRegisteredUser() {
     return mock<Awaited<ReturnType<UserService["registerUser"]>>>({ isNewUser: true });
   }

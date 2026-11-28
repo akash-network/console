@@ -37,7 +37,11 @@ describe(AssistantTranscriptService.name, () => {
         proposalId,
         action: {
           dseq: "42",
-          after: { command: ["sh", "-c"], args: [`--api-key=sk-${faker.string.alphanumeric(24)}`], env: [{ api_key: `api_key: ${faker.string.alphanumeric(12)}` }] },
+          after: {
+            command: ["sh", "-c"],
+            args: [`--api-key=sk-${faker.string.alphanumeric(24)}`],
+            env: [{ api_key: `api_key: ${faker.string.alphanumeric(12)}` }]
+          },
           replicas: 3,
           persistent: true
         },

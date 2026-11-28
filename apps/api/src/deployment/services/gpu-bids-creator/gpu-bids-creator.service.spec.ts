@@ -380,7 +380,9 @@ describe(GpuBidsCreatorService.name, () => {
     await expect(service.createGpuBids()).rejects.toThrow("1 of 2 gpu check deployments failed");
 
     expect(closedDseqs(signingClient)).toHaveLength(2);
-    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledExactlyOnceWith([expect.objectContaining({ provider: "akash1bidder", model: "model10", bid: true })]);
+    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledExactlyOnceWith([
+      expect.objectContaining({ provider: "akash1bidder", model: "model10", bid: true })
+    ]);
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ event: "GPU_CHECK_BATCH_FAILED", models: expect.arrayContaining(["model0"]), error: new Error("rpc unavailable") })
     );

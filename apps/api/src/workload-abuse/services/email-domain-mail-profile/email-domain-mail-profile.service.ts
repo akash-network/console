@@ -11,7 +11,8 @@ import { isPublicIpv4 } from "@src/workload-abuse/lib/public-ipv4/public-ipv4";
 import { DNS_RESOLVER, type DnsResolver } from "@src/workload-abuse/providers/dns-resolver.provider";
 import {
   EmailDomainMailHostRepository,
-  type EmailDomainMailProfile } from "@src/workload-abuse/repositories/email-domain-mail-host/email-domain-mail-host.repository";
+  type EmailDomainMailProfile
+} from "@src/workload-abuse/repositories/email-domain-mail-host/email-domain-mail-host.repository";
 
 const MAX_PROFILED_DOMAINS = 5_000;
 const PROFILE_ENTRY_BYTES = 512;

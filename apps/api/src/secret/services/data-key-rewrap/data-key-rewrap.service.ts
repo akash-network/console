@@ -180,12 +180,7 @@ export class DataKeyRewrapService {
   }
 
   /** A row nothing can open is recorded and stepped over, because keyset selection would hand it to every re-run first and the fleet would never move off the retiring version. */
-  async #rewrapBatch(
-    batch: DataKeyOutput[],
-    target: SdlSecretsKmsTarget,
-    sealingKey: SdlSecretsSealingKey,
-    errors: unknown[]
-  ): Promise<Rewrapping[]> {
+  async #rewrapBatch(batch: DataKeyOutput[], target: SdlSecretsKmsTarget, sealingKey: SdlSecretsSealingKey, errors: unknown[]): Promise<Rewrapping[]> {
     const wrappings: Rewrapping[] = [];
 
     for (const row of batch) {

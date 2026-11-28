@@ -63,8 +63,18 @@ describe(getMaxCudaVersion.name, () => {
   });
 
   it.each([
-    [[{ cudaVersion: "13.4", minimumDriver: [615] }, { cudaVersion: "13.5", minimumDriver: [615] }]],
-    [[{ cudaVersion: "13.5", minimumDriver: [615] }, { cudaVersion: "13.4", minimumDriver: [615] }]]
+    [
+      [
+        { cudaVersion: "13.4", minimumDriver: [615] },
+        { cudaVersion: "13.5", minimumDriver: [615] }
+      ]
+    ],
+    [
+      [
+        { cudaVersion: "13.5", minimumDriver: [615] },
+        { cudaVersion: "13.4", minimumDriver: [615] }
+      ]
+    ]
   ])("reads the newer of two cuda versions that share a minimum driver", minimumDrivers => {
     expect(getMaxCudaVersion("615.20.01", minimumDrivers)).toBe("13.5");
   });

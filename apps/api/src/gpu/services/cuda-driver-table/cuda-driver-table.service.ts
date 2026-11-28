@@ -3,12 +3,7 @@ import { hoursToMilliseconds } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import {
-  BUNDLED_CUDA_MINIMUM_DRIVERS,
-  type CudaMinimumDriver,
-  mergeCudaMinimumDrivers,
-  parseCudaCompatListing
-} from "@src/gpu/lib/cuda-version/cuda-version";
+import { BUNDLED_CUDA_MINIMUM_DRIVERS, type CudaMinimumDriver, mergeCudaMinimumDrivers, parseCudaCompatListing } from "@src/gpu/lib/cuda-version/cuda-version";
 import { CUDA_REPO_HTTP_CLIENT } from "@src/gpu/providers/cuda-repo-client.provider";
 
 const LISTING_REFRESH_INTERVAL_MS = hoursToMilliseconds(24);

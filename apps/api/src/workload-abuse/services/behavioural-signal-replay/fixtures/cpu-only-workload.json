@@ -11,9 +11,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          3000
-        ],
+        "listenPorts": [3000],
         "connections": [
           {
             "localPort": 46000,

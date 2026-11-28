@@ -56,8 +56,11 @@ export class ManagedUserWalletService {
     this.logger = createLogger({ context: ManagedUserWalletService.name });
   }
 
-  async createAndAuthorizeTrialSpending(signer: ManagedSignerService, { addressIndex, deploymentLimit }: { addressIndex: number; deploymentLimit?: number }) {
-    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
+  async createAndAuthorizeTrialSpending(
+    signer: ManagedSignerService,
+    { addressIndex, seedVersion, deploymentLimit }: { addressIndex: number; seedVersion: string; deploymentLimit?: number }
+  ) {
+    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex, { walletVersion: seedVersion });
 
     const limits = {
       deployment: deploymentLimit ?? this.config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
@@ -73,8 +76,12 @@ export class ManagedUserWalletService {
     return { address, limits };
   }
 
-  async createWallet({ addressIndex }: { addressIndex: number }) {
-    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
+  get seedVersionOfNewWallets(): string {
+    return this.config.DERIVATION_SEED_VERSION;
+  }
+
+  async createWallet({ addressIndex, seedVersion }: { addressIndex: number; seedVersion: string }) {
+    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex, { walletVersion: seedVersion });
     this.logger.debug({ event: "WALLET_CREATED", address });
 
     return { address };

@@ -21,16 +21,21 @@ export type SignAndBroadcastFundingOptions = {
   granteeDerivationIndex: number;
 };
 
+/** A derived wallet as the signer knows it: the index it sits at and the seed it was derived from. */
+export type DerivedWalletRef = { derivationIndex: number; seedVersion: string };
+
 type SignAndBroadcastFundingRequest = {
   data: {
     messages: SignAndBroadcastRequestMessage[];
     granteeDerivationIndex?: number;
+    granteeSeedVersion?: string;
   };
 };
 
 type SignAndBroadcastDerivedRequest = {
   data: {
     derivationIndex: number;
+    seedVersion: string;
     messages: SignAndBroadcastRequestMessage[];
     options?: SignAndBroadcastOptions;
   };
@@ -40,10 +45,7 @@ type SignAndBroadcastResponse = {
   data: Pick<IndexedTx, "code" | "hash" | "rawLog">;
 };
 
-export type DerivedWalletGeneration = "v1" | "v2";
-
-export type ProviderTokenRequest = {
-  derivationIndex: number;
+export type ProviderTokenRequest = DerivedWalletRef & {
   leases: JwtTokenPayload["leases"];
   ttl: number;
 };
@@ -69,20 +71,26 @@ export class ExternalSignerHttpSdkService {
     this.logger = createLogger({ context: ExternalSignerHttpSdkService.name });
   }
 
-  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[], options?: SignAndBroadcastFundingOptions) {
+  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[], grantee?: DerivedWalletRef) {
     const response = await this.post<SignAndBroadcastResponse>("/v1/tx/funding", {
       data: {
         messages: this.encodeMessages(messages),
-        granteeDerivationIndex: options?.granteeDerivationIndex
+        granteeDerivationIndex: grantee?.derivationIndex,
+        granteeSeedVersion: grantee?.seedVersion
       }
     } satisfies SignAndBroadcastFundingRequest);
     return response.data;
   }
 
-  async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
+  async signAndBroadcastWithDerivedWallet(
+    { derivationIndex, seedVersion }: DerivedWalletRef,
+    messages: readonly EncodeObject[],
+    options?: SignAndBroadcastOptions
+  ) {
     const response = await this.post<SignAndBroadcastResponse>("/v1/tx/derived", {
       data: {
         derivationIndex,
+        seedVersion,
         messages: this.encodeMessages(messages),
         options
       }
@@ -96,11 +104,11 @@ export class ExternalSignerHttpSdkService {
     return response.data.data.addresses;
   }
 
-  async getDerivedWalletAddress(derivationIndex: number, generation: DerivedWalletGeneration): Promise<string> {
+  async getDerivedWalletAddress({ derivationIndex, seedVersion }: DerivedWalletRef): Promise<string> {
     const response = await this.callWalletRoute<{ data: { address: string } }>({
       method: "get",
       url: `/v1/wallets/derived/${derivationIndex}`,
-      params: { version: generation }
+      params: { version: seedVersion }
     });
 
     return response.data.data.address;

@@ -34,11 +34,13 @@ export class ProviderJwtTokenService {
   ) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
-    if (!this.txManagerService.holdsDerivationSeed) {
-      return await this.externalSignerHttpSdkService.issueProviderToken({ derivationIndex: walletId, leases, ttl });
+    const seedVersion = await this.txManagerService.getSeedVersion(walletId);
+
+    if (!this.txManagerService.holdsDerivationSeed(seedVersion)) {
+      return await this.externalSignerHttpSdkService.issueProviderToken({ derivationIndex: walletId, seedVersion, leases, ttl });
     }
 
-    const { jwtTokenManager, address } = await this.getJwtToken(walletId);
+    const { jwtTokenManager, address } = await this.getJwtToken(walletId, seedVersion);
     const now = Math.floor(Date.now() / 1000);
     const payload: JwtTokenPayload = {
       version: "v1",
@@ -57,8 +59,8 @@ export class ProviderJwtTokenService {
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
-    const wallet = this.txManagerService.getDerivedWallet(walletId);
+  private async getJwtToken(walletId: number, seedVersion: string): Promise<JwtTokenWithAddress> {
+    const wallet = this.txManagerService.getDerivedWallet(walletId, seedVersion);
     const jwtTokenManager = new this.jwtModule.JwtTokenManager(wallet);
     const address = await wallet.getFirstAddress();
 

@@ -25,6 +25,52 @@ describe("envSchema", () => {
     });
   });
 
+  describe("DERIVATION_SEED_VERSION", () => {
+    it("makes new wallets from seed v2 when absent", () => {
+      const result = setup({});
+
+      expect(result.success && result.data.DERIVATION_SEED_VERSION).toBe("v2");
+    });
+
+    it.each(["v3", "v12", "v123456789012345"])("accepts %s", version => {
+      const result = setup({ DERIVATION_SEED_VERSION: version });
+
+      expect(result.success && result.data.DERIVATION_SEED_VERSION).toBe(version);
+    });
+
+    it.each(["v0", "3", "latest", "v3x", "xv3", ""])("rejects %j", version => {
+      const result = setup({ DERIVATION_SEED_VERSION: version });
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_SEED_VERSION"], message: "DERIVATION_SEED_VERSION must look like v2" })
+      );
+    });
+  });
+
+  describe("DERIVATION_SEED_VERSION the signer or the wallet table cannot take", () => {
+    it("rejects v1, a seed the signer signs nothing with", () => {
+      const result = setup({ DERIVATION_SEED_VERSION: "v1" });
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({
+          path: ["DERIVATION_SEED_VERSION"],
+          message: "DERIVATION_SEED_VERSION cannot be v1, which the signer reads addresses from and signs nothing with"
+        })
+      );
+    });
+
+    it("rejects a version one character longer than a wallet row keeps", () => {
+      const result = setup({ DERIVATION_SEED_VERSION: "v1234567890123456" });
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_SEED_VERSION"], message: "DERIVATION_SEED_VERSION must fit the 16 characters a wallet row keeps" })
+      );
+    });
+  });
+
   describe("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN", () => {
     it("defaults to 60 when absent", () => {
       const result = setup({});
