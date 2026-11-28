@@ -98,6 +98,51 @@ describe(BalanceSnapshotRepository.name, () => {
     });
   });
 
+  describe("findLatestComplete", () => {
+    it("finds the most recent day of the network that is complete, whatever came after it", async () => {
+      const { repository, network } = setup();
+      const other = setup();
+      const days = { older: "2026-11-25", latestComplete: "2026-11-26", failedSince: "2026-11-27", runningSince: "2026-11-28" };
+      const [older, latestComplete, failedSince] = [
+        await repository.startUnlessComplete({ network, takenOn: days.older, height: 100 }),
+        await repository.startUnlessComplete({ network, takenOn: days.latestComplete, height: 200 }),
+        await repository.startUnlessComplete({ network, takenOn: days.failedSince, height: 300 })
+      ];
+      await repository.startUnlessComplete({ network, takenOn: days.runningSince, height: 400 });
+      const elsewhere = await repository.startUnlessComplete({ network: other.network, takenOn: days.runningSince, height: 500 });
+      await repository.complete(older!.id, 0);
+      await repository.complete(latestComplete!.id, 0);
+      await repository.fail(failedSince!.id, "boom");
+      await repository.complete(elsewhere!.id, 0);
+
+      await expect(repository.findLatestComplete(network)).resolves.toMatchObject({ id: latestComplete!.id, takenOn: days.latestComplete, status: "complete" });
+    });
+
+    it("finds nothing for a network without a complete snapshot", async () => {
+      const { repository, network } = setup();
+      await repository.startUnlessComplete({ network, takenOn: TAKEN_ON, height: 100 });
+
+      await expect(repository.findLatestComplete(network)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("findGrantsOf", () => {
+    it("finds what one grantee held in one snapshot, from every granter and in every denom", async () => {
+      const { repository, network, grant } = setup();
+      const snapshot = await repository.startUnlessComplete({ network, takenOn: TAKEN_ON, height: 100 });
+      const other = await repository.startUnlessComplete({ network, takenOn: "2026-11-29", height: 200 });
+      const grantee = createAkashAddress();
+      const held = [grant({ grantee, denom: "uact" }), grant({ grantee, denom: "uakt" })];
+      await repository.addGrants(snapshot!.id, [...held, grant()]);
+      await repository.addGrants(other!.id, [grant({ grantee })]);
+
+      const found = await repository.findGrantsOf(snapshot!.id, grantee);
+
+      expect(found).toHaveLength(2);
+      expect(found).toEqual(expect.arrayContaining(held));
+    });
+  });
+
   it("finds no snapshot for a day none was started on", async () => {
     const { repository, network } = setup();
 
