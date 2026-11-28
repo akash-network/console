@@ -15,6 +15,7 @@ export default defineConfig(async overrideOptions =>
       server: "./src/server.ts",
       "db-migrate": "./script/db-migrate.ts",
       "funding-freeze": "./script/funding-freeze.ts",
+      "funding-outflow": "./script/funding-outflow.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
     target: tsconfig.compilerOptions.target,

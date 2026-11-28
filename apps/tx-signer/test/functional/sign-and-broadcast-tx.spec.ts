@@ -26,8 +26,11 @@ import { afterAll, afterEach, describe, expect, it, onTestFinished } from "vites
 
 import { TxController } from "@src/controllers/tx/tx.controller";
 import { app } from "@src/index";
+import { fundingOutflowLimits, fundingOutflows } from "@src/model-schemas";
+import { FundingControlsDatabase } from "@src/providers/funding-controls-database.provider";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
 import { FundingFreezeRepository } from "@src/repositories/funding-freeze/funding-freeze.repository";
+import { FundingOutflowRepository } from "@src/repositories/funding-outflow/funding-outflow.repository";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
@@ -466,17 +469,87 @@ describe(TxController.name, () => {
 
       return { liftFreeze };
     }
+  });
 
-    async function buildDeploymentDepositMessages() {
-      return encodeMessages({
-        typeUrl: `/${MsgCreateDeployment.$type}`,
-        value: MsgCreateDeployment.fromPartial({
-          id: { owner: await container.resolve(TxManagerService).getDerivedWalletAddress(DERIVATION_INDEX), dseq: "1" },
-          deposit: { amount: { denom: "uact", amount: "5000000" }, sources: [Source.grant] }
-        })
+  describe("when a limit bounds what leaves the funding wallets", () => {
+    it("signs a deposit within an enforced limit and records it as landed", async () => {
+      const { txHash } = mockRpcNode();
+      const { readOutflows } = await limitOutflow({ maxAmount: 5_000_000n, isEnforced: true });
+
+      const res = await requestDeploymentDeposit();
+
+      expect(res.status).toBe(200);
+      await expect(readOutflows()).resolves.toEqual([{ denom: "uact", amount: 5_000_000n, status: "landed", txHash }]);
+    });
+
+    it("refuses a deposit past an enforced limit with 429, broadcasts nothing and stops counting it", async () => {
+      const { getBroadcastedTxs } = mockRpcNode();
+      const { readOutflows } = await limitOutflow({ maxAmount: 4_999_999n, isEnforced: true });
+
+      const res = await requestDeploymentDeposit();
+
+      expect(res.status).toBe(429);
+      expect(await res.json()).toMatchObject({ message: "This deposit would take more out of the funding wallets than may leave them in 24 hours" });
+      expect(getBroadcastedTxs()).toEqual([]);
+      await expect(readOutflows()).resolves.toEqual([{ denom: "uact", amount: 5_000_000n, status: "released", txHash: null }]);
+    });
+
+    it("refuses the second of two deposits that only together pass an enforced limit", async () => {
+      mockRpcNode();
+      await limitOutflow({ maxAmount: 9_999_999n, isEnforced: true });
+
+      const first = await requestDeploymentDeposit();
+      mockRpcNode();
+      const second = await requestDeploymentDeposit();
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(429);
+    });
+
+    it("signs a deposit past a limit that is only reported", async () => {
+      mockRpcNode();
+      const { readOutflows } = await limitOutflow({ maxAmount: 1n, isEnforced: false });
+
+      const res = await requestDeploymentDeposit();
+
+      expect(res.status).toBe(200);
+      await expect(readOutflows()).resolves.toMatchObject([{ status: "landed" }]);
+    });
+
+    async function requestDeploymentDeposit() {
+      return await app.request("/v1/tx/derived", {
+        method: "POST",
+        body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDeploymentDepositMessages() } }),
+        headers: authorizedHeaders()
       });
     }
+
+    async function limitOutflow(input: { maxAmount: bigint; isEnforced: boolean }) {
+      const { orm } = container.resolve(FundingControlsDatabase);
+      await orm.delete(fundingOutflows);
+      await container.resolve(FundingOutflowRepository).setLimit({ denom: "uact", scope: "total", setBy: "functional test", ...input });
+      onTestFinished(async () => {
+        await orm.delete(fundingOutflowLimits);
+      });
+
+      return {
+        readOutflows: async () =>
+          await orm
+            .select({ denom: fundingOutflows.denom, amount: fundingOutflows.amount, status: fundingOutflows.status, txHash: fundingOutflows.txHash })
+            .from(fundingOutflows)
+      };
+    }
   });
+
+  async function buildDeploymentDepositMessages() {
+    return encodeMessages({
+      typeUrl: `/${MsgCreateDeployment.$type}`,
+      value: MsgCreateDeployment.fromPartial({
+        id: { owner: await container.resolve(TxManagerService).getDerivedWalletAddress(DERIVATION_INDEX), dseq: "1" },
+        deposit: { amount: { denom: "uact", amount: "5000000" }, sources: [Source.grant] }
+      })
+    });
+  }
 
   function authorizedHeaders() {
     return new Headers({ "Content-Type": "application/json", "x-api-key": container.resolve(AppConfigService).get("ACCESS_API_KEY") });

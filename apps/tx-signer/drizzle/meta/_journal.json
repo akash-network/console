@@ -8,6 +8,13 @@
       "when": 1795884625615,
       "tag": "0000_funding_freezes",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795885142193,
+      "tag": "0001_funding_outflows",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { FundingFreezeService } from "@src/services/funding-freeze/funding-freeze.service";
+import type { FundingOutflowService } from "@src/services/funding-outflow/funding-outflow.service";
 import type { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 import type { TxPolicyService } from "@src/services/tx-policy/tx-policy.service";
 import { TxController } from "./tx.controller";
@@ -202,6 +203,47 @@ describe(TxController.name, () => {
     });
   });
 
+  describe("when what leaves the funding wallets is counted", () => {
+    it("has a user wallet's grant-funded deposits counted against the wallet it signs for, around the signing", async () => {
+      const { controller, txManagerService, fundingOutflowService, registry, derivedWalletAddress } = setup();
+      registry.decode.mockReturnValue(deploymentDepositing([Source.grant]));
+
+      const result = await controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } });
+
+      expect(fundingOutflowService.track).toHaveBeenCalledExactlyOnceWith(derivedWalletAddress, [{ denom: "uact", amount: "5000000" }], expect.any(Function));
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledExactlyOnceWith(3, expect.any(Array), undefined, undefined);
+      expect(result).toEqual({ data: { code: 0, hash: "tx", rawLog: "" } });
+    });
+
+    it("has nothing counted for a tx that takes none of a funding wallet's coins", async () => {
+      const { controller, fundingOutflowService, derivedWalletAddress } = setup();
+
+      await controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } });
+
+      expect(fundingOutflowService.track).toHaveBeenCalledExactlyOnceWith(derivedWalletAddress, [], expect.any(Function));
+    });
+
+    it("signs nothing when the count refuses the deposit", async () => {
+      const { controller, txManagerService, fundingOutflowService, registry } = setup();
+      registry.decode.mockReturnValue(deploymentDepositing([Source.grant]));
+      fundingOutflowService.track.mockRejectedValue(new Error("past the limit"));
+
+      await expect(controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } })).rejects.toThrow("past the limit");
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("asks whether funding is frozen before anything is counted", async () => {
+      const { controller, fundingFreezeService, fundingOutflowService, registry } = setup();
+      registry.decode.mockReturnValue(deploymentDepositing([Source.grant]));
+      fundingFreezeService.assertFundingIsNotFrozen.mockRejectedValue(new Error("Funding is frozen"));
+
+      await expect(controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } })).rejects.toThrow(
+        "Funding is frozen"
+      );
+      expect(fundingOutflowService.track).not.toHaveBeenCalled();
+    });
+  });
+
   function deploymentDepositing(sources: Source[]) {
     return MsgCreateDeployment.fromPartial({ deposit: { amount: { denom: "uact", amount: "5000000" }, sources } });
   }
@@ -232,9 +274,12 @@ describe(TxController.name, () => {
     const txPolicyService = mock<TxPolicyService>();
     txPolicyService.resolveFundingSigner.mockReturnValue(fundingWalletAddress);
     const fundingFreezeService = mock<FundingFreezeService>();
+    const fundingOutflowService = mock<FundingOutflowService>();
+    fundingOutflowService.track.mockImplementation(async (_walletAddress, _deposits, signAndBroadcast) => await signAndBroadcast());
 
     return {
-      controller: new TxController(registry, txManagerService, txPolicyService, fundingFreezeService),
+      controller: new TxController(registry, txManagerService, txPolicyService, fundingFreezeService, fundingOutflowService),
+      fundingOutflowService,
       registry,
       txManagerService,
       txPolicyService,
