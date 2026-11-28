@@ -162,6 +162,15 @@ describe(TxManagerService.name, () => {
       expect(firstGenerationWalletFactory).not.toHaveBeenCalled();
     });
 
+    it("derives a current-generation address when no generation is named", async () => {
+      const { service, derivedWallet, firstGenerationWalletFactory } = setup({ hasFirstGenerationSeed: true, derivedWalletAddress: "akash1current" });
+
+      await expect(service.getDerivedWalletAddress(5)).resolves.toBe("akash1current");
+
+      expect(derivedWallet.getFirstAddress).toHaveBeenCalledTimes(1);
+      expect(firstGenerationWalletFactory).not.toHaveBeenCalled();
+    });
+
     it("derives a first-generation address from the first-generation seed", async () => {
       const { service, walletFactory, firstGenerationWalletFactory, firstGenerationWalletAddress } = setup({ hasFirstGenerationSeed: true });
 
