@@ -1,7 +1,15 @@
 import { DepositAuthorization, MsgAccountDeposit, MsgCreateCertificate, MsgMintACT } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import { BasicAllowance, type Coin, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import {
+  BasicAllowance,
+  type Coin,
+  MsgGrant,
+  MsgGrantAllowance,
+  MsgRevoke,
+  MsgRevokeAllowance,
+  MsgSend
+} from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Forbidden } from "http-errors";
 import { inject, singleton } from "tsyringe";
@@ -36,7 +44,8 @@ const ACTOR_ADDRESS_READERS = {
   [`/${MsgRevokeAllowance.$type}` as const]: readActorAddresses((m: MsgRevokeAllowance) => [m.granter]),
   [`/${MsgGrant.$type}` as const]: readActorAddresses((m: MsgGrant) => [m.granter]),
   [`/${MsgRevoke.$type}` as const]: readActorAddresses((m: MsgRevoke) => [m.granter]),
-  [`/${MsgMintACT.$type}` as const]: readActorAddresses((m: MsgMintACT) => [m.owner, m.to])
+  [`/${MsgMintACT.$type}` as const]: readActorAddresses((m: MsgMintACT) => [m.owner, m.to]),
+  [`/${MsgSend.$type}` as const]: readActorAddresses((m: MsgSend) => [m.fromAddress])
 } satisfies Record<SignableMessageTypeUrl, ActorAddressReader>;
 
 function hasActorBinding(typeUrl: string): typeUrl is SignableMessageTypeUrl {
@@ -106,6 +115,19 @@ export class TxPolicyService {
     for (const message of messages) {
       if (message.typeUrl === "/cosmos.feegrant.v1beta1.MsgGrantAllowance" || message.typeUrl === "/cosmos.authz.v1beta1.MsgGrant") {
         this.assertGrantee(message.typeUrl, (message.value as MsgGrantAllowance | MsgGrant).grantee, managedWalletAddress);
+      }
+    }
+  }
+
+  /** A funding wallet's coins may only move to another wallet this signer holds the key of, so a send can empty a replaced wallet and can never pay anyone out. */
+  assertSentToAnotherFundingWallet(messages: readonly EncodeObject[], fundingWalletAddresses: readonly string[]): void {
+    for (const message of messages) {
+      if (message.typeUrl !== `/${MsgSend.$type}`) continue;
+
+      const { fromAddress, toAddress } = message.value as MsgSend;
+
+      if (!toAddress || toAddress === fromAddress || !fundingWalletAddresses.includes(toAddress)) {
+        this.reject("TX_SEND_RECIPIENT_REJECTED", message.typeUrl, `sends to ${toAddress || "an unset address"}, which is not another funding wallet`);
       }
     }
   }

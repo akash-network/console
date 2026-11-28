@@ -6,6 +6,7 @@ import {
   type Coin,
   MsgGrantAllowance,
   MsgRevoke,
+  MsgSend,
   QueryAccountResponse,
   SimulateResponse,
   TxBody,
@@ -130,6 +131,45 @@ describe(TxController.name, () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+  });
+
+  it("signs a funding tx that sends one funding wallet's coins to the other, with the wallet the coins leave", async () => {
+    const { txHash, getBroadcastedTxs } = mockRpcNode({ chainId: CHAIN_ID, accountNumber: ACCOUNT_NUMBER });
+    const [seedPhraseFundingWalletAddress, keyServiceFundingWalletAddress] = await container.resolve(TxManagerService).getFundingWalletAddresses();
+
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: buildSendMessages({ from: seedPhraseFundingWalletAddress, to: keyServiceFundingWalletAddress }) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+    await expect(readSignerOf(getBroadcastedTxs()[0])).resolves.toEqual({ address: seedPhraseFundingWalletAddress, hasValidSignature: true });
+  });
+
+  it("rejects a funding tx that sends a funding wallet's coins to an address that is no funding wallet", async () => {
+    const [seedPhraseFundingWalletAddress] = await container.resolve(TxManagerService).getFundingWalletAddresses();
+
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: buildSendMessages({ from: seedPhraseFundingWalletAddress, to: createAkashAddress() }) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a funding tx that sends the coins of an address that is no funding wallet", async () => {
+    const [seedPhraseFundingWalletAddress] = await container.resolve(TxManagerService).getFundingWalletAddresses();
+
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: buildSendMessages({ from: createAkashAddress(), to: seedPhraseFundingWalletAddress }) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
   });
 
   it("rejects a funding tx revoking a deposit grant another granter issued", async () => {
@@ -365,6 +405,13 @@ describe(TxController.name, () => {
         grantee: await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX),
         msgTypeUrl: `/${MsgAccountDeposit.$type}`
       })
+    });
+  }
+
+  function buildSendMessages({ from, to }: { from: string; to: string }) {
+    return encodeMessages({
+      typeUrl: `/${MsgSend.$type}`,
+      value: MsgSend.fromPartial({ fromAddress: from, toAddress: to, amount: [{ denom: "uact", amount: "1000000" }] })
     });
   }
 

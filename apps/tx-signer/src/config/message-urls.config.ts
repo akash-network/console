@@ -1,19 +1,20 @@
 import { DepositAuthorization, MsgAccountDeposit, MsgCreateCertificate, MsgMintACT } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import { MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance, MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { BasicAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 
 /**
  * The funding wallet holds real funds, so it may only issue the grant lifecycle and mint messages the API's
- * wallet provisioning relies on. Anything else is rejected before it reaches the signer.
+ * wallet provisioning relies on, and send its coins to another funding wallet. Anything else is rejected before it reaches the signer.
  */
 export const FUNDING_WALLET_MESSAGE_TYPE_URLS = [
   `/${MsgGrantAllowance.$type}`,
   `/${MsgRevokeAllowance.$type}`,
   `/${MsgGrant.$type}`,
   `/${MsgRevoke.$type}`,
-  `/${MsgMintACT.$type}`
+  `/${MsgMintACT.$type}`,
+  `/${MsgSend.$type}`
 ] as const;
 
 /**

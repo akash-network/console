@@ -26,6 +26,7 @@ export class TxController {
     this.txPolicyService.assertActingOnBehalfOf(decoded, fundingWalletAddress);
     this.txPolicyService.assertWithinGrantLimits(decoded);
     this.txPolicyService.assertGrantedToManagedWallet(decoded, granteeAddress);
+    this.txPolicyService.assertSentToAnotherFundingWallet(decoded, fundingWalletAddresses);
     const tx = await this.txManagerService.signAndBroadcastWithFundingWallet(fundingWalletAddress, decoded);
     return {
       data: {
