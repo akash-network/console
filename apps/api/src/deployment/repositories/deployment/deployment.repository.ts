@@ -143,7 +143,7 @@ export class DeploymentRepository {
   }
 
   /** Counts the open deployments each owner created at or before the height given with that owner. */
-  async countOpenCreatedAtOrBefore(owners: { owner: string; readHeight: number }[]): Promise<number> {
+  async countOpenCreatedAtOrBefore(owners: { owner: string; height: number }[]): Promise<number> {
     if (owners.length === 0) return 0;
 
     const [{ count }] = await this.#chainDb.query<{ count: number }>(
@@ -152,7 +152,7 @@ export class DeploymentRepository {
       FROM deployment d
       INNER JOIN unnest($1::text[], $2::bigint[]) AS asked("owner", height) ON d."owner" = asked."owner" AND d."createdHeight" <= asked.height
       WHERE d."closedHeight" IS NULL`,
-      { bind: [owners.map(({ owner }) => owner), owners.map(({ readHeight }) => readHeight)], type: QueryTypes.SELECT }
+      { bind: [owners.map(({ owner }) => owner), owners.map(({ height }) => height)], type: QueryTypes.SELECT }
     );
 
     return count;

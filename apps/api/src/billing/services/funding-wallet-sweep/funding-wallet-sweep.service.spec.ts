@@ -3,6 +3,7 @@ import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentAllowanceHistoryRepository } from "@src/billing/repositories/deployment-allowance-history/deployment-allowance-history.repository";
 import type { FundingWalletRepository, FundingWalletStatus } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
 import type { FundingWalletMoveRepository } from "@src/billing/repositories/funding-wallet-move/funding-wallet-move.repository";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
@@ -77,14 +78,38 @@ describe(FundingWalletSweepService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "FUNDING_WALLET_SWEEP_NOTHING_TO_SEND", ...sweep });
     });
 
-    it("reports how many deployments the moved users opened before their move and still run, asked 500 users at a time", async () => {
-      const moved = Array.from({ length: 501 }, (_, index) => ({ owner: createAkashAddress(), readHeight: 1_000 + index }));
+    it("reports how many deployments the moved users opened while the wallet's grant stood and still run, asked 500 users at a time", async () => {
+      const moved = Array.from({ length: 501 }, (_, index) => ({ owner: createAkashAddress(), readHeight: 1_000 + index, revokeTxHash: null }));
       const { service, retired, fundingWalletMoveRepository, deploymentRepository } = setup({ moved, openDeploymentsPerPage: [7, 2] });
 
       await expect(service.sweep(retired.address)).resolves.toMatchObject({ deploymentsStillFunded: 9 });
 
       expect(fundingWalletMoveRepository.findCompletedReads).toHaveBeenCalledWith(retired.id);
-      expect(deploymentRepository.countOpenCreatedAtOrBefore.mock.calls).toEqual([[moved.slice(0, 500)], [moved.slice(500)]]);
+      expect(deploymentRepository.countOpenCreatedAtOrBefore.mock.calls).toEqual(
+        [moved.slice(0, 500), moved.slice(500)].map(page => [page.map(({ owner, readHeight }) => ({ owner, height: readHeight }))])
+      );
+    });
+
+    it("counts a user's deployments up to the height their revoke landed at, and up to their balance read when there was no revoke or the index lacks it", async () => {
+      const [revoked, revokedNothing, revokeNotIndexed] = [1, 2, 3].map(() => createAkashAddress());
+      const { service, retired, deploymentRepository, deploymentAllowanceHistoryRepository } = setup({
+        moved: [
+          { owner: revoked, readHeight: 1_000, revokeTxHash: "REVOKE-A" },
+          { owner: revokedNothing, readHeight: 2_000, revokeTxHash: null },
+          { owner: revokeNotIndexed, readHeight: 3_000, revokeTxHash: "REVOKE-C" }
+        ],
+        revokeHeights: { "REVOKE-A": 1_012 },
+        openDeploymentsPerPage: [1]
+      });
+
+      await expect(service.sweep(retired.address)).resolves.toMatchObject({ deploymentsStillFunded: 1 });
+
+      expect(deploymentAllowanceHistoryRepository.findTxHeights).toHaveBeenCalledWith(["REVOKE-A", "REVOKE-C"]);
+      expect(deploymentRepository.countOpenCreatedAtOrBefore).toHaveBeenCalledWith([
+        { owner: revoked, height: 1_012 },
+        { owner: revokedNothing, height: 2_000 },
+        { owner: revokeNotIndexed, height: 3_000 }
+      ]);
     });
 
     it.each(["standby", "active", "draining"] as const)("refuses a %s wallet, whose coins are still needed where they are", async status => {
@@ -147,7 +172,8 @@ describe(FundingWalletSweepService.name, () => {
       isRegistered?: boolean;
       hasActive?: boolean;
       balances?: { uact?: number; uakt?: number };
-      moved?: { owner: string; readHeight: number }[];
+      moved?: { owner: string; readHeight: number; revokeTxHash: string | null }[];
+      revokeHeights?: Record<string, number>;
       openDeploymentsPerPage?: number[];
       tx?: { code: number; hash: string; rawLog: string };
     } = {}
@@ -158,6 +184,7 @@ describe(FundingWalletSweepService.name, () => {
     const fundingWalletRepository = mock<FundingWalletRepository>();
     const fundingWalletMoveRepository = mock<FundingWalletMoveRepository>();
     const deploymentRepository = mock<DeploymentRepository>();
+    const deploymentAllowanceHistoryRepository = mock<DeploymentAllowanceHistoryRepository>();
     const balanceHttpService = mock<BalanceHttpService>();
     const txManagerService = mock<TxManagerService>();
     const logger = mock<ReturnType<CreateLogger>>();
@@ -166,6 +193,7 @@ describe(FundingWalletSweepService.name, () => {
     fundingWalletRepository.findByAddress.mockResolvedValue(input.isRegistered === false ? undefined : retired);
     fundingWalletRepository.findActive.mockResolvedValue(input.hasActive === false ? undefined : active);
     fundingWalletMoveRepository.findCompletedReads.mockResolvedValue(input.moved ?? []);
+    deploymentAllowanceHistoryRepository.findTxHeights.mockResolvedValue(new Map(Object.entries(input.revokeHeights ?? {})));
     (input.openDeploymentsPerPage ?? []).forEach(count => deploymentRepository.countOpenCreatedAtOrBefore.mockResolvedValueOnce(count));
     balanceHttpService.getBalance.mockImplementation(async (_address, denom) => {
       const amount = input.balances?.[denom as "uact" | "uakt"];
@@ -180,6 +208,7 @@ describe(FundingWalletSweepService.name, () => {
       fundingWalletRepository,
       fundingWalletMoveRepository,
       deploymentRepository,
+      deploymentAllowanceHistoryRepository,
       balanceHttpService,
       txManagerService,
       mockConfigService<CoreConfigService>({ NETWORK }),
@@ -193,6 +222,7 @@ describe(FundingWalletSweepService.name, () => {
       fundingWalletRepository,
       fundingWalletMoveRepository,
       deploymentRepository,
+      deploymentAllowanceHistoryRepository,
       balanceHttpService,
       txManagerService,
       logger,

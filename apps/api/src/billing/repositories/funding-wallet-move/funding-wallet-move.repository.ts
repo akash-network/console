@@ -18,7 +18,7 @@ export type ClaimedFundingWalletMove = FundingWalletMoveOutput & { claimedUntil:
 
 export type CompletedFundingWalletMove = FundingWalletMoveOutput & { fromAddress: string };
 
-export type CompletedFundingWalletMoveRead = { owner: string; readHeight: number };
+export type CompletedFundingWalletMoveRead = { owner: string; readHeight: number; revokeTxHash: string | null };
 
 export type FundingWalletMoveInput = Pick<
   FundingWalletMovesTable["$inferInsert"],
@@ -64,16 +64,16 @@ export class FundingWalletMoveRepository {
     return rows.map(({ move, fromAddress }) => ({ ...move, fromAddress }));
   }
 
-  /** The chain address of each user moved off that funding wallet, with the height its balance was read at for the move. */
+  /** The chain address of each user moved off that funding wallet, with the height its balance was read at for the move and the revoke that ended its old grant. */
   async findCompletedReads(fromFundingWalletId: string): Promise<CompletedFundingWalletMoveRead[]> {
     const rows = await this.#cursor
-      .select({ owner: this.userWallets.address, readHeight: this.table.readHeight })
+      .select({ owner: this.userWallets.address, readHeight: this.table.readHeight, revokeTxHash: this.table.revokeTxHash })
       .from(this.table)
       .innerJoin(this.userWallets, eq(this.userWallets.id, this.table.userWalletId))
       .where(and(eq(this.table.fromFundingWalletId, fromFundingWalletId), eq(this.table.status, "completed"), isNotNull(this.userWallets.address)))
       .orderBy(asc(this.table.userWalletId));
 
-    return rows.map(({ owner, readHeight }) => ({ owner: owner!, readHeight }));
+    return rows.map(({ owner, ...read }) => ({ owner: owner!, ...read }));
   }
 
   /** Returns the move that already exists for this user wallet and source wallet rather than a second one, since its saved read is the balance being moved. */

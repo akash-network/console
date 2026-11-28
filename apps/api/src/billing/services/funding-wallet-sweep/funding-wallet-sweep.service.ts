@@ -4,8 +4,9 @@ import createError from "http-errors";
 import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
+import { DeploymentAllowanceHistoryRepository } from "@src/billing/repositories/deployment-allowance-history/deployment-allowance-history.repository";
 import { FundingWalletRepository } from "@src/billing/repositories/funding-wallet/funding-wallet.repository";
-import { FundingWalletMoveRepository } from "@src/billing/repositories/funding-wallet-move/funding-wallet-move.repository";
+import { type CompletedFundingWalletMoveRead, FundingWalletMoveRepository } from "@src/billing/repositories/funding-wallet-move/funding-wallet-move.repository";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -28,6 +29,7 @@ export class FundingWalletSweepService {
     private readonly fundingWalletRepository: FundingWalletRepository,
     private readonly fundingWalletMoveRepository: FundingWalletMoveRepository,
     private readonly deploymentRepository: DeploymentRepository,
+    private readonly deploymentAllowanceHistoryRepository: DeploymentAllowanceHistoryRepository,
     private readonly balanceHttpService: BalanceHttpService,
     private readonly txManagerService: TxManagerService,
     private readonly coreConfigService: CoreConfigService,
@@ -90,15 +92,23 @@ export class FundingWalletSweepService {
     return tx.hash;
   }
 
-  /** A deployment a moved user opened before the move was paid by this wallet, so its close returns escrow here for another sweep to pick up. */
+  /** A deployment a moved user opened while this wallet's grant still stood was paid by this wallet, so its close returns escrow here for another sweep to pick up. */
   async #countDeploymentsStillFunded(fundingWalletId: string): Promise<number> {
     const moved = await this.fundingWalletMoveRepository.findCompletedReads(fundingWalletId);
     let count = 0;
 
     for (const page of chunk(moved, MOVED_USERS_PAGE_SIZE)) {
-      count += await this.deploymentRepository.countOpenCreatedAtOrBefore(page);
+      count += await this.deploymentRepository.countOpenCreatedAtOrBefore(await this.#findGrantEnds(page));
     }
 
     return count;
+  }
+
+  /** The grant stood until its revoke landed, which is after the balance read; a move that revoked nothing, or whose revoke the chain index lacks, falls back to that read. */
+  async #findGrantEnds(moved: CompletedFundingWalletMoveRead[]): Promise<{ owner: string; height: number }[]> {
+    const revokeHashes = moved.flatMap(({ revokeTxHash }) => (revokeTxHash ? [revokeTxHash] : []));
+    const revokeHeights = await this.deploymentAllowanceHistoryRepository.findTxHeights(revokeHashes);
+
+    return moved.map(({ owner, readHeight, revokeTxHash }) => ({ owner, height: revokeHeights.get(revokeTxHash ?? "") ?? readHeight }));
   }
 }
