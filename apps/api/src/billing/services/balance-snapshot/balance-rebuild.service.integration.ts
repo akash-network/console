@@ -43,7 +43,7 @@ describe(BalanceRebuildService.name, () => {
       takenOn: "2026-11-27",
       height: snapshot.height,
       rebuiltUpTo: chain.height,
-      balances: [{ granter, inSnapshot: 1_000_000, rebuilt: 2_800_000, onChain: 2_800_000 }]
+      balances: [{ granter, inSnapshot: 1_000_000, rebuilt: 2_800_000, onChain: 2_800_000, onChainHeight: chain.height }]
     });
   });
 
@@ -68,8 +68,8 @@ describe(BalanceRebuildService.name, () => {
     const rebuilt = await service.rebuild(user);
 
     expect(rebuilt.balances).toEqual([
-      { granter, inSnapshot: 1_000_000, rebuilt: 0, onChain: 0 },
-      { granter: movedTo, inSnapshot: 0, rebuilt: 1_000_000, onChain: 1_000_000 }
+      { granter, inSnapshot: 1_000_000, rebuilt: 0, onChain: 0, onChainHeight: chain.height },
+      { granter: movedTo, inSnapshot: 0, rebuilt: 1_000_000, onChain: 1_000_000, onChainHeight: chain.height }
     ]);
   });
 

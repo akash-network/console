@@ -4,11 +4,24 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const SNAPSHOT_MINUTES_AFTER_MIDNIGHT_UTC = 15;
 
 export function nextBalanceSnapshotRunAt(now: Date): Date {
-  const todaysRun = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) + SNAPSHOT_MINUTES_AFTER_MIDNIGHT_UTC * 60 * 1000;
+  const today = utcDayOf(now);
+  const todaysRun = balanceSnapshotRunAtOn(today);
 
-  return new Date(todaysRun > now.getTime() ? todaysRun : todaysRun + DAY_MS);
+  return todaysRun > now ? todaysRun : balanceSnapshotRunAtOn(utcDayAfter(today));
+}
+
+export function balanceSnapshotRunAtOn(utcDay: string): Date {
+  return new Date(startOfUtcDay(utcDay) + SNAPSHOT_MINUTES_AFTER_MIDNIGHT_UTC * 60 * 1000);
 }
 
 export function utcDayOf(instant: Date): string {
   return instant.toISOString().slice(0, 10);
+}
+
+export function utcDayAfter(utcDay: string): string {
+  return utcDayOf(new Date(startOfUtcDay(utcDay) + DAY_MS));
+}
+
+function startOfUtcDay(utcDay: string): number {
+  return Date.parse(`${utcDay}T00:00:00.000Z`);
 }

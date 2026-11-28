@@ -28,6 +28,7 @@ export interface JobRow<TData = Record<string, unknown>> {
   singleton_key: string | null;
   data: TData;
   start_after: string;
+  expire_seconds: number;
 }
 
 interface JobSelector {
@@ -91,7 +92,7 @@ function selectorFilter({ singletonKey, singletonKeyLike, data, state }: JobSele
 
 export async function findJobRows<TData = Record<string, unknown>>(jobName: string, selector: JobSelector = {}): Promise<JobRow<TData>[]> {
   const rows = await db().execute(
-    sql`select state, output, retry_count, retry_limit, retry_backoff, retry_delay, retry_delay_max, singleton_key, data, start_after::text
+    sql`select state, output, retry_count, retry_limit, retry_backoff, retry_delay, retry_delay_max, singleton_key, data, start_after::text, expire_seconds
         from ${jobTable()}
         where name = ${jobName} ${selectorFilter(selector)}
         order by created_on`
