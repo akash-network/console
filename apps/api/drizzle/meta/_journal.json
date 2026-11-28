@@ -1135,6 +1135,13 @@
       "when": 1795822701295,
       "tag": "0161_funding_wallet_refunds",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1795825590521,
+      "tag": "0162_balance_snapshots",
+      "breakpoints": true
     }
   ]
 }

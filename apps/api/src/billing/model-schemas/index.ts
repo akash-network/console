@@ -7,3 +7,4 @@ export * from "./first-purchase-bonus-win-back/first-purchase-bonus-win-back.sch
 export * from "./payment-credit/payment-credit.schema";
 export * from "./refund-debit/refund-debit.schema";
 export * from "./funding-wallet/funding-wallet.schema";
+export * from "./balance-snapshot/balance-snapshot.schema";

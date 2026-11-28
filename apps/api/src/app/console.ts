@@ -10,6 +10,8 @@ import { z } from "zod";
 import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { utcDayOf } from "@src/billing/lib/balance-snapshot-schedule/balance-snapshot-schedule";
+import { BalanceSnapshotService } from "@src/billing/services/balance-snapshot/balance-snapshot.service";
 import { FundingWalletDrainService } from "@src/billing/services/funding-wallet-drain/funding-wallet-drain.service";
 import { FundingWalletRotationService } from "@src/billing/services/funding-wallet-rotation/funding-wallet-rotation.service";
 import { FundingWalletSweepService } from "@src/billing/services/funding-wallet-sweep/funding-wallet-sweep.service";
@@ -301,6 +303,15 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(FundingWalletSweepService).sweep(options.address);
+    });
+  });
+
+program
+  .command("take-balance-snapshot")
+  .description("Store every user's on-chain balance under today's UTC date, unless today's snapshot is already complete")
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(BalanceSnapshotService).take(utcDayOf(new Date()));
     });
   });
 
