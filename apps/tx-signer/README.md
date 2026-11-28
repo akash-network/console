@@ -22,6 +22,7 @@ Copy `env/.env.sample` to the env file you use and set:
 - `DERIVATION_WALLET_MNEMONIC_V2` (or seed `v2` in `DERIVATION_WALLET_SEEDS_ENCRYPTED`)
 - `DERIVATION_WALLET_MNEMONIC_V1` (optional)
 - `DERIVATION_SEED_KMS_KEY` and `DERIVATION_WALLET_SEEDS_ENCRYPTED` (optional, see below)
+- `FUNDING_CONTROLS_POSTGRES_URL` (optional, see "Funding freeze")
 - `GAS_DEFAULT_MULTIPLIER`
 - `GAS_RECOVERY_MULTIPLIER`
 - `AVERAGE_GAS_PRICE`
@@ -63,6 +64,34 @@ decrypted, or does not decrypt to a seed phrase, the signer logs `DERIVATION_SEE
 A version given both readable and encrypted is refused, so moving a seed means adding its ciphertext and removing
 the readable setting in the same change. Adding a seed version is configuration only.
 
+### Funding freeze
+
+An operator can stop the signer from spending a funding wallet's coins without a deploy, and let it spend again
+the same way.
+
+- `FUNDING_CONTROLS_POSTGRES_URL` names a Postgres database of the signer's own. Give each signer its own
+  database, with a role `apps/api` has no credentials for: every signer reading a database obeys the freeze in
+  it. Without this setting the signer keeps no state and nothing can be frozen.
+- `npm run migration:exec` creates the tables. It reads `MIGRATION_DATABASE_URL`, so the role the signer runs
+  with needs no right to change the schema.
+- A signer given a database reads the freeze before it starts listening and does not start if it cannot.
+
+From inside a signer pod:
+
+```sh
+node dist/funding-freeze.js status
+node dist/funding-freeze.js freeze --reason "<why>" --by <who>
+node dist/funding-freeze.js lift --by <who>
+```
+
+While funding is frozen the signer answers 503 to every request on `POST /v1/tx/funding`, and to every
+`POST /v1/tx/derived` request that deposits from a grant, which is how a funding wallet's coins reach a
+deployment. Everything else a user wallet does keeps working, closing and updating a deployment included, and
+its fees are still paid by the funding wallet.
+
+The freeze is read on every such request, so it applies from the next request on. If a read fails, the signer
+goes by its last read for up to a minute and then refuses those requests until it can read again.
+
 ## Local dev
 
 - `npm run dev` watch build
@@ -72,4 +101,8 @@ the readable setting in the same change. Adding a seed version is configuration 
 
 - `npm run test`
 - `npm run test:unit`
+- `npm run test:integration`
 - `npm run test:functional`
+
+The integration and functional tests need Postgres on `localhost:5432`, which `npm run test:ci-setup` starts.
+Set `TEST_POSTGRES_URI` to use another server.

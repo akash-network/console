@@ -236,6 +236,34 @@ describe("envSchema", () => {
     }
   });
 
+  describe("funding controls database", () => {
+    it("leaves the funding controls off for a signer given no database", () => {
+      expect(envSchema.parse(setup()).FUNDING_CONTROLS_POSTGRES_URL).toBeUndefined();
+    });
+
+    it("reads the database the funding controls live in, with five connections unless told otherwise", () => {
+      const env = envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_URL: "postgres://signer@db.internal:5432/signer_controls" }));
+
+      expect(env.FUNDING_CONTROLS_POSTGRES_URL).toBe("postgres://signer@db.internal:5432/signer_controls");
+      expect(env.FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(5);
+    });
+
+    it("reads a connection limit given as text", () => {
+      expect(envSchema.parse(setup({ FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "2" })).FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS).toBe(2);
+    });
+
+    it.each([
+      ["a database that is not a URL", { FUNDING_CONTROLS_POSTGRES_URL: "signer_controls" }, "FUNDING_CONTROLS_POSTGRES_URL"],
+      ["no connection at all", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "0" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"],
+      ["a fraction of a connection", { FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: "1.5" }, "FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS"]
+    ])("rejects %s", (_case, overrides, path) => {
+      const result = envSchema.safeParse(setup(overrides));
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(expect.objectContaining({ path: [path] }));
+    });
+  });
+
   it("reads the workload's token from the directory the prod script allows by default", () => {
     expect(envSchema.parse(setup()).GCP_WORKLOAD_IDENTITY_TOKEN_FILE).toBe("/var/run/secrets/gcp-workload-identity/token");
   });

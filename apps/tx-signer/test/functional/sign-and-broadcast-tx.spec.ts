@@ -1,4 +1,5 @@
-import { MsgAccountDeposit, MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgAccountDeposit, MsgCreateCertificate, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import {
   AuthInfo,
   BaseAccount,
@@ -21,11 +22,12 @@ import { PubKey } from "cosmjs-types/cosmos/crypto/secp256k1/keys";
 import { SimulateRequest } from "cosmjs-types/cosmos/tx/v1beta1/service";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, onTestFinished } from "vitest";
 
 import { TxController } from "@src/controllers/tx/tx.controller";
 import { app } from "@src/index";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
+import { FundingFreezeRepository } from "@src/repositories/funding-freeze/funding-freeze.repository";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
@@ -401,6 +403,79 @@ describe(TxController.name, () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ code: "validation_error" });
+  });
+
+  describe("when funding is frozen", () => {
+    it("refuses a funding tx with 503 and broadcasts nothing, then signs it once the freeze is lifted", async () => {
+      const { txHash, getBroadcastedTxs } = mockRpcNode({ chainId: CHAIN_ID, accountNumber: ACCOUNT_NUMBER });
+      const { liftFreeze } = await freezeFunding();
+      const request = {
+        method: "POST",
+        body: JSON.stringify({ data: { messages: await buildFundingMessages(), granteeDerivationIndex: DERIVATION_INDEX } }),
+        headers: authorizedHeaders()
+      };
+
+      const refused = await app.request("/v1/tx/funding", request);
+
+      expect(refused.status).toBe(503);
+      expect(await refused.json()).toMatchObject({ message: "Funding is frozen, so no grant, transfer or deposit from a funding wallet is signed" });
+      expect(getBroadcastedTxs()).toEqual([]);
+
+      await liftFreeze();
+      const signed = await app.request("/v1/tx/funding", request);
+
+      expect(signed.status).toBe(200);
+      expect(await signed.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+    });
+
+    it("refuses a user wallet's deposit drawn from a grant with 503 and broadcasts nothing", async () => {
+      const { getBroadcastedTxs } = mockRpcNode();
+      await freezeFunding();
+
+      const res = await app.request("/v1/tx/derived", {
+        method: "POST",
+        body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDeploymentDepositMessages() } }),
+        headers: authorizedHeaders()
+      });
+
+      expect(res.status).toBe(503);
+      expect(getBroadcastedTxs()).toEqual([]);
+    });
+
+    it("keeps signing what a user wallet does without a funding wallet's coins", async () => {
+      const { txHash } = mockRpcNode();
+      await freezeFunding();
+
+      const res = await app.request("/v1/tx/derived", {
+        method: "POST",
+        body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages() } }),
+        headers: authorizedHeaders()
+      });
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+    });
+
+    async function freezeFunding() {
+      const repository = container.resolve(FundingFreezeRepository);
+      const liftFreeze = () => repository.liftActive({ liftedBy: "functional test" });
+      await repository.create({ reason: "functional test", frozenBy: "functional test" });
+      onTestFinished(async () => {
+        await liftFreeze();
+      });
+
+      return { liftFreeze };
+    }
+
+    async function buildDeploymentDepositMessages() {
+      return encodeMessages({
+        typeUrl: `/${MsgCreateDeployment.$type}`,
+        value: MsgCreateDeployment.fromPartial({
+          id: { owner: await container.resolve(TxManagerService).getDerivedWalletAddress(DERIVATION_INDEX), dseq: "1" },
+          deposit: { amount: { denom: "uact", amount: "5000000" }, sources: [Source.grant] }
+        })
+      });
+    }
   });
 
   function authorizedHeaders() {

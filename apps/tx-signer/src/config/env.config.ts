@@ -63,6 +63,9 @@ export const envSchema = z
       .transform((pairs): Record<string, string> => Object.fromEntries(pairs)),
     /** Signs nothing: only the addresses of first-generation user wallets are read from it, for usage history. */
     DERIVATION_WALLET_MNEMONIC_V1: z.string().optional(),
+    /** Naming this database turns the funding freeze on; it must serve this signer alone, since every signer reading it obeys the same freeze. */
+    FUNDING_CONTROLS_POSTGRES_URL: z.string().url().optional(),
+    FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: z.number({ coerce: true }).int().positive().default(5),
     RPC_NODE_ENDPOINT: z.string(),
     GRANT_ALLOWED_DENOMS: z
       .string()
