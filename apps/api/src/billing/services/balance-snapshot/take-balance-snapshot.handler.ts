@@ -1,11 +1,14 @@
 import { inject, singleton } from "tsyringe";
 
-import { nextBalanceSnapshotRunAt, utcDayOf } from "@src/billing/lib/balance-snapshot-schedule/balance-snapshot-schedule";
+import { balanceSnapshotRunAtOn, nextBalanceSnapshotRunAt, utcDayAfter, utcDayOf } from "@src/billing/lib/balance-snapshot-schedule/balance-snapshot-schedule";
 import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { BalanceSnapshotService } from "./balance-snapshot.service";
 import { TakeBalanceSnapshot, takeBalanceSnapshotKeyFor } from "./take-balance-snapshot.job";
+
+/** pg-boss retries a job still active past its expiry, 15 minutes by default, and that retry would wipe the pages the first run is still storing. */
+const MAX_SNAPSHOT_RUN_SECONDS = 60 * 60;
 
 @singleton()
 export class TakeBalanceSnapshotHandler implements JobHandler<TakeBalanceSnapshot> {
@@ -30,12 +33,14 @@ export class TakeBalanceSnapshotHandler implements JobHandler<TakeBalanceSnapsho
   }
 
   async scheduleNextRun(now: Date): Promise<void> {
-    const runAt = nextBalanceSnapshotRunAt(now);
-    const takenOn = utcDayOf(runAt);
+    await this.#scheduleRunOn(utcDayOf(nextBalanceSnapshotRunAt(now)));
+  }
 
+  async #scheduleRunOn(takenOn: string): Promise<void> {
     await this.jobQueueService.enqueue(new TakeBalanceSnapshot({ takenOn }), {
       singletonKey: takeBalanceSnapshotKeyFor(this.coreConfigService.get("NETWORK"), takenOn),
-      startAfter: runAt.toISOString()
+      startAfter: balanceSnapshotRunAtOn(takenOn).toISOString(),
+      expireInSeconds: MAX_SNAPSHOT_RUN_SECONDS
     });
   }
 
@@ -48,9 +53,9 @@ export class TakeBalanceSnapshotHandler implements JobHandler<TakeBalanceSnapsho
     }
   }
 
-  /** The next day is queued before this one is read, so a snapshot that fails every retry does not end the daily run. */
+  /** The day after this one is queued before this one is read, so neither a snapshot that fails every retry nor one that runs days late leaves a day without a run. */
   async handle({ takenOn }: JobPayload<TakeBalanceSnapshot>): Promise<void> {
-    await this.scheduleNextRun(new Date());
+    await this.#scheduleRunOn(utcDayAfter(takenOn));
     await this.balanceSnapshotService.take(takenOn);
   }
 }
