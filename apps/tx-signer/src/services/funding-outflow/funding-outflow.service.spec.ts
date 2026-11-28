@@ -315,12 +315,38 @@ describe(FundingOutflowService.name, () => {
       expect(repository.settle).toHaveBeenCalledExactlyOnceWith(["reservation-1"], "landed", "LANDED");
     });
 
-    it("refuses a deposit it counted but could not check while a limit is enforced", async () => {
+    it("refuses a deposit it counted but could not check while a limit is enforced, and takes it back", async () => {
       const { service, repository, signAndBroadcast } = setup({ limits: [createLimit({ isEnforced: true })] });
       repository.sumSince.mockRejectedValue(new Error("statement timeout"));
 
       await expect(service.track(WALLET, [uact("5")], signAndBroadcast)).rejects.toThrow(UNCOUNTED_MESSAGE);
       expect(signAndBroadcast).not.toHaveBeenCalled();
+      expect(repository.settle).toHaveBeenCalledExactlyOnceWith(["reservation-1"], "released", undefined);
+    });
+
+    it("still refuses that deposit when taking it back fails too, and says which rows are left", async () => {
+      const { service, repository, logger, signAndBroadcast } = setup({ limits: [createLimit({ isEnforced: true })] });
+      repository.sumSince.mockRejectedValue(new Error("statement timeout"));
+      const failure = new Error("connection reset");
+      repository.settle.mockRejectedValue(failure);
+
+      await expect(service.track(WALLET, [uact("5")], signAndBroadcast)).rejects.toThrow(UNCOUNTED_MESSAGE);
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "FUNDING_OUTFLOW_UNSETTLED",
+        reservationIds: ["reservation-1"],
+        status: "released",
+        txHash: undefined,
+        error: failure
+      });
+    });
+
+    it("has nothing to take back for a deposit refused before it was counted", async () => {
+      const { service, repository, signAndBroadcast } = setup({ limits: [createLimit({ isEnforced: true })] });
+      await service.load();
+      repository.reserve.mockRejectedValue(new Error("connection reset"));
+
+      await expect(service.track(WALLET, [uact("5")], signAndBroadcast)).rejects.toThrow(UNCOUNTED_MESSAGE);
+      expect(repository.settle).not.toHaveBeenCalled();
     });
   });
 

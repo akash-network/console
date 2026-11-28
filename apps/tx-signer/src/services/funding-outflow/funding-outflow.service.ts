@@ -67,8 +67,12 @@ export class FundingOutflowService {
       const usageByDenom = await this.repository.sumSince({ windowHours: OUTFLOW_WINDOW_HOURS, denoms: [...amountsByDenom.keys()], walletAddress });
       exceeded = this.#findExceededLimits(limits, usageByDenom, walletAddress);
     } catch (error) {
-      this.#assertMayGoUncounted(error);
-      return reservationIds;
+      const refusal = this.#refusalOfUncountedDeposit(error);
+
+      if (!refusal) return reservationIds;
+
+      await this.#settle(reservationIds, "released");
+      throw refusal;
     }
 
     if (exceeded.some(({ limit }) => limit.isEnforced)) {
@@ -94,16 +98,17 @@ export class FundingOutflowService {
     return exceeded;
   }
 
-  #assertMayGoUncounted(error: unknown): void {
+  /** Undefined while the limits last read enforce nothing, which is when a deposit may be signed without being counted. */
+  #refusalOfUncountedDeposit(error: unknown): Error | undefined {
     const recentLimits = this.#recentLimits.recall();
     const isUncountedAllowed = recentLimits !== undefined && !recentLimits.value.some(limit => limit.isEnforced);
     this.logger.error({ event: "FUNDING_OUTFLOW_UNCOUNTED", isUncountedAllowed, error });
 
-    if (!isUncountedAllowed) {
-      throw createError(503, "What leaves the funding wallets could not be counted against its limits, so no deposit from a funding wallet is signed", {
-        cause: error
-      });
-    }
+    if (isUncountedAllowed) return undefined;
+
+    return createError(503, "What leaves the funding wallets could not be counted against its limits, so no deposit from a funding wallet is signed", {
+      cause: error
+    });
   }
 
   /** Never throws, because by now the transaction has its outcome and a failed write must not change what the caller is told. */
