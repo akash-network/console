@@ -13,8 +13,9 @@ export async function runFundingFreezeCommand(args: readonly string[], repositor
     allowPositionals: true,
     options: { reason: { type: "string" }, by: { type: "string" } }
   });
-  const [command] = positionals;
+  const [command, ...unexpected] = positionals;
 
+  if (unexpected.length > 0) throw new Error(`Unexpected "${unexpected.join(" ")}". Put a value with spaces in quotes.\n${USAGE}`);
   if (command === "status") return describeFreeze(await repository.findActive());
   if (command === "freeze") return await freezeFunding(repository, values);
   if (command === "lift") return await liftFreeze(repository, values);

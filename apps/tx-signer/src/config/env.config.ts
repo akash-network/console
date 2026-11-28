@@ -9,6 +9,11 @@ const KMS_CRYPTO_KEY_NAME = /^projects\/[^/]+\/locations\/[^/]+\/keyRings\/[^/]+
 const BASE64 = /^(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{2}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{3})?$/;
 const WORKLOAD_IDENTITY_AUDIENCE = /^\/\/iam\.googleapis\.com\/projects\/\d+\/locations\/global\/workloadIdentityPools\/[^/]+\/providers\/[^/]+$/;
 
+/** A chart writes a setting it leaves off as an empty value, which has to read as the setting being absent rather than fail the start. */
+function unsetWhenBlank(value: unknown): unknown {
+  return typeof value === "string" && value.trim() === "" ? undefined : value;
+}
+
 export const envSchema = z
   .object({
     ACCESS_API_KEY: z.string().min(32),
@@ -64,8 +69,8 @@ export const envSchema = z
     /** Signs nothing: only the addresses of first-generation user wallets are read from it, for usage history. */
     DERIVATION_WALLET_MNEMONIC_V1: z.string().optional(),
     /** Naming this database turns the funding freeze on; it must serve this signer alone, since every signer reading it obeys the same freeze. */
-    FUNDING_CONTROLS_POSTGRES_URL: z.string().url().optional(),
-    FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: z.number({ coerce: true }).int().positive().default(5),
+    FUNDING_CONTROLS_POSTGRES_URL: z.preprocess(unsetWhenBlank, z.string().optional()),
+    FUNDING_CONTROLS_POSTGRES_MAX_CONNECTIONS: z.preprocess(unsetWhenBlank, z.number({ coerce: true }).int().positive().default(5)),
     RPC_NODE_ENDPOINT: z.string(),
     GRANT_ALLOWED_DENOMS: z
       .string()
