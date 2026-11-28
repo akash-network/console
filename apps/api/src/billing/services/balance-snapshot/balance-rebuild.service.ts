@@ -1,6 +1,6 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import createError from "http-errors";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { replayAllowance } from "@src/billing/lib/deployment-allowance-replay/deployment-allowance-replay";
 import { type BalanceSnapshotOutput, BalanceSnapshotRepository } from "@src/billing/repositories/balance-snapshot/balance-snapshot.repository";
@@ -9,17 +9,21 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 
 const DEPOSIT_GRANT_MSG_TYPE_URL = `/${MsgAccountDeposit.$type}`;
 
-export type RebuiltGranterBalance = { granter: string; inSnapshot: number; rebuilt: number; onChain: number };
+/** The chain is read at its own height, at or after the one the replay stops at, so a gap between `rebuilt` and `onChain` can be the chain moving between the two. */
+export type RebuiltGranterBalance = { granter: string; inSnapshot: number; rebuilt: number; onChain: number; onChainHeight: number };
 
 export type RebuiltBalance = { address: string; takenOn: string; height: number; rebuiltUpTo: number; balances: RebuiltGranterBalance[] };
 
 /** Works a user's balance out from a snapshot and what the chain index shows of their grant since, to compare with the grant the chain holds now. */
 @singleton()
 export class BalanceRebuildService {
+  readonly #logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly balanceSnapshotRepository: BalanceSnapshotRepository,
     private readonly deploymentAllowanceHistoryRepository: DeploymentAllowanceHistoryRepository,
@@ -27,8 +31,11 @@ export class BalanceRebuildService {
     private readonly fundingWalletRegistry: FundingWalletRegistryService,
     private readonly blockHttpService: BlockHttpService,
     private readonly billingConfigService: BillingConfigService,
-    private readonly coreConfigService: CoreConfigService
-  ) {}
+    private readonly coreConfigService: CoreConfigService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#logger = createLogger({ context: BalanceRebuildService.name });
+  }
 
   /** Without a day, the latest complete snapshot is the starting point. */
   async rebuild(address: string, takenOn?: string): Promise<RebuiltBalance> {
@@ -49,7 +56,10 @@ export class BalanceRebuildService {
       balances.push(await this.#rebuildFor({ granter, grantee: address, inSnapshot: amount, denom, afterHeight: snapshot.height, rebuiltUpTo }));
     }
 
-    return { address, takenOn: snapshot.takenOn, height: snapshot.height, rebuiltUpTo, balances };
+    const rebuilt: RebuiltBalance = { address, takenOn: snapshot.takenOn, height: snapshot.height, rebuiltUpTo, balances };
+    this.#logger.info({ event: "BALANCE_REBUILT", ...rebuilt });
+
+    return rebuilt;
   }
 
   async #findComplete(takenOn: string | undefined): Promise<BalanceSnapshotOutput> {
@@ -88,7 +98,8 @@ export class BalanceRebuildService {
       granter: input.granter,
       inSnapshot: input.inSnapshot,
       rebuilt: replayAllowance(input.inSnapshot, changes, input.denom),
-      onChain: onChain.limit
+      onChain: onChain.limit,
+      onChainHeight: onChain.height
     };
   }
 }

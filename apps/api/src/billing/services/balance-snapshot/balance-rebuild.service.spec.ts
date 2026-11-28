@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BalanceSnapshotOutput, BalanceSnapshotRepository } from "@src/billing/repositories/balance-snapshot/balance-snapshot.repository";
@@ -10,6 +10,7 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { FundingWalletRegistryService } from "@src/billing/services/funding-wallet-registry/funding-wallet-registry.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import type { CreateLogger } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { BalanceRebuildService } from "./balance-rebuild.service";
 
@@ -20,6 +21,7 @@ const NETWORK = "sandbox";
 const DENOM = "uact";
 const SNAPSHOT_HEIGHT = 25_000_000;
 const CURRENT_HEIGHT = 25_014_400;
+const ON_CHAIN_READ_HEIGHT = CURRENT_HEIGHT + 2;
 
 describe(BalanceRebuildService.name, () => {
   describe("rebuild", () => {
@@ -36,7 +38,7 @@ describe(BalanceRebuildService.name, () => {
         takenOn: "2026-11-27",
         height: SNAPSHOT_HEIGHT,
         rebuiltUpTo: CURRENT_HEIGHT,
-        balances: [{ granter, inSnapshot: 1_000_000, rebuilt: 800_000, onChain: 800_000 }]
+        balances: [{ granter, inSnapshot: 1_000_000, rebuilt: 800_000, onChain: 800_000, onChainHeight: ON_CHAIN_READ_HEIGHT }]
       });
 
       expect(balanceSnapshotRepository.findLatestComplete).toHaveBeenCalledWith(NETWORK);
@@ -51,6 +53,24 @@ describe(BalanceRebuildService.name, () => {
         before: { height: CURRENT_HEIGHT + 1, txIndex: 0 }
       });
       expect(balancesService.retrieveDeploymentLimitAtLatestHeight).toHaveBeenCalledWith({ address: user }, { granter });
+    });
+
+    it("logs the rebuilt balance, which is all a command run shows of it", async () => {
+      const { service, user, logger, createLogger } = setup({ inSnapshot: 1_000_000, changes: [deposit(300_000)], onChain: 650_000 });
+
+      const rebuilt = await service.rebuild(user);
+
+      expect(createLogger).toHaveBeenCalledWith({ context: BalanceRebuildService.name });
+      expect(logger.info).toHaveBeenCalledExactlyOnceWith({ event: "BALANCE_REBUILT", ...rebuilt });
+      expect(rebuilt.balances).toEqual([expect.objectContaining({ inSnapshot: 1_000_000, rebuilt: 700_000, onChain: 650_000 })]);
+    });
+
+    it("logs nothing when there is no snapshot to rebuild from", async () => {
+      const { service, user, logger } = setup({ hasSnapshot: false });
+
+      await expect(service.rebuild(user)).rejects.toMatchObject({ status: 404 });
+
+      expect(logger.info).not.toHaveBeenCalled();
     });
 
     it("starts from the snapshot of the day asked for", async () => {
@@ -75,8 +95,8 @@ describe(BalanceRebuildService.name, () => {
       const rebuilt = await service.rebuild(user);
 
       expect(rebuilt.balances).toEqual([
-        { granter, inSnapshot: 1_000_000, rebuilt: 1_000_000, onChain: 0 },
-        { granter: movedTo, inSnapshot: 0, rebuilt: 0, onChain: 0 }
+        { granter, inSnapshot: 1_000_000, rebuilt: 1_000_000, onChain: 0, onChainHeight: ON_CHAIN_READ_HEIGHT },
+        { granter: movedTo, inSnapshot: 0, rebuilt: 0, onChain: 0, onChainHeight: ON_CHAIN_READ_HEIGHT }
       ]);
     });
 
@@ -152,9 +172,11 @@ describe(BalanceRebuildService.name, () => {
     deploymentAllowanceHistoryRepository.findChanges.mockImplementation(async query => (query.granter === granter ? input.changes ?? [] : []));
     balancesService.retrieveDeploymentLimitAtLatestHeight.mockImplementation(async (_wallet, options) => ({
       limit: options?.granter === granter ? input.onChain ?? 0 : 0,
-      height: CURRENT_HEIGHT,
+      height: ON_CHAIN_READ_HEIGHT,
       granter: options!.granter!
     }));
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new BalanceRebuildService(
       balanceSnapshotRepository,
@@ -163,7 +185,8 @@ describe(BalanceRebuildService.name, () => {
       fundingWalletRegistry,
       blockHttpService,
       mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: DENOM }),
-      mockConfigService<CoreConfigService>({ NETWORK })
+      mockConfigService<CoreConfigService>({ NETWORK }),
+      createLogger
     );
 
     return {
@@ -174,7 +197,9 @@ describe(BalanceRebuildService.name, () => {
       balanceSnapshotRepository,
       deploymentAllowanceHistoryRepository,
       balancesService,
-      fundingWalletRegistry
+      fundingWalletRegistry,
+      logger,
+      createLogger
     };
   }
 });
