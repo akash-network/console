@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -8,6 +8,8 @@ type FundingWalletMovesTable = ApiPgTables["FundingWalletMoves"];
 
 type FundingWalletsTable = ApiPgTables["FundingWallets"];
 
+type UserWalletsTable = ApiPgTables["UserWallets"];
+
 export type FundingWalletMoveOutput = FundingWalletMovesTable["$inferSelect"];
 
 export type FundingWalletMoveStatus = FundingWalletMoveOutput["status"];
@@ -15,6 +17,8 @@ export type FundingWalletMoveStatus = FundingWalletMoveOutput["status"];
 export type ClaimedFundingWalletMove = FundingWalletMoveOutput & { claimedUntil: Date };
 
 export type CompletedFundingWalletMove = FundingWalletMoveOutput & { fromAddress: string };
+
+export type CompletedFundingWalletMoveRead = { owner: string; readHeight: number; revokeTxHash: string | null };
 
 export type FundingWalletMoveInput = Pick<
   FundingWalletMovesTable["$inferInsert"],
@@ -31,6 +35,7 @@ export class FundingWalletMoveRepository {
     @InjectPg() private readonly pg: ApiPgDatabase,
     @InjectPgTable("FundingWalletMoves") private readonly table: FundingWalletMovesTable,
     @InjectPgTable("FundingWallets") private readonly fundingWallets: FundingWalletsTable,
+    @InjectPgTable("UserWallets") private readonly userWallets: UserWalletsTable,
     private readonly txManager: TxService
   ) {}
 
@@ -57,6 +62,18 @@ export class FundingWalletMoveRepository {
       .orderBy(asc(this.table.createdAt));
 
     return rows.map(({ move, fromAddress }) => ({ ...move, fromAddress }));
+  }
+
+  /** The chain address of each user moved off that funding wallet, with the height its balance was read at for the move and the revoke that ended its old grant. */
+  async findCompletedReads(fromFundingWalletId: string): Promise<CompletedFundingWalletMoveRead[]> {
+    const rows = await this.#cursor
+      .select({ owner: this.userWallets.address, readHeight: this.table.readHeight, revokeTxHash: this.table.revokeTxHash })
+      .from(this.table)
+      .innerJoin(this.userWallets, eq(this.userWallets.id, this.table.userWalletId))
+      .where(and(eq(this.table.fromFundingWalletId, fromFundingWalletId), eq(this.table.status, "completed"), isNotNull(this.userWallets.address)))
+      .orderBy(asc(this.table.userWalletId));
+
+    return rows.map(({ owner, ...read }) => ({ owner: owner!, ...read }));
   }
 
   /** Returns the move that already exists for this user wallet and source wallet rather than a second one, since its saved read is the balance being moved. */

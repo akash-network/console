@@ -12,6 +12,7 @@ import { MasterWalletMintController } from "@src/billing/controllers/master-wall
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { FundingWalletDrainService } from "@src/billing/services/funding-wallet-drain/funding-wallet-drain.service";
 import { FundingWalletRotationService } from "@src/billing/services/funding-wallet-rotation/funding-wallet-rotation.service";
+import { FundingWalletSweepService } from "@src/billing/services/funding-wallet-sweep/funding-wallet-sweep.service";
 import { GpuWinBackCatchUpService } from "@src/billing/services/gpu-win-back-catch-up/gpu-win-back-catch-up.service";
 import { ReturnedEscrowService } from "@src/billing/services/returned-escrow/returned-escrow.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -290,6 +291,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(ReturnedEscrowService).queueForEveryoneMovedOff(options.address);
+    });
+  });
+
+program
+  .command("sweep-funding-wallet")
+  .description("Send the coins a retired funding wallet still holds to the active one, and report how many deployments it still funds")
+  .requiredOption("-a, --address <string>", "Address of the retired wallet to sweep", parseAkashAddress)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(FundingWalletSweepService).sweep(options.address);
     });
   });
 

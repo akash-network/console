@@ -212,6 +212,40 @@ describe(DeploymentRepository.name, () => {
     });
   });
 
+  describe("countOpenCreatedAtOrBefore", () => {
+    it("counts the open deployments each owner created at or before the height given with that owner", async () => {
+      const { repository, base } = setup();
+      const [early, late] = [1, 2].map(() => createAkashAddress());
+      await createDeployment({ owner: early, createdHeight: base, closedHeight: undefined });
+      await createDeployment({ owner: early, createdHeight: base + 10, closedHeight: undefined });
+      await createDeployment({ owner: early, createdHeight: base + 11, closedHeight: undefined });
+      await createDeployment({ owner: early, createdHeight: base, closedHeight: base + 5 });
+      await createDeployment({ owner: late, createdHeight: base + 20, closedHeight: undefined });
+      await createDeployment({ owner: createAkashAddress(), createdHeight: base, closedHeight: undefined });
+
+      const count = await repository.countOpenCreatedAtOrBefore([
+        { owner: early, height: base + 10 },
+        { owner: late, height: base + 20 }
+      ]);
+
+      expect(count).toBe(3);
+    });
+
+    it("counts none for owners whose deployments all came after their height", async () => {
+      const { repository, base } = setup();
+      const owner = createAkashAddress();
+      await createDeployment({ owner, createdHeight: base + 1, closedHeight: undefined });
+
+      await expect(repository.countOpenCreatedAtOrBefore([{ owner, height: base }])).resolves.toBe(0);
+    });
+
+    it("counts none for an empty batch without querying", async () => {
+      const { repository } = setup();
+
+      await expect(repository.countOpenCreatedAtOrBefore([])).resolves.toBe(0);
+    });
+  });
+
   describe("findLeaseStates", () => {
     it("tells a deployment with an open lease, one whose leases all closed and one never leased apart", async () => {
       const { repository, owner, base } = setup();
