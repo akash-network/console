@@ -118,6 +118,18 @@ describe("envSchema", () => {
     });
 
     it.each([
+      ["ends on a whole group", "CiQAq1Zx"],
+      ["ends on two characters and their padding", "CiQAq1ZxAB=="],
+      ["ends on two characters without padding", "CiQAq1ZxAB"],
+      ["ends on three characters and their padding", "CiQAq1ZxABC="],
+      ["ends on three characters without padding", "CiQAq1ZxABC"]
+    ])("accepts a ciphertext that %s", (_case, ciphertext) => {
+      const env = envSchema.parse(encryptedSetup({ DERIVATION_WALLET_SEEDS_ENCRYPTED: `v2:${ciphertext}` }));
+
+      expect(env.DERIVATION_WALLET_SEEDS_ENCRYPTED).toEqual({ v2: ciphertext });
+    });
+
+    it.each([
       ["a pair without a version", `:${CIPHERTEXT}`],
       ["a pair without a ciphertext", "v3:"],
       ["a version alone", "v3"],
@@ -125,6 +137,12 @@ describe("envSchema", () => {
       ["a version with text before it", `xv3:${CIPHERTEXT}`],
       ["a ciphertext that is not base64", "v3:not base64!"],
       ["a ciphertext with text after its padding", `v3:${CIPHERTEXT}x`],
+      ["a ciphertext too short to hold a byte", "v3:A"],
+      ["a ciphertext shorter than one group", "v3:AB=="],
+      ["a ciphertext cut one character into a group", "v3:CiQAq1ZxA"],
+      ["a ciphertext padded after a whole group", "v3:CiQAq1Zx=="],
+      ["a ciphertext with one padding sign where two belong", "v3:CiQAq1ZxAB="],
+      ["a ciphertext with two padding signs where one belongs", "v3:CiQAq1ZxABC=="],
       ["a pair with a third part", `v3:${CIPHERTEXT}:${CIPHERTEXT}`],
       ["a valid pair next to an invalid one", `v2:${CIPHERTEXT},v3`]
     ])("rejects %s", (_case, value) => {

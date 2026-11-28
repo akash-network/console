@@ -5,7 +5,8 @@ import { minSignAndBroadcastDeadlineMs } from "@src/lib/signing-client/signing-c
 
 const KMS_KEY_VERSION_NAME = /^projects\/[^/]+\/locations\/[^/]+\/keyRings\/[^/]+\/cryptoKeys\/[^/]+\/cryptoKeyVersions\/\d+$/;
 const KMS_CRYPTO_KEY_NAME = /^projects\/[^/]+\/locations\/[^/]+\/keyRings\/[^/]+\/cryptoKeys\/[^/]+$/;
-const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+/** Whole groups only, because Node decodes a base64 text cut short to other bytes instead of refusing it. */
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{2}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{3})?$/;
 const WORKLOAD_IDENTITY_AUDIENCE = /^\/\/iam\.googleapis\.com\/projects\/\d+\/locations\/global\/workloadIdentityPools\/[^/]+\/providers\/[^/]+$/;
 
 export const envSchema = z
