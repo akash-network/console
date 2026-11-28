@@ -5,6 +5,7 @@ import type { SignAndBroadcastDerivedRequestInput, SignAndBroadcastFundingReques
 import { readGrantFundedDeposits } from "@src/lib/grant-funded-deposit/grant-funded-deposit";
 import { InjectTypeRegistry } from "@src/providers/type-registry.provider";
 import { FundingFreezeService } from "@src/services/funding-freeze/funding-freeze.service";
+import { FundingOutflowService } from "@src/services/funding-outflow/funding-outflow.service";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 import { TxPolicyService } from "@src/services/tx-policy/tx-policy.service";
 
@@ -16,7 +17,8 @@ export class TxController {
     @InjectTypeRegistry() private readonly registry: Registry,
     @inject(TxManagerService) private readonly txManagerService: TxManagerService,
     @inject(TxPolicyService) private readonly txPolicyService: TxPolicyService,
-    @inject(FundingFreezeService) private readonly fundingFreezeService: FundingFreezeService
+    @inject(FundingFreezeService) private readonly fundingFreezeService: FundingFreezeService,
+    @inject(FundingOutflowService) private readonly fundingOutflowService: FundingOutflowService
   ) {}
 
   async signWithFundingWallet({
@@ -53,8 +55,11 @@ export class TxController {
     ]);
     this.txPolicyService.assertActingOnBehalfOf(decoded, derivedWalletAddress);
     this.txPolicyService.assertFeeGranter(options?.fee.granter, fundingWalletAddresses);
-    if (readGrantFundedDeposits(decoded).length > 0) await this.fundingFreezeService.assertFundingIsNotFrozen();
-    const tx = await this.txManagerService.signAndBroadcastWithDerivedWallet(derivationIndex, decoded, options, seedVersion);
+    const deposits = readGrantFundedDeposits(decoded);
+    if (deposits.length > 0) await this.fundingFreezeService.assertFundingIsNotFrozen();
+    const tx = await this.fundingOutflowService.track(derivedWalletAddress, deposits, () =>
+      this.txManagerService.signAndBroadcastWithDerivedWallet(derivationIndex, decoded, options, seedVersion)
+    );
     return {
       data: {
         code: tx.code,

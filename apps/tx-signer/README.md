@@ -22,7 +22,7 @@ Copy `env/.env.sample` to the env file you use and set:
 - `DERIVATION_WALLET_MNEMONIC_V2` (or seed `v2` in `DERIVATION_WALLET_SEEDS_ENCRYPTED`)
 - `DERIVATION_WALLET_MNEMONIC_V1` (optional)
 - `DERIVATION_SEED_KMS_KEY` and `DERIVATION_WALLET_SEEDS_ENCRYPTED` (optional, see below)
-- `FUNDING_CONTROLS_POSTGRES_URL` (optional, see "Funding freeze")
+- `FUNDING_CONTROLS_POSTGRES_URL` (optional, see "Funding freeze" and "Limits on what leaves the funding wallets")
 - `GAS_DEFAULT_MULTIPLIER`
 - `GAS_RECOVERY_MULTIPLIER`
 - `AVERAGE_GAS_PRICE`
@@ -91,6 +91,39 @@ its fees are still paid by the funding wallet.
 
 The freeze is read on every such request, so it applies from the next request on. If a read fails, the signer
 goes by its last read for up to a minute and then refuses those requests until it can read again.
+
+### Limits on what leaves the funding wallets
+
+A signer given `FUNDING_CONTROLS_POSTGRES_URL` also counts the coins that leave the funding wallets, which is
+every deposit a user wallet draws from a grant. Buying credits moves no coins, so a grant of any size is never
+counted. A deposit is counted before its transaction is signed and taken back when the transaction did not
+land; one whose outcome is undecided stays counted.
+
+A limit bounds what may leave in any 24 hours, per denom, and is either reported or enforced:
+
+- `--scope total` bounds all wallets together.
+- `--scope wallet` bounds each wallet, or with `--wallet <address>` that one wallet, which then goes by its own
+  limit instead of the one for each wallet.
+- `--mode report` logs `FUNDING_OUTFLOW_LIMIT_EXCEEDED` and signs the deposit. `--mode enforce` logs it and
+  answers 429, with nothing broadcast.
+- From four fifths of a limit on, every deposit logs `FUNDING_OUTFLOW_LIMIT_NEARING`.
+
+From inside a signer pod, with amounts in the denom's smallest unit:
+
+```sh
+node dist/funding-outflow.js status
+node dist/funding-outflow.js set-limit --denom uact --scope total --max 5000000000 --mode report --by <who>
+node dist/funding-outflow.js set-limit --denom uact --scope wallet --wallet <address> --max 900000000 --mode enforce --by <who>
+node dist/funding-outflow.js remove-limit --denom uact --scope total
+```
+
+`status` lists what left in the last 24 hours, every limit, and the ten wallets that took the most, so a limit
+can be sized from what the signer has counted. Limits are read on every deposit, so a change applies from the
+next one on.
+
+If the database cannot be reached, deposits are signed uncounted for up to a minute as long as the limits last
+read enforce nothing. Once a limit is enforced, or the last read is older than that, deposits are refused with
+503 until the database answers again.
 
 ## Local dev
 

@@ -12,6 +12,7 @@ import { ApiKeyAuthInterceptor } from "@src/services/api-key-auth/api-key-auth.i
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 import { DerivationSeedService } from "@src/services/derivation-seed/derivation-seed.service";
 import { FundingFreezeService } from "@src/services/funding-freeze/funding-freeze.service";
+import { FundingOutflowService } from "@src/services/funding-outflow/funding-outflow.service";
 import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-error-handler.service";
 import { startServer } from "@src/services/start-server/start-server";
 import type { AppEnv } from "@src/types/app-context";
@@ -26,10 +27,11 @@ app.route("/", txRouter);
 app.route("/", walletRouter);
 app.onError(container.resolve(HonoErrorHandlerService).handle);
 
-/** A signer that cannot decrypt a derivation seed, or cannot read the funding freeze it was given a database for, ends here with a failed start, before it listens. */
+/** A signer that cannot decrypt a derivation seed, or cannot read the funding controls it was given a database for, ends here with a failed start, before it listens. */
 export async function bootstrap(): Promise<void> {
   await container.resolve(DerivationSeedService).load();
   await container.resolve(FundingFreezeService).load();
+  await container.resolve(FundingOutflowService).load();
   await startServer(app, createOtelLogger({ context: "APP" }), process, {
     port: container.resolve(AppConfigService).get("PORT")
   });
