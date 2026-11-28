@@ -64,7 +64,13 @@ describe(AssistantAddressNamesService.name, () => {
     it("names providers, the user's own wallet and every other account without their addresses", async () => {
       const { service, userWalletRepository } = setup({ providers: { [PROVIDER]: "https://provider.europlots.com:8443" }, ownWallet: OWN_WALLET });
 
-      const named = await service.withAddressesNamed({ provider: PROVIDER, owner: OWN_WALLET, granter: GRANTER, note: `Lease on ${PROVIDER}`, byProvider: { [PROVIDER]: 1 } });
+      const named = await service.withAddressesNamed({
+        provider: PROVIDER,
+        owner: OWN_WALLET,
+        granter: GRANTER,
+        note: `Lease on ${PROVIDER}`,
+        byProvider: { [PROVIDER]: 1 }
+      });
 
       expect(named).toEqual({
         provider: "provider provider.europlots.com",

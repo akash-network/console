@@ -73,8 +73,12 @@ export class ManagedUserWalletService {
     return { address, limits };
   }
 
-  async createWallet({ addressIndex }: { addressIndex: number }) {
-    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
+  get seedVersionOfNewWallets(): string {
+    return this.config.DERIVATION_SEED_VERSION;
+  }
+
+  async createWallet({ addressIndex, seedVersion }: { addressIndex: number; seedVersion: string }) {
+    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex, { walletVersion: seedVersion });
     this.logger.debug({ event: "WALLET_CREATED", address });
 
     return { address };

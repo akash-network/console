@@ -4,7 +4,9 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TrialStarted } from "@src/billing/events/trial-started";
+import { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -27,6 +29,20 @@ describe(WalletInitializerService.name, () => {
   });
 
   describe("ensureTeamWallet", () => {
+    it("makes a team wallet from the configured seed version", async () => {
+      const { service, findWallets } = setup();
+      const { user, organization } = await seedOrganizationWithOwner();
+      vi.spyOn(container.resolve(ManagedUserWalletService), "seedVersionOfNewWallets", "get").mockReturnValue("v3");
+      const askSigner = vi.spyOn(container.resolve(ExternalSignerHttpSdkService), "getDerivedWalletAddress").mockResolvedValue(createAkashAddress());
+
+      const wallet = await service.ensureTeamWallet(organization, user.id);
+
+      expect(await findWallets(eq(resolveTable("UserWallets").organizationId, organization.id))).toEqual([
+        expect.objectContaining({ id: wallet.id, seedVersion: "v3" })
+      ]);
+      expect(askSigner).toHaveBeenCalledExactlyOnceWith({ derivationIndex: wallet.id, seedVersion: "v3" });
+    });
+
     it("provisions a wallet owned by no user, without a trial, with the address its row id derives", async () => {
       const { service, findWallets } = setup();
       const { user, organization } = await seedOrganizationWithOwner();
@@ -46,7 +62,7 @@ describe(WalletInitializerService.name, () => {
           address: derivedAddress
         })
       ]);
-      expect(createWallet).toHaveBeenCalledWith({ addressIndex: wallet.id });
+      expect(createWallet).toHaveBeenCalledWith({ addressIndex: wallet.id, seedVersion: "v2" });
     });
 
     it("creates one wallet however many times provisioning runs at once", async () => {
@@ -61,6 +77,38 @@ describe(WalletInitializerService.name, () => {
   });
 
   describe("ensureWallet", () => {
+    it("makes a new wallet from the configured seed version, asking the signer for the address when this api does not hold that seed", async () => {
+      const { service, findWallets } = setup();
+      const user = await seedUser();
+      await container.resolve(PersonalOrganizationService).ensureForUser(user);
+      const addressFromSigner = createAkashAddress();
+      vi.spyOn(container.resolve(ManagedUserWalletService), "seedVersionOfNewWallets", "get").mockReturnValue("v3");
+      const askSigner = vi.spyOn(container.resolve(ExternalSignerHttpSdkService), "getDerivedWalletAddress").mockResolvedValue(addressFromSigner);
+
+      const wallet = await service.ensureWallet(user.id);
+
+      expect(await findWallets(eq(resolveTable("UserWallets").userId, user.id))).toEqual([
+        expect.objectContaining({ id: wallet.id, seedVersion: "v3", address: addressFromSigner })
+      ]);
+      expect(askSigner).toHaveBeenCalledExactlyOnceWith({ derivationIndex: wallet.id, seedVersion: "v3" });
+    });
+
+    it("makes a new wallet from seed v2 by default, at the address that seed derives for its row id", async () => {
+      const { service, findWallets } = setup();
+      const user = await seedUser();
+      await container.resolve(PersonalOrganizationService).ensureForUser(user);
+
+      const wallet = await service.ensureWallet(user.id);
+
+      expect(await findWallets(eq(resolveTable("UserWallets").userId, user.id))).toEqual([
+        expect.objectContaining({
+          id: wallet.id,
+          seedVersion: "v2",
+          address: await container.resolve(TxManagerService).getDerivedWalletAddress(wallet.id, { walletVersion: "v2" })
+        })
+      ]);
+    });
+
     it("files a new user's wallet into their personal organization, even while a team organization is active", async () => {
       const { service, executionContextService, findWallets } = setup();
       const user = await seedUser();

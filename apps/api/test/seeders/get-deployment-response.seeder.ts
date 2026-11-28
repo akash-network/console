@@ -72,6 +72,8 @@ export function createGetDeploymentResponseData(
     },
     name: overrides.name === undefined ? faker.word.noun() : overrides.name,
     consoleSettings:
-      sdl === null ? null : { sdl, definition: definitionOf(sdl), manifestVersion: overrides.manifestVersion ?? faker.string.alphanumeric(44), templateId: null }
+      sdl === null
+        ? null
+        : { sdl, definition: definitionOf(sdl), manifestVersion: overrides.manifestVersion ?? faker.string.alphanumeric(44), templateId: null }
   };
 }

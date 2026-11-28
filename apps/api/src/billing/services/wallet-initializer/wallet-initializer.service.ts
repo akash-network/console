@@ -123,7 +123,7 @@ export class WalletInitializerService {
    * so the two updates write the same value and the operation stays idempotent.
    */
   async ensureWallet(userId: string): Promise<WalletInitialized> {
-    const { wallet } = await this.userWalletRepository.getOrCreate({ userId });
+    const { wallet } = await this.userWalletRepository.getOrCreate({ userId, seedVersion: this.walletManager.seedVersionOfNewWallets });
 
     return await this.#withDerivedAddress(wallet);
   }
@@ -134,7 +134,11 @@ export class WalletInitializerService {
       throw new Error(`Organization ${organization.id} is not a team organization; a personal organization uses its owner's wallet`);
     }
 
-    const { wallet } = await this.userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId });
+    const { wallet } = await this.userWalletRepository.getOrCreateForOrganization({
+      organizationId: organization.id,
+      createdByUserId,
+      seedVersion: this.walletManager.seedVersionOfNewWallets
+    });
 
     return await this.#withDerivedAddress(wallet);
   }
@@ -143,7 +147,7 @@ export class WalletInitializerService {
   async #withDerivedAddress(wallet: UserWalletOutput): Promise<WalletInitialized> {
     if (isWalletInitialized(wallet)) return wallet;
 
-    const { address } = await this.walletManager.createWallet({ addressIndex: wallet.id });
+    const { address } = await this.walletManager.createWallet({ addressIndex: wallet.id, seedVersion: wallet.seedVersion });
     await this.userWalletRepository.unscoped("wallet-provisioning").updateById(wallet.id, { address });
     return { ...wallet, address };
   }

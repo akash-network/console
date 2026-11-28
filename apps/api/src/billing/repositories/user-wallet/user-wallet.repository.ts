@@ -86,7 +86,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   }
 
   /** The user's own wallet whichever organization is active, filed into the user's personal organization when it is created. */
-  async getOrCreate(input: { userId: string }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+  async getOrCreate(input: { userId: string; seedVersion?: string }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
     const repository = this.unscoped("wallet-provisioning");
     const foundWallet = await repository.findOneByUserId(input.userId);
     if (foundWallet) return { wallet: foundWallet, isNew: false };
@@ -94,7 +94,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     this.ability?.throwUnlessCanExecute({ userId: input.userId });
     const [newWallet] = await this.cursor
       .insert(this.table)
-      .values({ userId: input.userId, createdByUserId: input.userId, organizationId: personalOrganizationIdOf(input.userId) })
+      .values({ userId: input.userId, createdByUserId: input.userId, organizationId: personalOrganizationIdOf(input.userId), seedVersion: input.seedVersion })
       .onConflictDoNothing()
       .returning();
 
@@ -110,14 +110,24 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   }
 
   /** A team organization's wallet belongs to no user and never trials; the organization's partial unique index decides who creates it. */
-  async getOrCreateForOrganization(input: { organizationId: string; createdByUserId: string | null }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+  async getOrCreateForOrganization(input: {
+    organizationId: string;
+    createdByUserId: string | null;
+    seedVersion?: string;
+  }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
     const repository = this.unscoped("wallet-provisioning");
     const foundWallet = await repository.findOneByOrganizationId(input.organizationId);
     if (foundWallet) return { wallet: foundWallet, isNew: false };
 
     const [newWallet] = await this.cursor
       .insert(this.table)
-      .values({ userId: null, organizationId: input.organizationId, createdByUserId: input.createdByUserId, isTrialing: false })
+      .values({
+        userId: null,
+        organizationId: input.organizationId,
+        createdByUserId: input.createdByUserId,
+        isTrialing: false,
+        seedVersion: input.seedVersion
+      })
       .onConflictDoNothing({
         target: [this.table.organizationId],
         where: isNotNull(this.table.organizationId)
@@ -130,6 +140,13 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
 
     const wallet = await repository.findOneByOrganizationId(input.organizationId);
     return { wallet: this.requireWrittenRow(wallet), isNew: false };
+  }
+
+  /** Read whatever the caller may see, since signing for a wallet needs its seed version before any ability applies. */
+  async findSeedVersionById(id: UserWalletOutput["id"]): Promise<string | undefined> {
+    const [wallet] = await this.cursor.select({ seedVersion: this.table.seedVersion }).from(this.table).where(eq(this.table.id, id));
+
+    return wallet?.seedVersion;
   }
 
   async create(input: Pick<DbCreateUserWalletInput, "userId" | "address">) {

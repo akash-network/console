@@ -82,7 +82,11 @@ describe("CreateDeploymentRequestSchema", () => {
 
     it.each([
       ["nothing to deploy", { sdl: undefined }, "Send one of sdl, definition, service or templateId"],
-      ["only a template version", { sdl: undefined, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" }, "Send one of sdl, definition, service or templateId"],
+      [
+        "only a template version",
+        { sdl: undefined, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" },
+        "Send one of sdl, definition, service or templateId"
+      ],
       ["an sdl beside a service", { service }, "Send either sdl or service, not both"],
       ["an empty sdl beside a service", { sdl: "", service }, "Send either sdl or service, not both"],
       ["a service beside a template", { sdl: undefined, service, templateId: "nginx" }, "service cannot be combined with templateId or templateVersionId"],

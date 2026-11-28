@@ -100,7 +100,11 @@ describe(sdlWithResources.name, () => {
   it.each([
     ["an unknown service", SDL, "api"],
     ["a service without a compute profile", SDL.replace("      profile: web\n", "      profile: missing\n"), "web"],
-    ["a compute profile two services share", SDL.replace("      count: 1\n", "      count: 1\n  api:\n    dcloud:\n      profile: web\n      count: 1\n"), "web"]
+    [
+      "a compute profile two services share",
+      SDL.replace("      count: 1\n", "      count: 1\n  api:\n    dcloud:\n      profile: web\n      count: 1\n"),
+      "web"
+    ]
   ])("answers null for %s", (_, sdl, service) => {
     expect(sdlWithResources(sdl, [{ service, before: BEFORE, after: { ...BEFORE, cpu: 4 } }])).toBeNull();
   });

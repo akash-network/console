@@ -20,7 +20,8 @@ export function createUserWallet({
   creditsLowSince = null,
   creditsExhaustedNotifiedAt = null,
   abuseLockedAt = null,
-  abuseLockedReason = null
+  abuseLockedReason = null,
+  seedVersion = "v2"
 }: Partial<UserWalletOutput> & { userId?: string } = {}): UserWalletOutput & { userId: string } {
   return {
     id,
@@ -28,6 +29,7 @@ export function createUserWallet({
     organizationId,
     createdByUserId,
     address,
+    seedVersion,
     deploymentAllowance,
     feeAllowance,
     isTrialing,

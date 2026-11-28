@@ -41,9 +41,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          22
-        ],
+        "listenPorts": [22],
         "connections": [
           {
             "localPort": 40210,
@@ -95,9 +93,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          22
-        ],
+        "listenPorts": [22],
         "connections": [
           {
             "localPort": 40210,
@@ -149,9 +145,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          22
-        ],
+        "listenPorts": [22],
         "connections": [
           {
             "localPort": 40210,

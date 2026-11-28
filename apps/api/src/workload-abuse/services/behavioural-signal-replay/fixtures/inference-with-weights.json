@@ -45,9 +45,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          8080
-        ],
+        "listenPorts": [8080],
         "connections": [
           {
             "localPort": 8080,
@@ -99,9 +97,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          8080
-        ],
+        "listenPorts": [8080],
         "connections": [
           {
             "localPort": 8080,

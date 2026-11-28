@@ -25,6 +25,29 @@ describe("envSchema", () => {
     });
   });
 
+  describe("DERIVATION_SEED_VERSION", () => {
+    it("makes new wallets from seed v2 when absent", () => {
+      const result = setup({});
+
+      expect(result.success && result.data.DERIVATION_SEED_VERSION).toBe("v2");
+    });
+
+    it.each(["v3", "v12"])("accepts %s", version => {
+      const result = setup({ DERIVATION_SEED_VERSION: version });
+
+      expect(result.success && result.data.DERIVATION_SEED_VERSION).toBe(version);
+    });
+
+    it.each(["v0", "3", "latest", "v3x", "xv3", ""])("rejects %j", version => {
+      const result = setup({ DERIVATION_SEED_VERSION: version });
+
+      expect(result.success).toBe(false);
+      expect(result.error!.issues).toContainEqual(
+        expect.objectContaining({ path: ["DERIVATION_SEED_VERSION"], message: "DERIVATION_SEED_VERSION must look like v2" })
+      );
+    });
+  });
+
   describe("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN", () => {
     it("defaults to 60 when absent", () => {
       const result = setup({});

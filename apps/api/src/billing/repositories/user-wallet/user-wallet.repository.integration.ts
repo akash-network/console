@@ -29,6 +29,57 @@ describe(UserWalletRepository.name, () => {
 
       expect(result).toEqual({ wallet: expect.objectContaining({ id: wallet.id }), isNew: false });
     });
+
+    it("records the seed version a new wallet is made from, and leaves the one an existing wallet has", async () => {
+      const { userWalletRepository, userRepository } = await setup();
+      const newUser = await userRepository.create({ userId: faker.string.uuid() });
+      await seedPersonalOrganizationOf(newUser);
+
+      const created = await userWalletRepository.getOrCreate({ userId: newUser.id, seedVersion: "v3" });
+      const again = await userWalletRepository.getOrCreate({ userId: newUser.id, seedVersion: "v4" });
+
+      expect(created).toMatchObject({ isNew: true, wallet: { seedVersion: "v3" } });
+      expect(again).toMatchObject({ isNew: false, wallet: { id: created.wallet.id, seedVersion: "v3" } });
+    });
+
+    it("makes a wallet from seed v2 when no version is named", async () => {
+      const { userWalletRepository, userRepository } = await setup();
+      const newUser = await userRepository.create({ userId: faker.string.uuid() });
+      await seedPersonalOrganizationOf(newUser);
+
+      const { wallet } = await userWalletRepository.getOrCreate({ userId: newUser.id });
+
+      expect(wallet.seedVersion).toBe("v2");
+    });
+  });
+
+  describe("findSeedVersionById", () => {
+    it("returns the seed version each wallet records", async () => {
+      const { userWalletRepository, userRepository, wallet } = await setup();
+      const newUser = await userRepository.create({ userId: faker.string.uuid() });
+      await seedPersonalOrganizationOf(newUser);
+      const { wallet: madeFromNewSeed } = await userWalletRepository.getOrCreate({ userId: newUser.id, seedVersion: "v3" });
+
+      await expect(userWalletRepository.findSeedVersionById(wallet.id)).resolves.toBe("v2");
+      await expect(userWalletRepository.findSeedVersionById(madeFromNewSeed.id)).resolves.toBe("v3");
+    });
+
+    it("returns nothing for a wallet that does not exist", async () => {
+      const { userWalletRepository } = await setup();
+
+      await expect(userWalletRepository.findSeedVersionById(2_000_000_000)).resolves.toBeUndefined();
+    });
+
+    it("returns the seed version of a wallet the caller has no ability to read", async () => {
+      const { userWalletRepository, executionContextService, wallet } = await setup();
+
+      const seedVersion = await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext());
+        return await userWalletRepository.findSeedVersionById(wallet.id);
+      });
+
+      expect(seedVersion).toBe("v2");
+    });
   });
 
   describe("claimActivation", () => {
@@ -387,6 +438,24 @@ describe(UserWalletRepository.name, () => {
 
       expect(first).toMatchObject({ isNew: true, wallet: { userId: null, organizationId: organization.id, createdByUserId: user.id, isTrialing: false } });
       expect(second).toEqual({ isNew: false, wallet: first.wallet });
+    });
+
+    it("records the seed version a new organization wallet is made from, and v2 when none is named", async () => {
+      const { userWalletRepository } = await setup();
+      const [named, unnamed] = [await seedOrganizationWithOwner(), await seedOrganizationWithOwner()];
+
+      const fromNamedSeed = await userWalletRepository.getOrCreateForOrganization({
+        organizationId: named.organization.id,
+        createdByUserId: named.user.id,
+        seedVersion: "v3"
+      });
+      const fromDefaultSeed = await userWalletRepository.getOrCreateForOrganization({
+        organizationId: unnamed.organization.id,
+        createdByUserId: unnamed.user.id
+      });
+
+      expect(fromNamedSeed.wallet.seedVersion).toBe("v3");
+      expect(fromDefaultSeed.wallet.seedVersion).toBe("v2");
     });
   });
 

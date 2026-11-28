@@ -46,7 +46,7 @@ Each declined charge increments `wallet_settings.auto_reload_failure_count`, and
 
 Only declines count. A Stripe outage, a rate limit, or a bug of ours leaves the counter alone, so an incident cannot pause every wallet at once. A charge that goes through resets the counter; a charge that merely asks for 3DS authentication does not, since no money moved.
 
-A paused wallet is treated as opted out everywhere behaviour depends on it: the check itself skips with `AUTO_RELOAD_PAUSED` and stops rescheduling, no new checks are enqueued for it, the credits-low email takes over, and it drops out of the `insufficient_balance_with_auto_reload` metrics behind the funding alert. It is *not* excluded from escrow funding — existing credits keep funding deployments as before.
+A paused wallet is treated as opted out everywhere behaviour depends on it: the check itself skips with `AUTO_RELOAD_PAUSED` and stops rescheduling, no new checks are enqueued for it, the credits-low email takes over, and it drops out of the `insufficient_balance_with_auto_reload` metrics behind the funding alert. It is _not_ excluded from escrow funding — existing credits keep funding deployments as before.
 
 The user hears about it twice. The first decline of a run sends a "we couldn't charge your card" email saying retries continue, and the pause sends a second one saying they have stopped; the declines in between are silent, so a card having a bad day does not send one email per attempt. Without the first email the wallet would fail quietly for the whole ~7 hours it takes to reach the pause, and the credits-low email cannot fill that gap because it skips any wallet whose auto top-up still counts as active.
 
@@ -54,13 +54,13 @@ The pause lifts when the user changes their default payment method, or when they
 
 ### Worked examples (defaults: threshold $20, amount $100)
 
-| Balance | Threshold | Amount | Outcome |
-| ------- | --------- | ------ | ------- |
-| $20.00  | $20       | $100   | `balance <= threshold` → **charge $100** |
-| $20.01  | $20       | $100   | `balance > threshold` → **skip** |
-| $0.00   | $20       | $100   | **charge $100** (wallet has an active deployment) |
+| Balance | Threshold | Amount | Outcome                                                                        |
+| ------- | --------- | ------ | ------------------------------------------------------------------------------ |
+| $20.00  | $20       | $100   | `balance <= threshold` → **charge $100**                                       |
+| $20.01  | $20       | $100   | `balance > threshold` → **skip**                                               |
+| $0.00   | $20       | $100   | **charge $100** (wallet has an active deployment)                              |
 | $0.00   | $20       | $100   | **skip** `no_active_deployments` (idle wallet, check not deployment-triggered) |
-| $5.00   | $20       | $15\*  | **charge $20** (clamped to the $20 minimum) |
+| $5.00   | $20       | $15\*  | **charge $20** (clamped to the $20 minimum)                                    |
 
 \* An amount below $20 should never persist (zod rejects it on write); the clamp is defensive only.
 
@@ -75,7 +75,7 @@ Checks are **spend-event-driven**, not fixed to a daily cadence. A check is enqu
 
 Every `WALLET_BALANCE_RELOADED`, `WALLET_BALANCE_RELOAD_SKIPPED`, and `WALLET_BALANCE_RELOAD_FAILED` line and the matching counters carry `triggeredByDeployment` (`triggered_by_deployment` on the counters), so a charge caused by a refused deployment create or by initial funding is distinguishable from one caused by spend (CON-843).
 
-Because pg-boss's `singleton` policy uniqueness applies only to *active* jobs, an immediate enqueue is never swallowed by the pending daily safety-net job. Top-ups therefore happen within seconds of the balance crossing the threshold.
+Because pg-boss's `singleton` policy uniqueness applies only to _active_ jobs, an immediate enqueue is never swallowed by the pending daily safety-net job. Top-ups therefore happen within seconds of the balance crossing the threshold.
 
 ## Validation flow
 

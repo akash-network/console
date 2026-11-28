@@ -37,6 +37,27 @@ describe(ManagedUserWalletService.name, () => {
     });
   });
 
+  describe("createWallet", () => {
+    it("derives the address at the wallet's index from the seed version the wallet records", async () => {
+      const { service, txManagerService, logger } = setup();
+      const address = createAkashAddress();
+      txManagerService.getDerivedWalletAddress.mockResolvedValue(address);
+
+      await expect(service.createWallet({ addressIndex: 31, seedVersion: "v3" })).resolves.toEqual({ address });
+
+      expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledExactlyOnceWith(31, { walletVersion: "v3" });
+      expect(logger.debug).toHaveBeenCalledWith({ event: "WALLET_CREATED", address });
+    });
+  });
+
+  describe("seedVersionOfNewWallets", () => {
+    it("is the derivation seed version this api is configured with", () => {
+      const { service } = setup();
+
+      expect(service.seedVersionOfNewWallets).toBe("v3");
+    });
+  });
+
   describe("refillWalletFees", () => {
     it("throws 402 when wallet address is missing", async () => {
       const { service, signer } = setup();
@@ -328,7 +349,8 @@ describe(ManagedUserWalletService.name, () => {
       TRIAL_FEES_ALLOWANCE_AMOUNT: 100000,
       TRIAL_ALLOWANCE_EXPIRATION_DAYS: 14,
       FEE_ALLOWANCE_REFILL_AMOUNT: 200000,
-      DEPLOYMENT_GRANT_DENOM: "uakt"
+      DEPLOYMENT_GRANT_DENOM: "uakt",
+      DERIVATION_SEED_VERSION: "v3"
     } as BillingConfig;
 
     const txManagerService = mock<TxManagerService>();

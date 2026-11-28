@@ -168,7 +168,7 @@ describe(WalletInitializerService.name, () => {
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: orphanWallet.id });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: orphanWallet.id, seedVersion: "v2" });
       expect(updateWalletById).toHaveBeenCalledWith(orphanWallet.id, { address: derivedAddress });
     });
 
@@ -594,7 +594,7 @@ describe(WalletInitializerService.name, () => {
       const result = await di.resolve(WalletInitializerService).ensureWallet(userId);
 
       expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id, seedVersion: "v2" });
       expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: derivedAddress });
       expect(result.address).toBe(derivedAddress);
     });
@@ -612,7 +612,7 @@ describe(WalletInitializerService.name, () => {
 
       const result = await di.resolve(WalletInitializerService).ensureWallet(userId);
 
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: emptyAddressWallet.id });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: emptyAddressWallet.id, seedVersion: "v2" });
       expect(updateWalletById).toHaveBeenCalledWith(emptyAddressWallet.id, { address: derivedAddress });
       expect(result.address).toBe(derivedAddress);
     });
@@ -649,7 +649,7 @@ describe(WalletInitializerService.name, () => {
       const result = await di.resolve(WalletInitializerService).ensureTeamWallet({ id: organizationId, type: "team" }, creatorId);
 
       expect(getOrCreateOrganizationWallet).toHaveBeenCalledWith({ organizationId, createdByUserId: creatorId });
-      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id, seedVersion: "v2" });
       expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: "akash1team" });
       expect(result).toMatchObject({ id: bareWallet.id, address: "akash1team", userId: null, isTrialing: false });
     });

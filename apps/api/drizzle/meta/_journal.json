@@ -1142,6 +1142,13 @@
       "when": 1795825590521,
       "tag": "0162_balance_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 163,
+      "version": "7",
+      "when": 1795832944943,
+      "tag": "0163_user_wallet_seed_version",
+      "breakpoints": true
     }
   ]
 }

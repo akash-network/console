@@ -41,9 +41,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          22
-        ],
+        "listenPorts": [22],
         "connections": []
       }
     },
@@ -87,9 +85,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          22
-        ],
+        "listenPorts": [22],
         "connections": []
       }
     },
@@ -133,9 +129,7 @@
         }
       ],
       "netShape": {
-        "listenPorts": [
-          22
-        ],
+        "listenPorts": [22],
         "connections": []
       }
     }

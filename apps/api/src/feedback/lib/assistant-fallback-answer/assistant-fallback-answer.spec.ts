@@ -103,7 +103,13 @@ describe(fallbackAnswerOf.name, () => {
   });
 
   it("names deployments after any read in the conversation that returned their name", () => {
-    const listed = { deployments: [{ dseq: "1", name: "web" }, { dseq: "2", name: "" }, { dseq: 3, name: "db" }] };
+    const listed = {
+      deployments: [
+        { dseq: "1", name: "web" },
+        { dseq: "2", name: "" },
+        { dseq: 3, name: "db" }
+      ]
+    };
     const reads = [
       { call: toolCall("c1", "list_deployments"), result: readContentOf("list_deployments", listed) },
       readOf("c2", "get_deployment", "1", { dseq: "1", name: null, leases: [{ name: "not a deployment" }] }),
@@ -213,16 +219,19 @@ describe(fallbackAnswerOf.name, () => {
   it("keeps a read asked for again when the earlier read succeeded", () => {
     const earlier = readContentOf("list_deployments", { deployments: [] });
 
-    expect(fallbackAnswerOf(askedTurnOf("what is wrong", { call: toolCall("c1", "list_deployments"), result: alreadyReadContentOf("list_deployments", earlier) }))).toBe(
-      "I read your deployments, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help."
-    );
+    expect(
+      fallbackAnswerOf(askedTurnOf("what is wrong", { call: toolCall("c1", "list_deployments"), result: alreadyReadContentOf("list_deployments", earlier) }))
+    ).toBe("I read your deployments, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help.");
   });
 
   it("names a deployment after a balance read that returned its name", () => {
     expect(
       fallbackAnswerOf(
         turnWithResultsOf(
-          { call: toolCall("c1", "get_balance_and_spend"), result: readContentOf("get_balance_and_spend", { spendByDeployment: [{ dseq: "5", name: "billing-web" }] }) },
+          {
+            call: toolCall("c1", "get_balance_and_spend"),
+            result: readContentOf("get_balance_and_spend", { spendByDeployment: [{ dseq: "5", name: "billing-web" }] })
+          },
           { call: toolCall("c2", "read_logs", { dseq: "5" }) }
         )
       )

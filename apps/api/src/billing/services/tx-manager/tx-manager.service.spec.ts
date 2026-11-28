@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
+import type { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import type { CreateLogger } from "@src/core";
 import { createWalletResources, TxManagerService } from "./tx-manager.service";
@@ -14,19 +15,27 @@ import { createAkashAddress } from "@test/seeders";
 
 describe(TxManagerService.name, () => {
   describe("signAndBroadcastWithFundingWallet", () => {
-    it("delegates to external signer with the grantee it names", async () => {
+    it("delegates to external signer, naming the grantee by its index and the seed version its wallet records", async () => {
       const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
-      const options = { granteeDerivationIndex: 7 };
       const txResult = mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
 
-      const { service, externalSignerHttpSdkService } = setup({
-        externalFundingResult: txResult
-      });
+      const { service, externalSignerHttpSdkService, userWalletRepository } = setup({ externalFundingResult: txResult, seedVersion: "v3" });
 
-      const result = await service.signAndBroadcastWithFundingWallet(messages, options);
+      const result = await service.signAndBroadcastWithFundingWallet(messages, { granteeDerivationIndex: 7 });
 
-      expect(externalSignerHttpSdkService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages, options);
+      expect(userWalletRepository.findSeedVersionById).toHaveBeenCalledWith(7);
+      expect(externalSignerHttpSdkService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages, { derivationIndex: 7, seedVersion: "v3" });
       expect(result).toEqual(txResult);
+    });
+
+    it("delegates to external signer without a grantee when none is named", async () => {
+      const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
+      const { service, externalSignerHttpSdkService, userWalletRepository } = setup();
+
+      await service.signAndBroadcastWithFundingWallet(messages);
+
+      expect(externalSignerHttpSdkService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages, undefined);
+      expect(userWalletRepository.findSeedVersionById).not.toHaveBeenCalled();
     });
   });
 
@@ -80,24 +89,73 @@ describe(TxManagerService.name, () => {
   });
 
   describe("signAndBroadcastWithDerivedWallet", () => {
-    it("delegates to external signer", async () => {
+    it("delegates to external signer, naming the wallet by its index and the seed version it records", async () => {
       const derivationIndex = 1;
       const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
       const options: SignAndBroadcastOptions = { fee: { granter: createAkashAddress() } };
       const txResult = mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
 
-      const { service, externalSignerHttpSdkService } = setup({
-        externalDerivedResult: txResult
-      });
+      const { service, externalSignerHttpSdkService } = setup({ externalDerivedResult: txResult, seedVersion: "v3" });
 
       const result = await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages, options);
 
-      expect(externalSignerHttpSdkService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(derivationIndex, messages, options);
+      expect(externalSignerHttpSdkService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith({ derivationIndex, seedVersion: "v3" }, messages, options);
       expect(result).toEqual(txResult);
     });
   });
 
+  describe("getSeedVersion", () => {
+    it("reads the seed version the wallet row records, once per wallet", async () => {
+      const { service, userWalletRepository } = setup({ seedVersion: "v3" });
+
+      await expect(service.getSeedVersion(11)).resolves.toBe("v3");
+      await expect(service.getSeedVersion(11)).resolves.toBe("v3");
+      await expect(service.getSeedVersion(12)).resolves.toBe("v3");
+
+      expect(userWalletRepository.findSeedVersionById.mock.calls).toEqual([[11], [12]]);
+    });
+
+    it("keeps the version of one wallet apart from another's", async () => {
+      const { service, userWalletRepository } = setup();
+      userWalletRepository.findSeedVersionById.mockImplementation(async id => (id === 11 ? "v2" : "v3"));
+
+      await service.getSeedVersion(11);
+      await service.getSeedVersion(12);
+
+      await expect(service.getSeedVersion(11)).resolves.toBe("v2");
+      await expect(service.getSeedVersion(12)).resolves.toBe("v3");
+    });
+
+    it("fails for a wallet that does not exist, and looks again the next time", async () => {
+      const { service, userWalletRepository } = setup();
+      userWalletRepository.findSeedVersionById.mockResolvedValueOnce(undefined);
+
+      await expect(service.getSeedVersion(11)).rejects.toThrow("Wallet 11 does not exist, so the seed it was derived from is unknown");
+      await expect(service.getSeedVersion(11)).resolves.toBe("v2");
+    });
+  });
+
   describe("getDerivedWalletAddress", () => {
+    it("asks the signer for the address of a wallet made from a seed this process does not hold", async () => {
+      const { service, externalSignerHttpSdkService, currentWalletFactory, earlierWalletFactory } = setup({ seedVersion: "v3" });
+      const address = createAkashAddress();
+      externalSignerHttpSdkService.getDerivedWalletAddress.mockResolvedValue(address);
+
+      await expect(service.getDerivedWalletAddress(5)).resolves.toBe(address);
+
+      expect(externalSignerHttpSdkService.getDerivedWalletAddress).toHaveBeenCalledWith({ derivationIndex: 5, seedVersion: "v3" });
+      expect(currentWalletFactory).not.toHaveBeenCalled();
+      expect(earlierWalletFactory).not.toHaveBeenCalled();
+    });
+
+    it("takes a version the caller names over the one the wallet records, without reading the wallet", async () => {
+      const { service, userWalletRepository, earlierWalletAddress } = setup({ seedVersion: "v3" });
+
+      await expect(service.getDerivedWalletAddress(5, { walletVersion: "v1" })).resolves.toBe(earlierWalletAddress);
+
+      expect(userWalletRepository.findSeedVersionById).not.toHaveBeenCalled();
+    });
+
     it("derives the address at an index from the current derivation seed by default", async () => {
       const { service, currentWalletFactory, currentWalletAddress, earlierWalletFactory, externalSignerHttpSdkService } = setup();
 
@@ -124,7 +182,7 @@ describe(TxManagerService.name, () => {
 
       await expect(service.getDerivedWalletAddress(5)).resolves.toBe(address);
 
-      expect(externalSignerHttpSdkService.getDerivedWalletAddress).toHaveBeenCalledWith(5, "v2");
+      expect(externalSignerHttpSdkService.getDerivedWalletAddress).toHaveBeenCalledWith({ derivationIndex: 5, seedVersion: "v2" });
       expect(earlierWalletFactory).not.toHaveBeenCalled();
     });
 
@@ -135,33 +193,43 @@ describe(TxManagerService.name, () => {
 
       await expect(service.getDerivedWalletAddress(5, { walletVersion: "v1" })).resolves.toBe(address);
 
-      expect(externalSignerHttpSdkService.getDerivedWalletAddress).toHaveBeenCalledWith(5, "v1");
+      expect(externalSignerHttpSdkService.getDerivedWalletAddress).toHaveBeenCalledWith({ derivationIndex: 5, seedVersion: "v1" });
       expect(currentWalletFactory).not.toHaveBeenCalled();
     });
   });
 
   describe("holdsDerivationSeed", () => {
-    it("holds it when the current derivation seed is configured", () => {
-      expect(setup().service.holdsDerivationSeed).toBe(true);
+    it("holds the seeds that are configured and no other", () => {
+      const { service } = setup();
+
+      expect(service.holdsDerivationSeed("v1")).toBe(true);
+      expect(service.holdsDerivationSeed("v2")).toBe(true);
+      expect(service.holdsDerivationSeed("v3")).toBe(false);
     });
 
-    it("does not hold it when only the earlier derivation seed is configured", () => {
-      expect(setup({ holdsDerivationSeed: false }).service.holdsDerivationSeed).toBe(false);
+    it("does not hold the current seed when only the earlier one is configured", () => {
+      const { service } = setup({ holdsDerivationSeed: false });
+
+      expect(service.holdsDerivationSeed("v2")).toBe(false);
+      expect(service.holdsDerivationSeed("v1")).toBe(true);
     });
   });
 
   describe("getDerivedWallet", () => {
-    it("returns the wallet at an index of the current derivation seed", () => {
-      const { service, currentWalletFactory, currentWallet } = setup();
+    it("returns the wallet at an index of the seed version named", () => {
+      const { service, currentWalletFactory, earlierWalletFactory, currentWallet } = setup();
 
-      expect(service.getDerivedWallet(3)).toBe(currentWallet);
+      expect(service.getDerivedWallet(3, "v2")).toBe(currentWallet);
       expect(currentWalletFactory).toHaveBeenCalledWith(3);
+      expect(earlierWalletFactory).not.toHaveBeenCalled();
     });
 
-    it("refuses to hand out a wallet when it holds no current derivation seed", () => {
+    it.each(["v2", "v3"])("refuses to hand out a wallet of seed %s when this process does not hold it", seedVersion => {
       const { service, earlierWalletFactory } = setup({ holdsDerivationSeed: false });
 
-      expect(() => service.getDerivedWallet(3)).toThrow("This process holds no derivation seed, so only the signer can sign for a user wallet");
+      expect(() => service.getDerivedWallet(3, seedVersion)).toThrow(
+        `This process holds no derivation seed ${seedVersion}, so only the signer can sign for a wallet made from it`
+      );
       expect(earlierWalletFactory).not.toHaveBeenCalled();
     });
   });
@@ -203,6 +271,7 @@ describe(TxManagerService.name, () => {
     holdsFundingSeed?: boolean;
     holdsDerivationSeed?: boolean;
     holdsEarlierDerivationSeed?: boolean;
+    seedVersion?: string;
     externalFundingResult?: IndexedTx;
     externalDerivedResult?: IndexedTx;
   }) {
@@ -236,7 +305,10 @@ describe(TxManagerService.name, () => {
         .mockResolvedValue(input?.externalDerivedResult ?? mock<IndexedTx>({ code: 0, hash: "default-hash", rawLog: "success" }))
     });
 
-    const service = new TxManagerService(walletResources, createLogger, externalSignerHttpSdkService);
+    const userWalletRepository = mock<UserWalletRepository>();
+    userWalletRepository.findSeedVersionById.mockResolvedValue(input?.seedVersion ?? "v2");
+
+    const service = new TxManagerService(walletResources, createLogger, externalSignerHttpSdkService, userWalletRepository);
 
     return {
       service,
@@ -248,7 +320,8 @@ describe(TxManagerService.name, () => {
       earlierWalletFactory,
       logger,
       createLogger,
-      externalSignerHttpSdkService
+      externalSignerHttpSdkService,
+      userWalletRepository
     };
   }
 });

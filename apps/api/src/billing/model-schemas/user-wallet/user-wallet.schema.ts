@@ -16,6 +16,8 @@ export const UserWallets = pgTable(
     organizationId: uuid("organization_id").references(() => Organizations.id),
     createdByUserId: uuid("created_by_user_id").references(() => Users.id, { onDelete: "set null" }),
     address: varchar("address").unique(),
+    /** The derivation seed the address was made from at this row's id, which the signer has to be told with every request for this wallet. */
+    seedVersion: varchar("seed_version", { length: 16 }).notNull().default("v2"),
     deploymentAllowance: allowance("deployment_allowance"),
     feeAllowance: allowance("fee_allowance"),
     isTrialing: boolean("trial").default(true),

@@ -22,7 +22,9 @@ describe(ProviderJwtTokenService.name, () => {
       const result = await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
       expect(result.unwrap()).toEqual(jwtTokenValue);
-      expect(txManagerService.getDerivedWallet).toHaveBeenCalledWith(walletId);
+      expect(txManagerService.getSeedVersion).toHaveBeenCalledWith(walletId);
+      expect(txManagerService.holdsDerivationSeed).toHaveBeenCalledWith("v2");
+      expect(txManagerService.getDerivedWallet).toHaveBeenCalledWith(walletId, "v2");
       expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(wallet);
       expect(jwtToken.generateToken).toHaveBeenCalledWith({
         version: "v1",
@@ -47,14 +49,21 @@ describe(ProviderJwtTokenService.name, () => {
 
     it("asks the signer for the token when this process holds no derivation seed", async () => {
       const { providerJwtTokenService, walletId, accessRules, externalSignerHttpSdkService, txManagerService, jwtModule } = setup({
-        holdsDerivationSeed: false
+        holdsDerivationSeed: false,
+        seedVersion: "v3"
       });
       externalSignerHttpSdkService.issueProviderToken.mockResolvedValue(Ok("token-from-signer"));
 
       const result = await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules, ttl: 90 });
 
       expect(result.unwrap()).toBe("token-from-signer");
-      expect(externalSignerHttpSdkService.issueProviderToken).toHaveBeenCalledWith({ derivationIndex: walletId, leases: accessRules, ttl: 90 });
+      expect(externalSignerHttpSdkService.issueProviderToken).toHaveBeenCalledWith({
+        derivationIndex: walletId,
+        seedVersion: "v3",
+        leases: accessRules,
+        ttl: 90
+      });
+      expect(txManagerService.holdsDerivationSeed).toHaveBeenCalledWith("v3");
       expect(txManagerService.getDerivedWallet).not.toHaveBeenCalled();
       expect(jwtModule.JwtTokenManager).not.toHaveBeenCalled();
     });
@@ -65,7 +74,12 @@ describe(ProviderJwtTokenService.name, () => {
 
       await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
-      expect(externalSignerHttpSdkService.issueProviderToken).toHaveBeenCalledWith({ derivationIndex: walletId, leases: accessRules, ttl: 30 });
+      expect(externalSignerHttpSdkService.issueProviderToken).toHaveBeenCalledWith({
+        derivationIndex: walletId,
+        seedVersion: "v2",
+        leases: accessRules,
+        ttl: 30
+      });
     });
 
     it("passes on why the signer refused a token", async () => {
@@ -107,7 +121,7 @@ describe(ProviderJwtTokenService.name, () => {
     });
   });
 
-  function setup(input?: { holdsDerivationSeed?: boolean }) {
+  function setup(input?: { holdsDerivationSeed?: boolean; seedVersion?: string }) {
     cacheEngine.clearByPrefix(`${ProviderJwtTokenService.name}#`);
     const walletId = faker.number.int({ min: 1, max: 10000 });
     const address = createAkashAddress();
@@ -139,10 +153,10 @@ describe(ProviderJwtTokenService.name, () => {
       JwtTokenManager: JwtTokenManagerConstructor as unknown as typeof JwtTokenManager
     });
 
-    const txManagerService = mock<TxManagerService>({
-      holdsDerivationSeed: input?.holdsDerivationSeed ?? true,
-      getDerivedWallet: vi.fn().mockReturnValue(wallet)
-    });
+    const txManagerService = mock<TxManagerService>();
+    txManagerService.getSeedVersion.mockResolvedValue(input?.seedVersion ?? "v2");
+    txManagerService.holdsDerivationSeed.mockReturnValue(input?.holdsDerivationSeed ?? true);
+    txManagerService.getDerivedWallet.mockReturnValue(wallet);
     const externalSignerHttpSdkService = mock<ExternalSignerHttpSdkService>();
 
     const providerJwtTokenService = new ProviderJwtTokenService(jwtModule, txManagerService, externalSignerHttpSdkService);

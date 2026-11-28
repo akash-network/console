@@ -21,6 +21,11 @@ export const envSchema = z.object({
   DERIVATION_WALLET_MNEMONIC: z.string().optional(),
   DERIVATION_WALLET_MNEMONIC_V1: z.string().optional(),
   DERIVATION_WALLET_MNEMONIC_V2: z.string().optional(),
+  /** The seed new wallets are derived from; mainnet and sandbox share the wallet table, so both signers must hold a version before either api names it here. */
+  DERIVATION_SEED_VERSION: z
+    .string()
+    .regex(/^v[1-9]\d*$/, { message: "DERIVATION_SEED_VERSION must look like v2" })
+    .default("v2"),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),
   TRIAL_ALLOWANCE_EXPIRATION_DAYS: z.number({ coerce: true }).default(30),
