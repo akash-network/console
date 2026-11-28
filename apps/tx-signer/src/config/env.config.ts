@@ -34,6 +34,8 @@ export const envSchema = z
     /** Set only when Cloud KMS access is granted to a service account rather than to the workload identity itself. */
     GCP_KMS_SERVICE_ACCOUNT: z.string().email().optional(),
     DERIVATION_WALLET_MNEMONIC_V2: z.string(),
+    /** Signs nothing: only the addresses of first-generation user wallets are read from it, for usage history. */
+    DERIVATION_WALLET_MNEMONIC_V1: z.string().optional(),
     RPC_NODE_ENDPOINT: z.string(),
     GRANT_ALLOWED_DENOMS: z
       .string()

@@ -25,4 +25,44 @@ describe(memoizeAsync.name, () => {
 
     expect(fn).toHaveBeenCalledTimes(2);
   });
+
+  it("remembers one result per set of arguments", async () => {
+    const fn = vi.fn(async (value: number) => value * 2);
+    const memoized = memoizeAsync(fn);
+
+    await expect(memoized(1)).resolves.toBe(2);
+    await expect(memoized(2)).resolves.toBe(4);
+    await expect(memoized(1)).resolves.toBe(2);
+
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("forgets the oldest result once it holds as many as it may", async () => {
+    const fn = vi.fn(async (value: number) => value);
+    const memoized = memoizeAsync(fn, { maxEntries: 2 });
+
+    await memoized(1);
+    await memoized(2);
+    await memoized(3);
+    fn.mockClear();
+
+    await memoized(2);
+    await memoized(3);
+    expect(fn).not.toHaveBeenCalled();
+
+    await memoized(1);
+    expect(fn).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it("keeps every result while it holds fewer than it may", async () => {
+    const fn = vi.fn(async (value: number) => value);
+    const memoized = memoizeAsync(fn, { maxEntries: 2 });
+
+    await memoized(1);
+    await memoized(2);
+    await memoized(1);
+    await memoized(2);
+
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
 });
