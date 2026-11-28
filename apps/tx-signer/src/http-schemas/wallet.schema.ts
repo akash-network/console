@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** From 2^31 up an index derives a hardened key, which is another wallet than the one a user account at that index has. */
+const MAX_DERIVATION_INDEX = 2 ** 31 - 1;
+
 export const FundingWalletAddressesResponseSchema = z.object({
   data: z.object({
     addresses: z.array(z.string())
@@ -7,7 +10,7 @@ export const FundingWalletAddressesResponseSchema = z.object({
 });
 
 export const DerivedWalletAddressParamsSchema = z.object({
-  index: z.coerce.number().int().nonnegative()
+  index: z.coerce.number().int().nonnegative().max(MAX_DERIVATION_INDEX)
 });
 
 export const DerivedWalletAddressQuerySchema = z.object({
@@ -22,8 +25,8 @@ export const DerivedWalletAddressResponseSchema = z.object({
 
 export const IssueProviderTokenRequestInputSchema = z.object({
   data: z.object({
-    derivationIndex: z.number().int().nonnegative(),
-    leases: z.object({ access: z.enum(["full", "granular"]) }).passthrough(),
+    derivationIndex: z.number().int().nonnegative().max(MAX_DERIVATION_INDEX),
+    leases: z.object({ access: z.enum(["full", "scoped", "granular"]) }).passthrough(),
     ttl: z.number().int().positive()
   })
 });

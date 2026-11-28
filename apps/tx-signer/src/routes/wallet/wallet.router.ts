@@ -56,7 +56,7 @@ const issueProviderTokenRoute = createRoute({
   summary: "Issues a provider access token signed by the user wallet derived at an index",
   tags: ["Wallets"],
   request: {
-    body: { content: { "application/json": { schema: IssueProviderTokenRequestInputSchema } } }
+    body: { required: true, content: { "application/json": { schema: IssueProviderTokenRequestInputSchema } } }
   },
   responses: {
     200: {

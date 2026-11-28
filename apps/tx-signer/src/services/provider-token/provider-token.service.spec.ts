@@ -29,6 +29,15 @@ describe(ProviderTokenService.name, () => {
     expect(payload.iat).toBeLessThanOrEqual(Math.floor(Date.now() / 1000));
   });
 
+  it("issues a token scoped to some actions on every provider", async () => {
+    const { service } = setup();
+    const leases: JwtTokenPayload["leases"] = { access: "scoped", scope: ["status", "logs"] };
+
+    const payload = decode(await service.issue({ derivationIndex: 1, leases, ttl: 30 }));
+
+    expect(payload.leases).toEqual(leases);
+  });
+
   it("signs every token it issues", async () => {
     const { service } = setup();
 

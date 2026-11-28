@@ -7,6 +7,9 @@ Internal service that signs and broadcasts Akash transactions.
 - `GET /healthz` health check
 - `POST /v1/tx/funding` sign and broadcast with the funding wallet
 - `POST /v1/tx/derived` sign and broadcast with a derived wallet
+- `GET /v1/wallets/funding` addresses of the funding wallets, the seed phrase one first
+- `GET /v1/wallets/derived/{index}` address of the user wallet at an index (`?version=v1` for its first-generation address)
+- `POST /v1/wallets/provider-tokens` provider access token signed by the user wallet at an index
 
 ## Configuration
 
@@ -17,6 +20,7 @@ Copy `env/.env.sample` to the env file you use and set:
 - `RPC_REQUEST_TIMEOUT_MS`
 - `FUNDING_WALLET_MNEMONIC_V2`
 - `DERIVATION_WALLET_MNEMONIC_V2`
+- `DERIVATION_WALLET_MNEMONIC_V1` (optional)
 - `GAS_DEFAULT_MULTIPLIER`
 - `GAS_RECOVERY_MULTIPLIER`
 - `AVERAGE_GAS_PRICE`
@@ -31,6 +35,11 @@ request timeout is never what abandons a transaction still in flight. Keep `apps
 so every payload sent to the node carries its own validity window, and a call allowed to outlive that
 window comes back rejected as expired instead of naming whatever went wrong on the wire. The config
 refuses to start when either relationship is broken.
+
+`DERIVATION_WALLET_MNEMONIC_V1` is only read to answer first-generation wallet addresses, never to sign.
+Without it `GET /v1/wallets/derived/{index}?version=v1` answers 501. Set it to the seed `apps/api` derives
+first-generation wallets from (its `DERIVATION_WALLET_MNEMONIC_V1`, or `OLD_MASTER_WALLET_MNEMONIC` where
+that one is unset) before removing the seeds from `apps/api`, which needs those addresses for usage history.
 
 ## Local dev
 
