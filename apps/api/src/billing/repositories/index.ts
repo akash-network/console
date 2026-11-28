@@ -6,3 +6,4 @@ export * from "./deployment-deposit/deployment-deposit.repository";
 export * from "./funding-wallet/funding-wallet.repository";
 export * from "./funding-wallet-move/funding-wallet-move.repository";
 export * from "./funding-wallet-refund/funding-wallet-refund.repository";
+export * from "./balance-snapshot/balance-snapshot.repository";

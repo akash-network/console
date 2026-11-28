@@ -200,8 +200,9 @@ export class AuthzHttpService {
     return result;
   }
 
+  /** With a height, every page is read from the same block, so a listing that spans several requests is one consistent state. */
   async getPaginatedDepositDeploymentGrants(
-    options: ({ granter: string } | { grantee: string }) & { limit: number; offset: number }
+    options: ({ granter: string } | { grantee: string }) & { limit: number; offset: number; height?: number }
   ): Promise<{ grants: DepositDeploymentGrant[]; pagination: { next_key: string | null; total: number } }> {
     const side = "granter" in options ? "granter" : "grantee";
     const address = "granter" in options ? options.granter : options.grantee;
@@ -214,7 +215,8 @@ export class AuthzHttpService {
           "pagination.limit": limit,
           "pagination.offset": offset,
           "pagination.count_total": true
-        }
+        },
+        ...(options.height !== undefined && { headers: { [BLOCK_HEIGHT_HEADER]: String(options.height) } })
       })
     );
 

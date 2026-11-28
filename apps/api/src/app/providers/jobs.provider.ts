@@ -6,6 +6,7 @@ import { SyncAffiliateCommissionHandler } from "@src/affiliate/services/affiliat
 import { InviteAffiliateHandler } from "@src/affiliate/services/affiliate-invitation/invite-affiliate.handler";
 import { ApiKeyExpiryReminderHandler } from "@src/auth/services/api-key-expiry-reminder/api-key-expiry-reminder.handler";
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
+import { TakeBalanceSnapshotHandler } from "@src/billing/services/balance-snapshot/take-balance-snapshot.handler";
 import { CardPaymentInvoiceHandler } from "@src/billing/services/card-payment-invoice/card-payment-invoice.handler";
 import { MoveUserToActiveFundingWalletHandler } from "@src/billing/services/funding-wallet-move/move-user-to-active-funding-wallet.handler";
 import { GpuWinBackCheckHandler } from "@src/billing/services/gpu-win-back/gpu-win-back-check.handler";
@@ -143,6 +144,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReconcileDeploymentAllowanceHandler),
     container.resolve(MoveUserToActiveFundingWalletHandler),
     container.resolve(CreditReturnedEscrowHandler),
+    container.resolve(TakeBalanceSnapshotHandler),
     container.resolve(ProjectBudgetAlertHandler),
     container.resolve(ProbeTrialDeploymentHandler),
     container.resolve(DetectLeaseGpusHandler),

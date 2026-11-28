@@ -3,6 +3,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { Hono } from "hono";
 import { container } from "tsyringe";
 
+import { TakeBalanceSnapshotHandler } from "@src/billing/services/balance-snapshot/take-balance-snapshot.handler";
 import { CORE_CONFIG, JobQueueService, migratePG, startServer } from "@src/core";
 import { WatchGpuWaitlistsHandler } from "@src/gpu-waitlist/services/watch-gpu-waitlists/watch-gpu-waitlists.handler";
 import { healthzRouter } from "@src/healthz/routes/healthz.router";
@@ -31,5 +32,6 @@ export async function bootstrap(): Promise<void> {
     await container.resolve(WatchPopularTemplateImagesHandler).seedNextRun(new Date());
     await container.resolve(RecomputeTemplateScoresHandler).seedNextRun(new Date());
     await container.resolve(SendTemplatePublisherDigestHandler).seedNextRun(new Date());
+    await container.resolve(TakeBalanceSnapshotHandler).seedNextRun(new Date());
   }
 }
