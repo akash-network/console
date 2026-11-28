@@ -31,7 +31,16 @@ describe(WalletController.name, () => {
     providerTokenService.issue.mockResolvedValue("signed-token");
 
     await expect(controller.issueProviderToken({ data: { derivationIndex: 4, leases, ttl: 60 } })).resolves.toEqual({ data: { token: "signed-token" } });
-    expect(providerTokenService.issue).toHaveBeenCalledWith({ derivationIndex: 4, leases, ttl: 60 });
+    expect(providerTokenService.issue).toHaveBeenCalledWith({ derivationIndex: 4, seedVersion: undefined, leases, ttl: 60 });
+  });
+
+  it("issues a provider token for the wallet of the seed version asked for", async () => {
+    const { controller, providerTokenService } = setup();
+    providerTokenService.issue.mockResolvedValue("signed-token");
+
+    await controller.issueProviderToken({ data: { derivationIndex: 4, seedVersion: "v3", leases: { access: "full" }, ttl: 60 } });
+
+    expect(providerTokenService.issue).toHaveBeenCalledWith({ derivationIndex: 4, seedVersion: "v3", leases: { access: "full" }, ttl: 60 });
   });
 
   function setup() {

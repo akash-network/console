@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DEFAULT_SEED_VERSION, SeedVersionSchema } from "@src/lib/seed-version/seed-version";
+
 /** From 2^31 up an index derives a hardened key, which is another wallet than the one a user account at that index has. */
 const MAX_DERIVATION_INDEX = 2 ** 31 - 1;
 
@@ -14,7 +16,7 @@ export const DerivedWalletAddressParamsSchema = z.object({
 });
 
 export const DerivedWalletAddressQuerySchema = z.object({
-  version: z.enum(["v1", "v2"]).default("v2")
+  version: SeedVersionSchema.default(DEFAULT_SEED_VERSION)
 });
 
 export const DerivedWalletAddressResponseSchema = z.object({
@@ -26,6 +28,7 @@ export const DerivedWalletAddressResponseSchema = z.object({
 export const IssueProviderTokenRequestInputSchema = z.object({
   data: z.object({
     derivationIndex: z.number().int().nonnegative().max(MAX_DERIVATION_INDEX),
+    seedVersion: SeedVersionSchema.optional(),
     leases: z.object({ access: z.enum(["full", "scoped", "granular"]) }).passthrough(),
     ttl: z.number().int().positive()
   })

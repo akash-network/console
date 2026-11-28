@@ -63,7 +63,26 @@ describe(ProviderTokenService.name, () => {
     await service.issue({ derivationIndex: 1, leases: { access: "full" }, ttl: 30 });
     await service.issue({ derivationIndex: 2, leases: { access: "full" }, ttl: 30 });
 
-    expect(txManagerService.getDerivedWallet.mock.calls).toEqual([[1], [2]]);
+    expect(txManagerService.getDerivedWallet.mock.calls).toEqual([
+      [1, undefined],
+      [2, undefined]
+    ]);
+  });
+
+  it("issues in the name of the wallet of the seed version asked for, kept apart from the same index of another version", async () => {
+    const { service, txManagerService, addressOf } = setup();
+
+    const current = decode(await service.issue({ derivationIndex: 1, leases: { access: "full" }, ttl: 30 }));
+    const added = decode(await service.issue({ derivationIndex: 1, seedVersion: "v3", leases: { access: "full" }, ttl: 30 }));
+    await service.issue({ derivationIndex: 1, seedVersion: "v3", leases: { access: "full" }, ttl: 30 });
+
+    expect(txManagerService.getDerivedWallet.mock.calls).toEqual([
+      [1, undefined],
+      [1, "v3"]
+    ]);
+    expect(current.iss).toBe(await addressOf(1));
+    expect(added.iss).toBe(await addressOf(1, "v3"));
+    expect(added.iss).not.toBe(current.iss);
   });
 
   it("refuses access the provider token format does not allow, naming what is wrong with it", async () => {
@@ -81,11 +100,13 @@ describe(ProviderTokenService.name, () => {
   }
 
   function setup() {
-    const walletsByIndex = new Map<number, Wallet>();
-    const walletAt = (index: number) => {
-      if (!walletsByIndex.has(index)) walletsByIndex.set(index, new Wallet());
+    const walletsByIndex = new Map<string, Wallet>();
+    const walletAt = (index: number, seedVersion?: string) => {
+      const key = `${seedVersion}/${index}`;
 
-      return walletsByIndex.get(index)!;
+      if (!walletsByIndex.has(key)) walletsByIndex.set(key, new Wallet());
+
+      return walletsByIndex.get(key)!;
     };
     const txManagerService = mock<TxManagerService>();
     txManagerService.getDerivedWallet.mockImplementation(walletAt);
@@ -93,7 +114,7 @@ describe(ProviderTokenService.name, () => {
     return {
       service: new ProviderTokenService(txManagerService),
       txManagerService,
-      addressOf: (index: number) => walletAt(index).getFirstAddress()
+      addressOf: (index: number, seedVersion?: string) => walletAt(index, seedVersion).getFirstAddress()
     };
   }
 });

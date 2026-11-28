@@ -56,8 +56,26 @@ describe(TxController.name, () => {
 
     await controller.signWithFundingWallet({ data: { messages: [encodedMessage()], granteeDerivationIndex: 5 } });
 
-    expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(5);
+    expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(5, undefined);
     expect(txPolicyService.assertGrantedToManagedWallet).toHaveBeenCalledWith([decodedMessage], derivedWalletAddress);
+  });
+
+  it("checks funding grants against the managed wallet of the seed version named for the grantee", async () => {
+    const { controller, txManagerService } = setup();
+
+    await controller.signWithFundingWallet({ data: { messages: [encodedMessage()], granteeDerivationIndex: 5, granteeSeedVersion: "v3" } });
+
+    expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(5, "v3");
+  });
+
+  it("binds a derived tx to, and signs it with, the wallet of the seed version it names", async () => {
+    const { controller, txManagerService, txPolicyService, derivedWalletAddress } = setup();
+
+    await controller.signWithDerivedWallet({ data: { derivationIndex: 3, seedVersion: "v3", messages: [encodedDerivedMessage()] } });
+
+    expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(3, "v3");
+    expect(txPolicyService.assertActingOnBehalfOf).toHaveBeenCalledWith(expect.any(Array), derivedWalletAddress);
+    expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(3, expect.any(Array), undefined, "v3");
   });
 
   it("checks funding grants against no managed wallet when none is named", async () => {
@@ -103,7 +121,7 @@ describe(TxController.name, () => {
     await controller.signWithDerivedWallet({ data: { derivationIndex: 3, messages: [encodedDerivedMessage()] } });
 
     expect(txPolicyService.assertFeeGranter).toHaveBeenCalledWith(undefined, fundingWalletAddresses);
-    expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(3, expect.any(Array), undefined);
+    expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(3, expect.any(Array), undefined, undefined);
   });
 
   it("checks derived messages against the derived wallet and its fee granter", async () => {

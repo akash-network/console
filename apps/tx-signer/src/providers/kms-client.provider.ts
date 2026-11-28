@@ -4,9 +4,12 @@ import { container, type InjectionToken, instancePerContainerCachingFactory } fr
 
 import type { KmsAsymmetricKeyClient } from "@src/lib/kms-wallet/kms-signing-key";
 import { workloadIdentityOptions } from "@src/lib/kms-wallet/workload-identity-options";
+import type { KmsDecryptClient } from "@src/lib/seed-decrypter/kms-seed-decrypter";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 
-export const KMS_CLIENT: InjectionToken<KmsAsymmetricKeyClient> = Symbol("KMS_CLIENT");
+export type KmsClient = KmsAsymmetricKeyClient & KmsDecryptClient;
+
+export const KMS_CLIENT: InjectionToken<KmsClient> = Symbol("KMS_CLIENT");
 
 /** Never falls back to Google's default credential lookup: it probes files the Node permission model denies, which ends the process. */
 container.register(KMS_CLIENT, {

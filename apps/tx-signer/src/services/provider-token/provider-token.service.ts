@@ -6,7 +6,7 @@ import { inject, singleton } from "tsyringe";
 import { memoizeAsync } from "@src/caching/helpers/helpers";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
-export type ProviderTokenRequest = { derivationIndex: number; leases: JwtTokenPayload["leases"]; ttl: number };
+export type ProviderTokenRequest = { derivationIndex: number; seedVersion?: string; leases: JwtTokenPayload["leases"]; ttl: number };
 
 /** Each remembered issuer keeps one derived private key in memory. */
 const MAX_REMEMBERED_ISSUERS = 1_000;
@@ -15,8 +15,8 @@ const MAX_REMEMBERED_ISSUERS = 1_000;
 @singleton()
 export class ProviderTokenService {
   readonly #getIssuer = memoizeAsync(
-    async (derivationIndex: number) => {
-      const wallet = this.txManagerService.getDerivedWallet(derivationIndex);
+    async (derivationIndex: number, seedVersion: string | undefined) => {
+      const wallet = this.txManagerService.getDerivedWallet(derivationIndex, seedVersion);
 
       return { jwtTokenManager: new JwtTokenManager(wallet), address: await wallet.getFirstAddress() };
     },
@@ -25,8 +25,8 @@ export class ProviderTokenService {
 
   constructor(@inject(TxManagerService) private readonly txManagerService: TxManagerService) {}
 
-  async issue({ derivationIndex, leases, ttl }: ProviderTokenRequest): Promise<string> {
-    const { jwtTokenManager, address } = await this.#getIssuer(derivationIndex);
+  async issue({ derivationIndex, seedVersion, leases, ttl }: ProviderTokenRequest): Promise<string> {
+    const { jwtTokenManager, address } = await this.#getIssuer(derivationIndex, seedVersion);
     const now = Math.floor(Date.now() / 1000);
     const payload: JwtTokenPayload = {
       version: "v1",

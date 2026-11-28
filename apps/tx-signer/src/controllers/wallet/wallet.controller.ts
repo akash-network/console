@@ -8,7 +8,7 @@ import type {
   IssueProviderTokenResponse
 } from "@src/http-schemas/wallet.schema";
 import { ProviderTokenService } from "@src/services/provider-token/provider-token.service";
-import { type DerivedWalletVersion, TxManagerService } from "@src/services/tx-manager/tx-manager.service";
+import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
 @singleton()
 export class WalletController {
@@ -21,12 +21,12 @@ export class WalletController {
     return { data: { addresses: await this.txManagerService.getFundingWalletAddresses() } };
   }
 
-  async getDerivedWalletAddress(index: number, version: DerivedWalletVersion): Promise<DerivedWalletAddressResponse> {
-    return { data: { address: await this.txManagerService.getDerivedWalletAddress(index, version) } };
+  async getDerivedWalletAddress(index: number, seedVersion: string): Promise<DerivedWalletAddressResponse> {
+    return { data: { address: await this.txManagerService.getDerivedWalletAddress(index, seedVersion) } };
   }
 
-  async issueProviderToken({ data: { derivationIndex, leases, ttl } }: IssueProviderTokenRequestInput): Promise<IssueProviderTokenResponse> {
-    const token = await this.providerTokenService.issue({ derivationIndex, leases: leases as JwtTokenPayload["leases"], ttl });
+  async issueProviderToken({ data: { derivationIndex, seedVersion, leases, ttl } }: IssueProviderTokenRequestInput): Promise<IssueProviderTokenResponse> {
+    const token = await this.providerTokenService.issue({ derivationIndex, seedVersion, leases: leases as JwtTokenPayload["leases"], ttl });
 
     return { data: { token } };
   }
