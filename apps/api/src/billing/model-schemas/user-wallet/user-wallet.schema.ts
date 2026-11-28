@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, numeric, pgTable, serial, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { MAX_SEED_VERSION_LENGTH } from "@src/billing/lib/seed-version/seed-version";
 // eslint-disable-next-line import-x/no-cycle
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
@@ -17,7 +18,7 @@ export const UserWallets = pgTable(
     createdByUserId: uuid("created_by_user_id").references(() => Users.id, { onDelete: "set null" }),
     address: varchar("address").unique(),
     /** The derivation seed the address was made from at this row's id, which the signer has to be told with every request for this wallet. */
-    seedVersion: varchar("seed_version", { length: 16 }).notNull().default("v2"),
+    seedVersion: varchar("seed_version", { length: MAX_SEED_VERSION_LENGTH }).notNull().default("v2"),
     deploymentAllowance: allowance("deployment_allowance"),
     feeAllowance: allowance("fee_allowance"),
     isTrialing: boolean("trial").default(true),

@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
+import { ADDRESS_ONLY_SEED_VERSION, MAX_SEED_VERSION_LENGTH } from "@src/billing/lib/seed-version/seed-version";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 
 dotenv.config({ path: "env/.env.funding-wallet-index" });
@@ -25,6 +26,10 @@ export const envSchema = z.object({
   DERIVATION_SEED_VERSION: z
     .string()
     .regex(/^v[1-9]\d*$/, { message: "DERIVATION_SEED_VERSION must look like v2" })
+    .max(MAX_SEED_VERSION_LENGTH, { message: `DERIVATION_SEED_VERSION must fit the ${MAX_SEED_VERSION_LENGTH} characters a wallet row keeps` })
+    .refine(version => version !== ADDRESS_ONLY_SEED_VERSION, {
+      message: `DERIVATION_SEED_VERSION cannot be ${ADDRESS_ONLY_SEED_VERSION}, which the signer reads addresses from and signs nothing with`
+    })
     .default("v2"),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),
