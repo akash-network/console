@@ -1,7 +1,9 @@
+import type { JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import type { IndexedTx } from "@cosmjs/stargate";
-import type { AxiosError } from "axios";
+import type { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import axios from "axios";
+import { Err, Ok, type Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 
 import type { SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
@@ -37,6 +39,17 @@ type SignAndBroadcastDerivedRequest = {
 type SignAndBroadcastResponse = {
   data: Pick<IndexedTx, "code" | "hash" | "rawLog">;
 };
+
+export type DerivedWalletGeneration = "v1" | "v2";
+
+export type ProviderTokenRequest = {
+  derivationIndex: number;
+  leases: JwtTokenPayload["leases"];
+  ttl: number;
+};
+
+const HTTP_OK = 200;
+const HTTP_BAD_REQUEST = 400;
 
 /** 502 and 503 are excluded on purpose: the signer maps an unreachable chain node onto those, and reading them as undecided would hold funding claims over every RPC blip. */
 const UNDECIDED_UPSTREAM_STATUS = 504;
@@ -75,6 +88,52 @@ export class ExternalSignerHttpSdkService {
       }
     } satisfies SignAndBroadcastDerivedRequest);
     return response.data;
+  }
+
+  async getFundingWalletAddresses(): Promise<string[]> {
+    const response = await this.callWalletRoute<{ data: { addresses: string[] } }>({ method: "get", url: "/v1/wallets/funding" });
+
+    return response.data.data.addresses;
+  }
+
+  async getDerivedWalletAddress(derivationIndex: number, generation: DerivedWalletGeneration): Promise<string> {
+    const response = await this.callWalletRoute<{ data: { address: string } }>({
+      method: "get",
+      url: `/v1/wallets/derived/${derivationIndex}`,
+      params: { version: generation }
+    });
+
+    return response.data.data.address;
+  }
+
+  /** A token the signer refuses as malformed is the caller's to correct, so its reasons come back instead of being thrown. */
+  async issueProviderToken(request: ProviderTokenRequest): Promise<Result<string, string[]>> {
+    const response = await this.callWalletRoute<{ data: { token: string } }>({
+      method: "post",
+      url: "/v1/wallets/provider-tokens",
+      data: { data: request },
+      validateStatus: status => status === HTTP_OK || status === HTTP_BAD_REQUEST
+    });
+
+    if (response.status === HTTP_BAD_REQUEST) return Err([this.getErrorMessage(response.data, "The signer refused the provider token asked for")]);
+
+    return Ok(response.data.data.token);
+  }
+
+  private async callWalletRoute<T>(request: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    try {
+      return await axios.request<T>({
+        ...request,
+        baseURL: this.billingConfigService.get("TX_SIGNER_BASE_URL"),
+        headers: { "Content-Type": "application/json", "x-api-key": this.billingConfigService.get("TX_SIGNER_API_KEY") },
+        timeout: this.billingConfigService.get("TX_SIGNER_WALLET_REQUEST_TIMEOUT_MS")
+      });
+    } catch (error) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const message = axios.isAxiosError(error) ? this.getErrorMessage(error.response?.data, error.message) : "Unknown error";
+      this.logger.error({ event: "TX_SIGNER_WALLET_REQUEST_FAILED", path: request.url, status, message });
+      throw new Error(`The signer did not answer ${request.url}: ${message}`, { cause: error });
+    }
   }
 
   private encodeMessages(messages: readonly EncodeObject[]): SignAndBroadcastRequestMessage[] {

@@ -11,6 +11,7 @@ import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
 
 const BASE_URL = "http://tx-signer.test";
 const CLOSED_PORT_URL = "http://127.0.0.1:1";
+const API_KEY = "a".repeat(32);
 
 describe(ExternalSignerHttpSdkService.name, () => {
   it("returns the landed transaction the signer reports", async () => {
@@ -129,25 +130,142 @@ describe(ExternalSignerHttpSdkService.name, () => {
     expect((error as Error).message).toBe("Deployment closed");
   });
 
+  describe("getFundingWalletAddresses", () => {
+    it("returns the funding wallet addresses in the order the signer lists them, authenticating with the api key", async () => {
+      const { service } = setup();
+      nock(BASE_URL, { reqheaders: { "x-api-key": API_KEY } })
+        .get("/v1/wallets/funding")
+        .reply(200, { data: { addresses: ["akash1seedphrase", "akash1keyservice"] } });
+
+      await expect(service.getFundingWalletAddresses()).resolves.toEqual(["akash1seedphrase", "akash1keyservice"]);
+    });
+
+    it("fails with the path and the reason the signer gives, and logs them", async () => {
+      const { service, logger } = setup();
+      nock(BASE_URL).get("/v1/wallets/funding").reply(401, { message: "Invalid or missing API key" });
+
+      await expect(service.getFundingWalletAddresses()).rejects.toThrow("The signer did not answer /v1/wallets/funding: Invalid or missing API key");
+
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "TX_SIGNER_WALLET_REQUEST_FAILED",
+        path: "/v1/wallets/funding",
+        status: 401,
+        message: "Invalid or missing API key"
+      });
+    });
+
+    it("fails with the transport error when nothing answers", async () => {
+      const { service, logger } = setup({ baseUrl: CLOSED_PORT_URL });
+
+      await expect(service.getFundingWalletAddresses()).rejects.toThrow(/^The signer did not answer \/v1\/wallets\/funding: .*ECONNREFUSED/);
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_SIGNER_WALLET_REQUEST_FAILED", status: undefined }));
+    });
+
+    it("gives up after the wallet request timeout rather than the signing one", async () => {
+      const { service } = setup({ walletTimeoutMs: 20 });
+      nock(BASE_URL)
+        .get("/v1/wallets/funding")
+        .delay(300)
+        .reply(200, { data: { addresses: [] } });
+
+      await expect(service.getFundingWalletAddresses()).rejects.toThrow("timeout of 20ms exceeded");
+    });
+  });
+
+  describe("getDerivedWalletAddress", () => {
+    it.each(["v1", "v2"] as const)("returns the %s address of the user wallet at an index", async generation => {
+      const { service } = setup();
+      nock(BASE_URL, { reqheaders: { "x-api-key": API_KEY } })
+        .get("/v1/wallets/derived/12")
+        .query({ version: generation })
+        .reply(200, { data: { address: `akash1${generation}` } });
+
+      await expect(service.getDerivedWalletAddress(12, generation)).resolves.toBe(`akash1${generation}`);
+    });
+
+    it("fails when the signer cannot serve the address", async () => {
+      const { service } = setup();
+      nock(BASE_URL)
+        .get("/v1/wallets/derived/12")
+        .query({ version: "v1" })
+        .reply(501, { message: "This signer holds no seed for the first generation of user wallets" });
+
+      await expect(service.getDerivedWalletAddress(12, "v1")).rejects.toThrow(
+        "The signer did not answer /v1/wallets/derived/12: This signer holds no seed for the first generation of user wallets"
+      );
+    });
+  });
+
+  describe("issueProviderToken", () => {
+    it("returns the token the signer issues for the wallet, access and lifetime asked for", async () => {
+      const { service } = setup();
+      const request = { derivationIndex: 7, leases: { access: "full" as const }, ttl: 45 };
+      let requestBody: unknown;
+      nock(BASE_URL, { reqheaders: { "x-api-key": API_KEY } })
+        .post("/v1/wallets/provider-tokens", body => {
+          requestBody = body;
+          return true;
+        })
+        .reply(200, { data: { token: "signed-token" } });
+
+      const result = await service.issueProviderToken(request);
+
+      expect(result.unwrap()).toBe("signed-token");
+      expect(requestBody).toEqual({ data: request });
+    });
+
+    it("returns the reason when the signer refuses the token as malformed", async () => {
+      const { service, logger } = setup();
+      nock(BASE_URL).post("/v1/wallets/provider-tokens").reply(400, { message: "The provider token asked for is not valid: no permissions" });
+
+      const result = await service.issueProviderToken({ derivationIndex: 7, leases: { access: "full" }, ttl: 45 });
+
+      expect(result.err).toBe(true);
+      expect(result.val).toEqual(["The provider token asked for is not valid: no permissions"]);
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("returns a reason of its own when the signer refuses the token without giving one", async () => {
+      const { service } = setup();
+      nock(BASE_URL).post("/v1/wallets/provider-tokens").reply(400, "");
+
+      const result = await service.issueProviderToken({ derivationIndex: 7, leases: { access: "full" }, ttl: 45 });
+
+      expect(result.val).toEqual(["The signer refused the provider token asked for"]);
+    });
+
+    it.each([401, 500, 503])("fails when the signer answers %s", async status => {
+      const { service } = setup();
+      nock(BASE_URL).post("/v1/wallets/provider-tokens").reply(status, { message: "signer trouble" });
+
+      await expect(service.issueProviderToken({ derivationIndex: 7, leases: { access: "full" }, ttl: 45 })).rejects.toThrow(
+        "The signer did not answer /v1/wallets/provider-tokens: signer trouble"
+      );
+    });
+  });
+
   function messages() {
     return [{ typeUrl: "/akash.escrow.v1.MsgAccountDeposit", value: MsgAccountDeposit.fromPartial({}) }];
   }
 
-  function setup(input?: { timeoutMs?: number; baseUrl?: string }) {
+  function setup(input?: { timeoutMs?: number; walletTimeoutMs?: number; baseUrl?: string }) {
     const billingConfigService = mock<BillingConfigService>({
       get: vi.fn().mockImplementation(key => {
         const values = {
           TX_SIGNER_BASE_URL: input?.baseUrl ?? BASE_URL,
-          TX_SIGNER_API_KEY: "a".repeat(32),
-          TX_SIGNER_REQUEST_TIMEOUT_MS: input?.timeoutMs ?? 180_000
+          TX_SIGNER_API_KEY: API_KEY,
+          TX_SIGNER_REQUEST_TIMEOUT_MS: input?.timeoutMs ?? 180_000,
+          TX_SIGNER_WALLET_REQUEST_TIMEOUT_MS: input?.walletTimeoutMs ?? 10_000
         };
         return values[key as keyof typeof values];
       })
     });
-    const createLogger = (() => mock<ReturnType<CreateLogger>>()) as unknown as CreateLogger;
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = (() => logger) as unknown as CreateLogger;
     const registry = mock<Registry>({ encode: vi.fn().mockReturnValue(new Uint8Array([1])) });
     const service = new ExternalSignerHttpSdkService(billingConfigService, createLogger, registry);
 
-    return { service, billingConfigService };
+    return { service, billingConfigService, logger };
   }
 });
