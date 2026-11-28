@@ -1,6 +1,14 @@
 import { DepositAuthorization, MsgAccountDeposit, MsgCreateCertificate, MsgMintACT, Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { BasicAllowance, type Coin, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import {
+  BasicAllowance,
+  type Coin,
+  MsgGrant,
+  MsgGrantAllowance,
+  MsgRevoke,
+  MsgRevokeAllowance,
+  MsgSend
+} from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -83,9 +91,81 @@ describe(TxPolicyService.name, () => {
     it("rejects a message type it has no binding rule for", () => {
       const { service } = setup();
 
-      expect(() => service.assertActingOnBehalfOf([encodeObject("/cosmos.bank.v1beta1.MsgSend", {})], SIGNER_ADDRESS)).toThrow(
+      expect(() => service.assertActingOnBehalfOf([encodeObject("/cosmos.bank.v1beta1.MsgMultiSend", {})], SIGNER_ADDRESS)).toThrow(
         /may not be signed by this wallet/
       );
+    });
+
+    it("accepts a send out of the signing wallet", () => {
+      const { service } = setup();
+
+      expect(() => service.assertActingOnBehalfOf([send({ fromAddress: SIGNER_ADDRESS, toAddress: SECOND_FUNDING_ADDRESS })], SIGNER_ADDRESS)).not.toThrow();
+    });
+
+    it("rejects a send out of another account", () => {
+      const { service } = setup();
+
+      expect(() => service.assertActingOnBehalfOf([send({ fromAddress: OTHER_ADDRESS, toAddress: SECOND_FUNDING_ADDRESS })], SIGNER_ADDRESS)).toThrow(
+        new RegExp(`acts on behalf of ${OTHER_ADDRESS}, not ${SIGNER_ADDRESS}`)
+      );
+    });
+  });
+
+  describe("assertSentToAnotherFundingWallet", () => {
+    it("accepts a send from one funding wallet to another", () => {
+      const { service, logger } = setup();
+
+      expect(() =>
+        service.assertSentToAnotherFundingWallet(
+          [send({ fromAddress: SIGNER_ADDRESS, toAddress: SECOND_FUNDING_ADDRESS })],
+          [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS]
+        )
+      ).not.toThrow();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("rejects a send to an address that is not a funding wallet", () => {
+      const { service, logger } = setup();
+
+      expect(() =>
+        service.assertSentToAnotherFundingWallet([send({ fromAddress: SIGNER_ADDRESS, toAddress: OTHER_ADDRESS })], [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])
+      ).toThrow(
+        new RegExp(`Message /cosmos.bank.v1beta1.MsgSend may not be signed by this wallet: sends to ${OTHER_ADDRESS}, which is not another funding wallet`)
+      );
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_SEND_RECIPIENT_REJECTED", typeUrl: "/cosmos.bank.v1beta1.MsgSend" }));
+    });
+
+    it("rejects a send a funding wallet makes to itself", () => {
+      const { service } = setup();
+
+      expect(() =>
+        service.assertSentToAnotherFundingWallet([send({ fromAddress: SIGNER_ADDRESS, toAddress: SIGNER_ADDRESS })], [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])
+      ).toThrow(new RegExp(`sends to ${SIGNER_ADDRESS}, which is not another funding wallet`));
+    });
+
+    it("rejects a send that names no recipient", () => {
+      const { service } = setup();
+
+      expect(() => service.assertSentToAnotherFundingWallet([send({ fromAddress: SIGNER_ADDRESS })], [SIGNER_ADDRESS, ""])).toThrow(
+        /sends to an unset address, which is not another funding wallet/
+      );
+    });
+
+    it("rejects a send to a stranger that follows an allowed one", () => {
+      const { service } = setup();
+      const allowed = send({ fromAddress: SIGNER_ADDRESS, toAddress: SECOND_FUNDING_ADDRESS });
+      const refused = send({ fromAddress: SIGNER_ADDRESS, toAddress: OTHER_ADDRESS });
+
+      expect(() => service.assertSentToAnotherFundingWallet([allowed, refused], [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])).toThrow(
+        /not another funding wallet/
+      );
+    });
+
+    it("ignores the messages that send nothing", () => {
+      const { service } = setup();
+      const revoke = encodeObject(`/${MsgRevoke.$type}`, MsgRevoke.fromPartial({ granter: SIGNER_ADDRESS, grantee: OTHER_ADDRESS }));
+
+      expect(() => service.assertSentToAnotherFundingWallet([revoke], [SIGNER_ADDRESS])).not.toThrow();
     });
   });
 
@@ -286,10 +366,18 @@ describe(TxPolicyService.name, () => {
     it("rejects a message type that has no actor binding rule", () => {
       const { service, logger } = setup();
 
-      expect(() => service.resolveFundingSigner([encodeObject("/cosmos.bank.v1beta1.MsgSend", {})], [SIGNER_ADDRESS])).toThrow(
-        /Message \/cosmos.bank.v1beta1.MsgSend may not be signed by this wallet: message type has no actor binding rule/
+      expect(() => service.resolveFundingSigner([encodeObject("/cosmos.bank.v1beta1.MsgMultiSend", {})], [SIGNER_ADDRESS])).toThrow(
+        /Message \/cosmos.bank.v1beta1.MsgMultiSend may not be signed by this wallet: message type has no actor binding rule/
       );
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_ACTOR_BINDING_REJECTED", typeUrl: "/cosmos.bank.v1beta1.MsgSend" }));
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_ACTOR_BINDING_REJECTED", typeUrl: "/cosmos.bank.v1beta1.MsgMultiSend" }));
+    });
+
+    it("returns the funding wallet a send takes its coins from", () => {
+      const { service } = setup();
+
+      expect(
+        service.resolveFundingSigner([send({ fromAddress: SECOND_FUNDING_ADDRESS, toAddress: SIGNER_ADDRESS })], [SIGNER_ADDRESS, SECOND_FUNDING_ADDRESS])
+      ).toBe(SECOND_FUNDING_ADDRESS);
     });
 
     it("rejects a request without messages", () => {
@@ -301,6 +389,10 @@ describe(TxPolicyService.name, () => {
 
   function encodeObject(typeUrl: string, value: object): EncodeObject {
     return { typeUrl, value };
+  }
+
+  function send(input: { fromAddress: string; toAddress?: string }): EncodeObject {
+    return encodeObject(`/${MsgSend.$type}`, MsgSend.fromPartial({ ...input, amount: [{ denom: "uact", amount: "1000000" }] }));
   }
 
   function feeAllowance(spendLimit: Coin[], grantee = OTHER_ADDRESS): EncodeObject {

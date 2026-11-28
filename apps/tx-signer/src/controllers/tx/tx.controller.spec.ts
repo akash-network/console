@@ -79,6 +79,24 @@ describe(TxController.name, () => {
     expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
   });
 
+  it("checks that funding sends stay between the funding wallets before signing", async () => {
+    const { controller, txPolicyService, decodedMessage, fundingWalletAddresses } = setup();
+
+    await controller.signWithFundingWallet({ data: { messages: [encodedMessage()] } });
+
+    expect(txPolicyService.assertSentToAnotherFundingWallet).toHaveBeenCalledWith([decodedMessage], fundingWalletAddresses);
+  });
+
+  it("does not broadcast a funding send the policy refuses for its recipient", async () => {
+    const { controller, txManagerService, txPolicyService } = setup();
+    txPolicyService.assertSentToAnotherFundingWallet.mockImplementation(() => {
+      throw new Error("rejected recipient");
+    });
+
+    await expect(controller.signWithFundingWallet({ data: { messages: [encodedMessage()] } })).rejects.toThrow("rejected recipient");
+    expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
+  });
+
   it("signs a derived tx that names no fee options", async () => {
     const { controller, txManagerService, txPolicyService, fundingWalletAddresses } = setup();
 
